@@ -38,3 +38,11 @@ lerna-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Agent & AI instructions files
+*AGENTS.md
+*CLAUDE.md
+*ai.md
+.agents/
+.copilot/
+
