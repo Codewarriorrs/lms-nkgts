@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// === ENUMS (PENGATURAN PILIHAN ROLE) ===
+enum RoleEnum {
+  admin
+  guru
+  siswa
+}
+
+enum StatusGuruEnum {
+  praktisi
+  kandidat
+  warga_sekolah
+}
+
+// === MASTER DATA SEKOLAH DUTA ===
+model Sekolah {
+  id           Int      @id @default(autoincrement())
+  nama_sekolah String   @unique @db.VarChar(150)
+  alamat       String?  @db.Text
+  created_at   DateTime @default(now())
+  users        User[]   // Relasi: 1 Sekolah bisa memiliki banyak User
+}
+
+// === DATA PENGGUNA (RBAC) ===
+model User {
+  id            String          @id @default(uuid()) @db.Uuid
+  sekolah_id    Int?
+  sekolah       Sekolah?        @relation(fields: [sekolah_id], references: [id], onDelete: SetNull)
+  nama          String          @db.VarChar(150)
+  email         String          @unique @db.VarChar(100)
+  password_hash String          @db.VarChar(255)
+  role          RoleEnum
+  status_guru   StatusGuruEnum? // Hanya terisi secara dinamis jika role = guru
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+
+  @@map("users") // Mengubah nama tabel di database menjadi huruf kecil 'users'
+}
