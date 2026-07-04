@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -12,6 +13,7 @@ import {
   LogOut,
   X,
 } from "lucide-react";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 interface SidebarProps {
   open: boolean;
@@ -29,9 +31,15 @@ const navItems = [
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-  const handleLogout = () => {
-    alert("Keluar dari sistem...");
+  const handleLogoutClick = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  const confirmLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     router.push("/login");
   };
 
@@ -116,7 +124,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             Profil Saya
           </Link>
           <button
-            onClick={handleLogout}
+            onClick={handleLogoutClick}
             className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold text-white/60 hover:bg-danger/20 hover:text-red-300 transition-all duration-200 text-left"
           >
             <LogOut size={18} className="text-white/60" />
@@ -124,6 +132,17 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </button>
         </div>
       </aside>
+
+      <ConfirmationModal
+        isOpen={isLogoutModalOpen}
+        title="Konfirmasi Keluar"
+        message="Apakah Anda yakin ingin keluar dari platform LMS N-KGTS ini?"
+        confirmLabel="Ya, Keluar"
+        cancelLabel="Batal"
+        onConfirm={confirmLogout}
+        onCancel={() => setIsLogoutModalOpen(false)}
+        type="danger"
+      />
     </>
   );
 }
