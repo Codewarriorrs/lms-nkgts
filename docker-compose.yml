@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: lms-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: lmsuser
+      POSTGRES_PASSWORD: lmspassword123
+      POSTGRES_DB: lmsdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

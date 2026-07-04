@@ -1,378 +1,748 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, useRef } from "react";
+import {
+  BookOpen,
+  ClipboardList,
+  Briefcase,
+  FolderKanban,
+  BarChart2,
+  Award,
+  ChevronDown,
+  ChevronRight,
+  Menu,
+  X,
+  Users,
+  School,
+  GraduationCap,
+  ArrowRight,
+} from "lucide-react";
 
-/* ═══ Types ═══ */
-interface Slide {
-  year: string;
-  tag: string;
-  title: string;
-  body: string;
-  stats: [string, string][];
-  note?: string;
-  list?: string[];
+// ── DATA ─────────────────────────────────────────────────────
+
+const navLinks = [
+  { label: "Tentang Program", href: "#tentang" },
+  { label: "Modul", href: "#modul" },
+  { label: "FAQ", href: "#faq" },
+];
+
+const stats = [
+  {
+    icon: School,
+    value: "100+",
+    label: "Sekolah Terlibat",
+    color: "bg-primary/10 text-primary",
+  },
+  {
+    icon: Users,
+    value: "210",
+    label: "Siswa Peserta 2026",
+    color: "bg-accent/20 text-accent-dark",
+  },
+  {
+    icon: GraduationCap,
+    value: "17+",
+    label: "Guru Praktisi Bersertifikat",
+    color: "bg-success/10 text-success",
+  },
+  {
+    icon: Award,
+    value: "2014",
+    label: "Tahun Program Dimulai",
+    color: "bg-primary/10 text-primary",
+  },
+];
+
+const moduls = [
+  {
+    id: 1,
+    judul: "Materi Pelatihan",
+    deskripsi:
+      "Akses materi soft skill problem solving berbasis metodologi Kaizen dalam 5 topik pelatihan terstruktur.",
+    icon: BookOpen,
+    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Materi+Pelatihan",
+    tag: "Teori",
+  },
+  {
+    id: 2,
+    judul: "Soal Latihan",
+    deskripsi:
+      "Uji pemahaman materi melalui soal latihan yang tersedia setelah kamu menyelesaikan setiap topik.",
+    icon: ClipboardList,
+    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Soal+Latihan",
+    tag: "Evaluasi",
+  },
+  {
+    id: 3,
+    judul: "Tugas Praktek",
+    deskripsi:
+      "Kerjakan dan kumpulkan tugas praktek yang diberikan guru langsung melalui platform LMS.",
+    icon: Briefcase,
+    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Tugas+Praktek",
+    tag: "Praktek",
+  },
+  {
+    id: 4,
+    judul: "Project Kaizen",
+    deskripsi:
+      "Daftarkan, jalankan, dan laporkan progress project kaizen kamu secara berkala dengan template terstruktur.",
+    icon: FolderKanban,
+    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Project+Kaizen",
+    tag: "Project",
+  },
+  {
+    id: 5,
+    judul: "Penilaian & Feedback",
+    deskripsi:
+      "Terima penilaian dan feedback langsung dari Guru Praktisi Kaizen untuk setiap tugas dan project.",
+    icon: BarChart2,
+    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Penilaian",
+    tag: "Feedback",
+  },
+  {
+    id: 6,
+    judul: "Sertifikasi",
+    deskripsi:
+      "Raih Sertifikat Partisipasi Kaizen dan Sertifikat Penyelesaian Project setelah menuntaskan program.",
+    icon: Award,
+    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Sertifikasi",
+    tag: "Sertifikat",
+  },
+];
+
+const faqs = [
+  {
+    q: "Siapa yang bisa menggunakan platform ini?",
+    a: "Platform ini hanya dapat diakses oleh peserta resmi program N-KGTS 2026 — yaitu Guru Praktisi Kaizen dan Siswa SMK terpilih dari 7 sekolah peserta.",
+  },
+  {
+    q: "Bagaimana cara mendaftar akun?",
+    a: "Akun tidak dapat dibuat secara mandiri. Akun akan disiapkan oleh Admin dan kamu akan menerima kode akses atau undangan melalui email untuk mengaktifkan akunmu.",
+  },
+  {
+    q: "Apa itu Kaizen?",
+    a: "Kaizen adalah filosofi perbaikan berkelanjutan dari Toyota yang mendorong setiap orang untuk selalu mencari cara lebih baik dalam melakukan sesuatu. Program N-KGTS mengajarkan 8 langkah penyelesaian masalah berbasis Kaizen.",
+  },
+  {
+    q: "Apa saja sertifikat yang bisa diraih?",
+    a: "Ada dua sertifikat — Sertifikat Partisipasi Kaizen (untuk yang memahami 8 langkah dan tools kaizen) dan Sertifikat Penyelesaian Project (untuk yang berhasil menjalankan dan mempresentasikan project kaizen).",
+  },
+  {
+    q: "Apakah platform bisa diakses dari smartphone?",
+    a: "Ya, platform ini responsif dan dapat diakses dari browser di smartphone, tablet, maupun komputer.",
+  },
+  {
+    q: "Apakah siswa bisa langsung mengerjakan soal?",
+    a: "Tidak. Soal latihan baru bisa dikerjakan setelah siswa mengakses materi pada topik yang bersangkutan.",
+  },
+];
+
+// ── HOOKS ─────────────────────────────────────────────────────
+
+function useScrolled(threshold = 40) {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > threshold);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold]);
+  return scrolled;
 }
 
-/* ═══ Page ═══ */
-export default function Home() {
-  const [s, setS] = useState(0);
-  const [faq, setFaq] = useState<number | null>(null);
-  const [mob, setMob] = useState(false);
+function useInView(ref: React.RefObject<HTMLElement | null>) {
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    if (!ref.current) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold: 0.15 }
+    );
+    obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [ref]);
+  return inView;
+}
 
-  /* Journey slides */
-  const slides: Slide[] = [
-    {
-      year: "2022 – 2026", tag: "N-KGTS",
-      title: "N-KGTS JOURNEY",
-      body: "Program CSR PT Toyota-Astra Motor untuk memberdayakan guru & siswa SMK dalam budaya Kaizen — perbaikan berkelanjutan ala Toyota.",
-      stats: [["4 Fase", "Program"], ["CSR", "Toyota-Astra Motor"]],
-      note: "Mencetak inovator masa depan Indonesia.",
-    },
-    {
-      year: "2022", tag: "FASE 1",
-      title: "Program Dimulai",
-      body: "85 sekolah di 7 provinsi. Guru terpilih melaksanakan proyek kaizen berdampak nyata di lingkungan sekolah.",
-      stats: [["85", "Sekolah"], ["7", "Provinsi"]],
-      list: ["Fondasi karakter DEKKI ditanamkan."],
-    },
-    {
-      year: "2023", tag: "FASE 2",
-      title: "Pendampingan Hybrid",
-      body: "Praktek implementasi didampingi TAM secara online & tatap muka. Kontes Komunikasi Kaizen digelar.",
-      stats: [["Hybrid", "Webinar & Training"], ["5", "Sekolah Terbaik"]],
-      note: "5 sekolah terpilih menjadi Kandidat Ambassador.",
-    },
-    {
-      year: "2024", tag: "FASE 3",
-      title: "Sertifikasi & Ambassador",
-      body: "TAM memberikan sertifikasi kepada 5 Sekolah Ambassador dan 17 Guru Praktisi Kaizen bersertifikat.",
-      stats: [["5", "Ambassador"], ["17", "Guru Praktisi"]],
-    },
-    {
-      year: "2026", tag: "FASE 4",
-      title: "Penguatan Budaya Kaizen",
-      body: "Fokus mengasah soft-skill problem solving 210 siswa SMK, selaras kebutuhan industri & arahan Dinas Pendidikan.",
-      stats: [["210", "Siswa"], ["7", "SMK Sasaran"]],
-      note: "FGD bersama Dinas Pendidikan & DUDI.",
-    },
-    {
-      year: "2026", tag: "T-TEP",
-      title: "Ekspansi T-TEP",
-      body: "Jangkauan N-KGTS diperluas ke 2 sekolah mitra Toyota Technical Education Program unggulan.",
-      stats: [["2", "Sekolah T-TEP"], ["Mitra", "Toyota Technical"]],
-      list: ["SMK Negeri 26 Jakarta", "SMK Negeri 2 Surabaya"],
-    },
-  ];
+// ── NAVBAR ────────────────────────────────────────────────────
 
-  const next = () => setS((p) => (p + 1) % slides.length);
-  const prev = () => setS((p) => (p === 0 ? slides.length - 1 : p - 1));
-  useEffect(() => { const id = setInterval(next, 7000); return () => clearInterval(id); }, []);
-
-  /* Slide bg */
-  const slideBg = [
-    "bg-primary", "bg-[#2980b9]", "bg-primary-dark",
-    "bg-[#1a7a4c]", "bg-[#c65d1a]", "bg-accent",
-  ];
-  const slideTextDark = s === 5;
-
-  /* Nav */
-  const links = [
-    { l: "Beranda", h: "#hero" },
-    { l: "Tentang", h: "#about" },
-    { l: "Modul", h: "#modul" },
-    { l: "FAQ", h: "#faq" },
-  ];
-
-  /* FAQ */
-  const faqs = [
-    { q: "Apa itu program N-KGTS?", a: "N-KGTS (National Kaizen Goes To School) adalah program CSR PT Toyota-Astra Motor yang melatih guru dan siswa SMK dalam metodologi Kaizen — budaya perbaikan berkelanjutan ala Toyota. Program ini telah berjalan sejak 2022 dan kini memasuki Fase 4 dengan sasaran 210 siswa dari 7 SMK." },
-    { q: "Siapa saja yang menggunakan LMS ini?", a: "LMS digunakan oleh tiga peran: Admin (pengelola sistem), Guru Praktisi Kaizen bersertifikat (instruktur), dan Siswa SMK peserta program N-KGTS. Setiap peran memiliki akses dan dashboard yang berbeda." },
-    { q: "Apakah siswa bisa langsung mengerjakan soal?", a: "Tidak. Siswa harus membuka dan membaca materi teori terlebih dahulu. Soal latihan baru dapat diakses setelah materi pada topik terkait berstatus \"sudah diakses\"." },
-    { q: "Bagaimana alur Project Kaizen siswa?", a: "Siswa mendaftarkan judul proyek → Guru mereview dan menyetujui → Siswa mengisi laporan progress berkala mengikuti langkah-langkah Kaizen → Siswa mengumpulkan hasil akhir berupa dokumen PDF → Guru menilai dan memberikan feedback." },
-    { q: "Sertifikasi apa yang diperoleh setelah program?", a: "Dua jenis: Sertifikat Partisipasi Kaizen (setelah menyelesaikan materi & ujian) dan Sertifikat Penyelesaian Project (setelah mempresentasikan dan melaporkan proyek Kaizen)." },
-  ];
+function Navbar() {
+  const scrolled = useScrolled();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col bg-white text-neutral-700">
-
-      {/* ── NAVBAR ── */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-neutral-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <a href="#hero" className="flex items-center gap-2.5">
-            <img src="/logo-kaizen-lLOIwLqFwQetrVPO.avif" alt="Logo Kaizen" className="h-9 w-auto object-contain" />
-            <div className="leading-none">
-              <div className="text-[15px] font-bold text-primary tracking-tight">N-KGTS</div>
-              <div className="text-[10px] font-semibold text-neutral-400 tracking-[0.12em] uppercase">LMS Platform</div>
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        scrolled
+          ? "bg-white/70 backdrop-blur-md border-b border-neutral-100/60 shadow-sm"
+          : "bg-transparent"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <a href="/" className="flex items-center gap-2">
+            <img src="/logo-kaizen-lLOIwLqFwQetrVPO.avif" alt="Logo Kaizen" className="h-8 w-auto object-contain bg-white rounded p-0.5" />
+            <div>
+              <span
+                className={`font-extrabold text-base tracking-tight transition-colors duration-300 ${
+                  scrolled ? "text-primary-dark" : "text-white"
+                }`}
+              >
+                N-KGTS
+              </span>
+              <span
+                className={`block text-xs font-semibold tracking-widest uppercase leading-none transition-colors duration-300 ${
+                  scrolled ? "text-primary" : "text-accent"
+                }`}
+              >
+                LMS
+              </span>
             </div>
           </a>
 
-          <nav className="hidden md:flex items-center gap-1">
-            {links.map((n) => (
-              <a key={n.h} href={n.h} className="px-4 py-2 text-sm font-semibold text-neutral-700 hover:text-primary hover:bg-neutral-50 rounded-lg transition-colors">{n.l}</a>
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-6">
+            {navLinks.map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                className={`text-sm font-medium transition-colors duration-300 hover:text-accent ${
+                  scrolled ? "text-primary-dark" : "text-white/80"
+                }`}
+              >
+                {l.label}
+              </a>
             ))}
           </nav>
 
-          <div className="flex items-center gap-2.5">
-            <Link href="/login" className="hidden md:flex px-5 py-2 text-sm font-bold text-white bg-primary hover:bg-primary-light rounded-lg transition-colors">Masuk</Link>
-            <button onClick={() => setMob(!mob)} className="md:hidden p-2 text-neutral-400 hover:text-primary rounded-lg hover:bg-neutral-50 transition-colors">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                {mob ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />}
-              </svg>
-            </button>
+          {/* CTA */}
+          <div className="hidden md:flex items-center gap-3">
+            <a
+              href="/login"
+              className={`text-sm font-semibold transition-colors duration-300 ${
+                scrolled ? "text-primary-dark hover:text-primary" : "text-white/80 hover:text-white"
+              }`}
+            >
+              Masuk
+            </a>
+            <a
+              href="/login"
+              className="bg-accent text-neutral-900 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-accent-dark transition-all duration-200 hover:shadow-md"
+            >
+              Mulai Sekarang →
+            </a>
           </div>
+
+          {/* Mobile toggle */}
+          <button
+            className={`md:hidden transition-colors duration-300 ${
+              scrolled ? "text-primary-dark" : "text-white"
+            }`}
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
-        {mob && (
-          <div className="md:hidden bg-white border-t border-neutral-100 px-4 sm:px-6 pb-4">
-            {links.map((n) => <a key={n.h} href={n.h} onClick={() => setMob(false)} className="block py-2.5 text-sm font-semibold text-neutral-700 hover:text-primary">{n.l}</a>)}
-            <Link href="/login" onClick={() => setMob(false)} className="block mt-2 w-full py-2.5 text-center text-sm font-bold text-white bg-primary rounded-lg">Masuk</Link>
-          </div>
-        )}
-      </header>
+      </div>
 
-      {/* ── HERO ── */}
-      <section id="hero" className="bg-primary text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left */}
-            <div>
-              <div className="inline-block px-3 py-1 mb-6 text-[11px] font-bold tracking-widest uppercase bg-white/10 border border-white/15 rounded-full">
-                Toyota Astra Motor · Fase 4 · 2026
-              </div>
-              <h1 className="text-4xl sm:text-5xl font-extrabold leading-[1.1] tracking-tight">
-                Membentuk Budaya <span className="text-accent">Kaizen</span> di Sekolah
-              </h1>
-              <p className="mt-5 text-base sm:text-lg text-white/75 leading-[1.7] max-w-lg">
-                Platform LMS terintegrasi untuk mendukung program National Kaizen Goes To School. Mempermudah pembelajaran teori, monitoring proyek, serta pembentukan karakter DEKKI bagi siswa SMK.
-              </p>
-              <div className="flex flex-wrap gap-3 mt-8">
-                <Link href="/login" className="px-7 py-3 text-sm font-bold bg-accent text-neutral-900 hover:bg-accent-dark rounded-lg transition-colors">
-                  Masuk ke LMS
-                </Link>
-                <a href="#modul" className="px-7 py-3 text-sm font-bold text-white border border-white/25 hover:bg-white/10 rounded-lg transition-colors">
-                  Lihat Modul
-                </a>
-              </div>
-              <div className="flex gap-10 mt-10 pt-6 border-t border-white/10">
-                {[["210", "Siswa"], ["7", "SMK"], ["30+", "Guru"], ["5", "Topik"]].map(([v, l]) => (
-                  <div key={l}>
-                    <div className="text-2xl font-extrabold text-accent">{v}</div>
-                    <div className="text-[11px] text-white/50 font-semibold uppercase tracking-wide mt-0.5">{l}</div>
-                  </div>
-                ))}
-              </div>
+      {/* Mobile menu */}
+      <div
+        className={`md:hidden transition-all duration-300 overflow-hidden ${
+          mobileOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
+        } bg-white/95 backdrop-blur-md border-t border-neutral-100`}
+      >
+        <div className="px-5 py-4 space-y-3">
+          {navLinks.map((l) => (
+            <a
+              key={l.label}
+              href={l.href}
+              onClick={() => setMobileOpen(false)}
+              className="block text-sm font-medium text-primary-dark hover:text-primary transition"
+            >
+              {l.label}
+            </a>
+          ))}
+          <a
+            href="/login"
+            className="block w-full text-center bg-primary text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-primary-light transition mt-2"
+          >
+            Masuk ke Platform
+          </a>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ── HERO ─────────────────────────────────────────────────────
+
+function Hero() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
+
+  return (
+    <section className="relative min-h-screen bg-primary flex items-center overflow-hidden">
+      {/* Decorative blobs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary-light/30 blur-3xl" />
+        <div className="absolute bottom-0 -left-24 w-80 h-80 rounded-full bg-primary-dark/50 blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-5"
+          style={{ backgroundImage: "radial-gradient(circle, #F5C400 1px, transparent 1px)", backgroundSize: "40px 40px" }}
+        />
+        {/* Floating shapes */}
+        <div className="absolute top-32 right-16 w-20 h-20 rounded-2xl border-2 border-accent/30 rotate-12 animate-pulse" />
+        <div className="absolute bottom-32 right-32 w-12 h-12 rounded-full border-2 border-white/20 animate-bounce" style={{ animationDuration: "3s" }} />
+        <div className="absolute top-1/2 right-8 w-6 h-6 bg-accent/40 rounded-md rotate-45" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Text */}
+          <div className={`transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
+            <span className="inline-block bg-accent text-neutral-900 text-xs font-bold px-3 py-1 rounded-full mb-5 tracking-wide uppercase">
+              #1 Platform Pelatihan Kaizen · SMK Indonesia
+            </span>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.08] mb-5">
+              Platform Pelatihan{" "}
+              <span className="text-accent">Kaizen</span>{" "}
+              untuk Guru & Siswa SMK
+            </h1>
+            <p className="text-white/70 text-base sm:text-lg leading-relaxed mb-8 max-w-lg">
+              N-KGTS adalah program PT Toyota-Astra Motor untuk mengembangkan generasi
+              Problem Solver yang siap menghadapi Indonesia Emas 2045 melalui budaya
+              perbaikan berkelanjutan.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="/login"
+                className="bg-accent text-neutral-900 font-semibold px-6 py-3 rounded-lg hover:bg-accent-dark transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 flex items-center gap-2"
+              >
+                Mulai Belajar <ArrowRight size={16} />
+              </a>
+              <a
+                href="#tentang"
+                className="border-2 border-white/30 text-white font-semibold px-6 py-3 rounded-lg hover:border-white hover:bg-white/10 transition-all duration-200 flex items-center gap-2"
+              >
+                Pelajari Program
+              </a>
             </div>
+          </div>
 
-            {/* Right — Slider */}
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-white/5 border border-white/10">
-              <div className={`p-8 sm:p-10 min-h-[380px] sm:min-h-[430px] flex flex-col justify-between transition-colors duration-500 ${slideTextDark ? "text-neutral-900" : "text-white"} ${slideBg[s]}`}>
-                <div className="flex items-center justify-between border-b pb-3 border-current/15">
-                  <span className="text-xs font-bold tracking-widest uppercase bg-current/10 px-3 py-1 rounded-full">{slides[s].year}</span>
-                  <span className="text-[11px] font-bold tracking-widest uppercase opacity-60">{slides[s].tag}</span>
+          {/* Visual right */}
+          <div className={`hidden lg:flex justify-center items-center transition-all duration-700 delay-200 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
+            <div className="relative w-full max-w-sm">
+              {/* Main card */}
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+                    <BookOpen size={18} className="text-neutral-900" />
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-sm">Materi Aktif</p>
+                    <p className="text-white/60 text-xs">Topik 3 · Diagram Pareto</p>
+                  </div>
                 </div>
-                <div className="flex-1 flex flex-col justify-center gap-3 my-6">
-                  <h2 className={`text-2xl sm:text-3xl font-extrabold italic uppercase tracking-tight ${slideTextDark ? "text-primary-dark" : "text-accent"}`}>{slides[s].title}</h2>
-                  <p className="text-sm sm:text-base opacity-85 leading-relaxed font-medium">{slides[s].body}</p>
-                  {slides[s].list && <ul className="list-disc pl-5 text-sm font-semibold space-y-0.5 opacity-80">{slides[s].list!.map((e, i) => <li key={i}>{e}</li>)}</ul>}
-                  {slides[s].note && <p className="text-xs opacity-55 font-semibold">{slides[s].note}</p>}
+                <div className="bg-white/10 rounded-xl p-3 space-y-1.5">
+                  <div className="flex justify-between text-xs text-white/70">
+                    <span>Progress Belajar</span><span className="text-accent font-semibold">60%</span>
+                  </div>
+                  <div className="w-full bg-white/20 rounded-full h-1.5">
+                    <div className="bg-accent h-1.5 rounded-full transition-all duration-1000" style={{ width: mounted ? "60%" : "0%" }} />
+                  </div>
                 </div>
-                <div className="flex gap-8 pt-3 border-t border-current/10">
-                  {slides[s].stats.map(([v, l], i) => (
-                    <div key={i}><span className="text-2xl font-extrabold leading-none">{v}</span><span className="block text-[10px] opacity-50 mt-0.5 font-semibold uppercase tracking-wider">{l}</span></div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "Tugas Aktif", val: "2" },
+                    { label: "Project", val: "Disetujui" },
+                  ].map((i) => (
+                    <div key={i.label} className="bg-white/10 rounded-xl p-3">
+                      <p className="text-white/60 text-xs">{i.label}</p>
+                      <p className="text-white font-bold text-sm">{i.val}</p>
+                    </div>
                   ))}
                 </div>
               </div>
-              <div className="absolute bottom-3 right-3 flex gap-1.5">
-                <button onClick={prev} className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/35 text-white flex items-center justify-center transition-colors">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                </button>
-                <button onClick={next} className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/35 text-white flex items-center justify-center transition-colors">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-                </button>
+              {/* Floating badge */}
+              <div className="absolute -top-4 -right-4 bg-success text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 animate-bounce" style={{ animationDuration: "2.5s" }}>
+                <Award size={12} /> Sertifikasi Kaizen
               </div>
-              <div className="absolute bottom-3.5 left-7 hidden sm:flex gap-1">
-                {slides.map((_, i) => <button key={i} onClick={() => setS(i)} className={`h-2 rounded-full transition-all duration-300 ${s === i ? "w-5 bg-white" : "w-2 bg-white/30"}`} />)}
+              {/* Floating stat */}
+              <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-xl px-4 py-2.5 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Users size={14} className="text-primary" />
+                </div>
+                <div>
+                  <p className="text-neutral-900 font-extrabold text-sm leading-none">210+</p>
+                  <p className="text-neutral-400 text-xs">Siswa Aktif</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* ── ABOUT — Asymmetric 2-col ── */}
-      <section id="about" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 items-start">
-          {/* Left text (3 cols) */}
-          <div className="lg:col-span-3">
-            <p className="text-xs font-semibold tracking-widest uppercase text-primary mb-2">Tentang Program</p>
-            <h2 className="text-3xl font-bold text-neutral-900 leading-tight">
-              National Kaizen Goes To School
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/40 animate-bounce" style={{ animationDuration: "2s" }}>
+          <span className="text-xs font-medium">Scroll</span>
+          <ChevronDown size={16} />
+        </div>
+      </div>
+
+      {/* Bottom wave */}
+      <div className="absolute bottom-0 left-0 right-0">
+        <svg viewBox="0 0 1440 60" className="w-full fill-neutral-50" preserveAspectRatio="none">
+          <path d="M0,30 C360,60 1080,0 1440,30 L1440,60 L0,60 Z" />
+        </svg>
+      </div>
+    </section>
+  );
+}
+
+// ── STATS ─────────────────────────────────────────────────────
+
+function StatsSection() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref);
+
+  return (
+    <section ref={ref} className="bg-neutral-50 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.map((s, i) => (
+            <div
+              key={s.label}
+              className={`bg-white rounded-2xl shadow-md p-5 flex flex-col items-center text-center
+                hover:shadow-xl hover:-translate-y-1 transition-all duration-300
+                ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              style={{ transitionDelay: `${i * 100}ms` }}
+            >
+              <div className={`w-12 h-12 rounded-full ${s.color} flex items-center justify-center mb-3`}>
+                <s.icon size={22} />
+              </div>
+              <p className="text-3xl font-extrabold text-neutral-900 leading-none">{s.value}</p>
+              <p className="text-neutral-400 text-xs font-medium mt-1.5 leading-snug">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── TENTANG ───────────────────────────────────────────────────
+
+function TentangSection() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref);
+
+  const langkah = [
+    "Perjelas Masalah", "Temukan Titik Kejadian", "Penentuan Target",
+    "Pencarian Penyebab", "Rencana Tindakan", "Pelaksanaan Tindakan",
+    "Evaluasi Hasil", "Pembakuan",
+  ];
+
+  return (
+    <section id="tentang" className="bg-white py-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div
+          ref={ref}
+          className={`grid grid-cols-1 lg:grid-cols-2 gap-16 items-center transition-all duration-700 ${
+            inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
+          {/* Text */}
+          <div>
+            <span className="inline-block bg-accent text-neutral-900 text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-wide uppercase">
+              Tentang Program
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 leading-tight mb-4">
+              Membangun Generasi{" "}
+              <span className="text-primary">Problem Solver</span>
             </h2>
-            <p className="mt-4 text-base text-neutral-700 leading-[1.7]">
-              N-KGTS merupakan inisiatif CSR unggulan <strong className="text-neutral-900">PT Toyota-Astra Motor</strong> yang melatih guru dan siswa SMK dalam metodologi Kaizen — budaya perbaikan berkelanjutan ala Toyota. Pada Fase 4 tahun 2026, program ini berfokus pada penguatan budaya kaizen secara masif dengan sasaran <strong className="text-neutral-900">210 siswa dari 7 SMK terpilih</strong>.
+            <p className="text-neutral-700 text-base leading-relaxed mb-4">
+              Program National Kaizen Goes To School (N-KGTS) adalah inisiatif PT Toyota-Astra Motor
+              sebagai bagian dari program pembangunan berkelanjutan di bidang pendidikan.
             </p>
-            <p className="mt-3 text-base text-neutral-700 leading-[1.7]">
-              Siswa dipandu menguasai 8 Langkah Kaizen Toyota dan tools standar industri (Checksheet, Grafik, Diagram Pareto, Diagram Fishbone) untuk menyelesaikan masalah nyata di lingkungan sekolah. Setiap siswa juga dibekali pembentukan karakter <strong className="text-neutral-900">DEKKI</strong> — Disiplin, Empati, Kritis, Kreatif, Inovatif.
+            <p className="text-neutral-700 text-base leading-relaxed mb-6">
+              Program ini menularkan praktik terbaik Toyota dalam penerapan budaya Kaizen kepada guru
+              dan siswa SMK, untuk membentuk generasi yang memiliki karakter{" "}
+              <span className="font-semibold text-primary">DEKKI</span> — Disiplin, Empati, Kritis,
+              Kreatif, dan Inovatif.
             </p>
-            <div className="flex flex-wrap gap-2 mt-6">
-              {["Disiplin", "Empati", "Kritis", "Kreatif", "Inovatif"].map((c) => (
-                <span key={c} className="text-xs font-semibold px-3 py-1 bg-primary/8 text-primary rounded-full">{c}</span>
+            <a
+              href="/login"
+              className="inline-flex items-center gap-2 bg-primary text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-primary-light transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+            >
+              Masuk ke Platform <ChevronRight size={16} />
+            </a>
+          </div>
+
+          {/* 8 Langkah visual */}
+          <div>
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-4">
+              8 Langkah Penyelesaian Masalah Kaizen
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {langkah.map((l, i) => (
+                <div
+                  key={l}
+                  className="flex items-center gap-3 bg-neutral-50 rounded-xl p-3 hover:bg-primary/5 transition-colors duration-200 group"
+                  style={{ transitionDelay: `${i * 60}ms` }}
+                >
+                  <div className="w-7 h-7 rounded-lg bg-primary text-white text-xs font-extrabold flex items-center justify-center flex-shrink-0 group-hover:bg-accent group-hover:text-neutral-900 transition-colors duration-200">
+                    {i + 1}
+                  </div>
+                  <span className="text-xs font-medium text-neutral-700 leading-snug">{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── MODUL ─────────────────────────────────────────────────────
+
+function ModulSection() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref);
+
+  return (
+    <section id="modul" className="bg-neutral-50 py-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <span className="inline-block bg-accent text-neutral-900 text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-wide uppercase">
+            Fitur Platform
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 leading-tight">
+            Apa yang Bisa Kamu Lakukan
+            <br />
+            <span className="text-primary">di Platform Ini?</span>
+          </h2>
+          <p className="text-neutral-400 text-sm mt-3 max-w-lg mx-auto">
+            Enam modul terstruktur untuk mendukung seluruh proses pelatihan Kaizen dari awal hingga sertifikasi.
+          </p>
+        </div>
+
+        <div
+          ref={ref}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          {moduls.map((m, i) => (
+            <div
+              key={m.id}
+              className={`bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer
+                ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+              style={{ transitionDelay: `${i * 80}ms` }}
+            >
+              {/* Image */}
+              <div className="relative overflow-hidden">
+                <img
+                  src={m.img}
+                  alt={m.judul}
+                  className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute top-3 left-3">
+                  <span className="bg-white text-primary text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+                    {m.tag}
+                  </span>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
+                    <m.icon size={16} className="text-primary group-hover:text-white transition-colors duration-300" />
+                  </div>
+                  <h3 className="text-neutral-900 font-bold text-sm">{m.judul}</h3>
+                </div>
+                <p className="text-neutral-400 text-xs leading-relaxed">{m.deskripsi}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── CTA BANNER ────────────────────────────────────────────────
+
+function CTABanner() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref);
+
+  return (
+    <section className="bg-white py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div
+          ref={ref}
+          className={`bg-primary rounded-3xl p-10 text-center relative overflow-hidden transition-all duration-700 ${
+            inView ? "opacity-100 scale-100" : "opacity-0 scale-95"
+          }`}
+        >
+          {/* Decorative */}
+          <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-primary-light/30 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-primary-dark/40 blur-3xl pointer-events-none" />
+
+          <div className="relative z-10">
+            <span className="inline-block bg-accent text-neutral-900 text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-wide uppercase">
+              Sudah Punya Akun?
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+              Yuk Mulai Belajar Hari Ini
+            </h2>
+            <p className="text-white/70 text-sm max-w-md mx-auto mb-6">
+              Akses materi, kerjakan tugas, dan jalankan project kaizen kamu bersama guru dan teman dari seluruh Indonesia.
+            </p>
+            <a
+              href="/login"
+              className="inline-flex items-center gap-2 bg-accent text-neutral-900 font-semibold px-7 py-3 rounded-xl hover:bg-accent-dark transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"
+            >
+              Masuk ke Platform <ArrowRight size={16} />
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── FAQ ───────────────────────────────────────────────────────
+
+function FAQSection() {
+  const [open, setOpen] = useState<number | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref);
+
+  return (
+    <section id="faq" className="bg-neutral-50 py-20">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <span className="inline-block bg-accent text-neutral-900 text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-wide uppercase">
+            FAQ
+          </span>
+          <h2 className="text-3xl font-extrabold text-neutral-900">
+            Pertanyaan yang Sering Diajukan
+          </h2>
+        </div>
+
+        <div ref={ref} className="space-y-3">
+          {faqs.map((f, i) => (
+            <div
+              key={i}
+              className={`bg-white rounded-2xl shadow-sm overflow-hidden transition-all duration-500 ${
+                inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+              }`}
+              style={{ transitionDelay: `${i * 70}ms` }}
+            >
+              <button
+                className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left group"
+                onClick={() => setOpen(open === i ? null : i)}
+              >
+                <span
+                  className={`text-sm font-semibold transition-colors duration-200 ${
+                    open === i ? "text-primary" : "text-neutral-900 group-hover:text-primary"
+                  }`}
+                >
+                  {f.q}
+                </span>
+                <ChevronDown
+                  size={16}
+                  className={`flex-shrink-0 transition-all duration-300 ${
+                    open === i ? "rotate-180 text-primary" : "text-neutral-400"
+                  }`}
+                />
+              </button>
+              <div
+                className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                  open === i ? "max-h-40 pb-4" : "max-h-0"
+                }`}
+              >
+                <div className="px-5 border-l-4 border-accent ml-5">
+                  <p className="text-neutral-700 text-sm leading-relaxed">{f.a}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── FOOTER ────────────────────────────────────────────────────
+
+function Footer() {
+  return (
+    <footer className="bg-primary-dark text-white py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+          {/* Logo & tagline */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <img src="/logo-kaizen-lLOIwLqFwQetrVPO.avif" alt="Logo Kaizen" className="h-8 w-auto object-contain bg-white rounded p-0.5" />
+              <span className="font-extrabold text-lg tracking-tight">N-KGTS LMS</span>
+            </div>
+            <p className="text-white/60 text-sm leading-relaxed">
+              Platform resmi program National Kaizen Goes To School oleh PT Toyota-Astra Motor.
+            </p>
+          </div>
+
+          {/* Nav */}
+          <div>
+            <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-4">Navigasi</p>
+            <div className="space-y-2.5">
+              {["Tentang Program", "Modul", "FAQ", "Masuk"].map((l) => (
+                <a
+                  key={l}
+                  href={l === "Masuk" ? "/login" : `#${l.toLowerCase().replace(" ", "")}`}
+                  className="block text-sm text-white/60 hover:text-accent transition-colors duration-200"
+                >
+                  {l}
+                </a>
               ))}
             </div>
           </div>
 
-          {/* Right cards (2 cols) */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            <div className="p-6 rounded-2xl bg-neutral-50 border border-neutral-100">
-              <div className="text-sm font-bold text-neutral-900 mb-1">Kaizen Tools yang Diajarkan</div>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {["Checksheet", "Grafik", "Diagram Pareto", "Diagram Fishbone"].map((t) => (
-                  <span key={t} className="text-xs font-semibold px-2.5 py-1 bg-accent/12 text-accent-dark rounded-full">{t}</span>
-                ))}
-              </div>
-            </div>
-            <div className="p-6 rounded-2xl bg-neutral-50 border border-neutral-100">
-              <div className="text-sm font-bold text-neutral-900 mb-1">Sertifikasi Siswa</div>
-              <ul className="mt-2 space-y-2 text-sm text-neutral-700 leading-relaxed">
-                <li className="flex gap-2 items-start">
-                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                  <span><strong>Sertifikat Partisipasi</strong> — memahami 8 langkah + tools kaizen</span>
-                </li>
-                <li className="flex gap-2 items-start">
-                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-accent-dark shrink-0" />
-                  <span><strong>Sertifikat Penyelesaian Project</strong> — presentasi & laporan proyek</span>
-                </li>
-              </ul>
-            </div>
-            <div className="p-6 rounded-2xl bg-primary text-white">
-              <div className="text-sm font-bold mb-1">Skala Program</div>
-              <div className="grid grid-cols-2 gap-4 mt-3">
-                {[["7", "SMK"], ["210", "Siswa"], ["17+", "Guru"], ["5", "Topik"]].map(([v, l]) => (
-                  <div key={l}>
-                    <div className="text-xl font-extrabold text-accent">{v}</div>
-                    <div className="text-[11px] text-white/60 font-semibold uppercase tracking-wide">{l}</div>
-                  </div>
-                ))}
-              </div>
+          {/* Partner */}
+          <div>
+            <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-4">Mitra Program</p>
+            <div className="bg-white/10 rounded-xl p-4 inline-block">
+              <p className="text-white font-bold text-sm">PT Toyota-Astra Motor</p>
+              <p className="text-white/50 text-xs mt-0.5">Toyota Berbagi · Bersama Membangun Indonesia</p>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* ── MODUL (6 cards, varied layout) ── */}
-      <section id="modul" className="bg-neutral-50 border-y border-neutral-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <p className="text-xs font-semibold tracking-widest uppercase text-primary mb-2">Fitur Utama</p>
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
-            <h2 className="text-3xl font-bold text-neutral-900">Modul Sistem LMS</h2>
-            <p className="text-sm text-neutral-400 max-w-sm">6 modul terintegrasi untuk mendukung administrasi sekolah & proses belajar-mengajar.</p>
-          </div>
-
-          {/* Top row — 2 large cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-            {[
-              { title: "Manajemen Pengguna & Sekolah", desc: "Admin dapat mengelola akun Guru & Siswa, mendaftarkan data sekolah, serta melakukan import massal pengguna melalui file Excel/CSV secara instan.", accent: "border-t-primary" },
-              { title: "Materi Teori & Latihan Soal", desc: "Guru mengupload modul PDF dan menyematkan video YouTube. Siswa mengakses materi lalu mengerjakan latihan soal pilihan ganda & essay — dengan sistem tracking otomatis.", accent: "border-t-primary-light" },
-            ].map((m) => (
-              <div key={m.title} className={`p-8 rounded-2xl bg-white border border-neutral-100 shadow-md border-t-[3px] ${m.accent}`}>
-                <h3 className="text-lg font-semibold text-neutral-900 mb-2">{m.title}</h3>
-                <p className="text-sm text-neutral-700 leading-[1.6]">{m.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Bottom row — 4 smaller cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[
-              { title: "Tugas Praktek", desc: "Siswa mengumpulkan hasil praktek (PDF/gambar). Guru memberikan penilaian angka + feedback tertulis.", accent: "bg-primary" },
-              { title: "Project Kaizen", desc: "Registrasi judul project, laporan progress berkala mengikuti langkah Kaizen, dan pengumpulan dokumen final.", accent: "bg-accent-dark" },
-              { title: "Penilaian & Rekap", desc: "Nilai otomatis untuk pilihan ganda. Essay dinilai guru. Ekspor rekapitulasi ke Excel.", accent: "bg-primary-light" },
-              { title: "Dashboard & Monitoring", desc: "Dashboard per role. Guru memonitor progress siswa. Admin melihat rekap lintas sekolah.", accent: "bg-[#1a7a4c]" },
-            ].map((m) => (
-              <div key={m.title} className="p-6 rounded-2xl bg-white border border-neutral-100 shadow-md">
-                <div className={`w-8 h-1 rounded-full ${m.accent} mb-4`} />
-                <h3 className="text-base font-semibold text-neutral-900 mb-1.5">{m.title}</h3>
-                <p className="text-sm text-neutral-700 leading-[1.6]">{m.desc}</p>
-              </div>
-            ))}
-          </div>
+        <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-white/40 text-xs">
+            © 2026 PT Kode Solusi. Dikembangkan untuk PT Toyota-Astra Motor.
+          </p>
+          <p className="text-white/40 text-xs">
+            National Kaizen Goes To School · Fase 4 · 2026
+          </p>
         </div>
-      </section>
+      </div>
+    </footer>
+  );
+}
 
-      {/* ── CTA ── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="rounded-2xl bg-neutral-900 text-white p-8 sm:p-12 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary" />
-          <div className="max-w-xl">
-            <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-3">Siap untuk memulai?</h2>
-            <p className="text-sm text-white/60 leading-[1.7] mb-6">
-              Masuk ke platform LMS untuk mengakses materi teori, mengerjakan latihan soal, mengelola tugas praktek, dan memulai proyek Kaizen Anda.
-            </p>
-            <Link href="/login" className="inline-block px-7 py-3 text-sm font-bold bg-accent text-neutral-900 hover:bg-accent-dark rounded-lg transition-colors">
-              Masuk ke LMS
-            </Link>
-          </div>
-        </div>
-      </section>
+// ── MAIN ──────────────────────────────────────────────────────
 
-      {/* ── FAQ ── */}
-      <section id="faq" className="bg-neutral-50 border-y border-neutral-100">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <p className="text-xs font-semibold tracking-widest uppercase text-primary mb-2">Bantuan</p>
-          <h2 className="text-3xl font-bold text-neutral-900 mb-10">Pertanyaan Umum</h2>
-
-          <div className="flex flex-col gap-3">
-            {faqs.map((f, i) => (
-              <div key={i} className="rounded-2xl bg-white border border-neutral-100 overflow-hidden">
-                <button onClick={() => setFaq(faq === i ? null : i)}
-                  className="w-full px-6 py-5 text-left text-[15px] font-semibold text-neutral-900 flex items-center justify-between gap-4 hover:bg-neutral-50 transition-colors">
-                  <span>{f.q}</span>
-                  <svg className={`w-4 h-4 text-neutral-400 shrink-0 transition-transform duration-200 ${faq === i ? "rotate-180" : ""}`}
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                <div className={`transition-all duration-300 ease-in-out overflow-hidden ${faq === i ? "max-h-60" : "max-h-0"}`}>
-                  <p className="px-6 pb-5 text-sm text-neutral-700 leading-[1.7]">{f.a}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer className="bg-primary-dark text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-10">
-          <div className="flex flex-col lg:flex-row justify-between gap-10 pb-10 border-b border-white/10">
-            <div className="max-w-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <img src="/logo-kaizen-lLOIwLqFwQetrVPO.avif" alt="Logo Kaizen" className="h-8 w-auto object-contain bg-white rounded p-0.5" />
-                <span className="text-lg font-bold tracking-tight">N-KGTS LMS</span>
-              </div>
-              <p className="text-xs text-white/40 leading-relaxed">Platform pembelajaran digital untuk guru & siswa SMK dalam menguasai budaya perbaikan berkelanjutan ala Toyota.</p>
-              <div className="flex gap-5 text-sm font-semibold text-white/50 mt-4">
-                <a href="#faq" className="hover:text-accent transition-colors">FAQ</a>
-                <a href="#about" className="hover:text-accent transition-colors">Kontak</a>
-                <a href="#modul" className="hover:text-accent transition-colors">Dukungan</a>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 lg:self-end">
-              <div className="px-5 py-3 rounded-xl bg-white/5 border border-white/10">
-                <span className="text-[10px] text-white/35 font-bold uppercase tracking-wider">CSR Partner</span>
-                <p className="text-sm font-bold mt-0.5">PT Toyota-Astra Motor</p>
-              </div>
-              <div className="px-5 py-3 rounded-xl bg-white/5 border border-white/10">
-                <span className="text-[10px] text-white/35 font-bold uppercase tracking-wider">Developed By</span>
-                <p className="text-sm font-bold mt-0.5">PT Kode Solusi</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center justify-between pt-6 text-[11px] text-white/25 gap-3">
-            <p>© 2026 N-KGTS LMS. All rights reserved.</p>
-            <p>Kerja Praktik</p>
-          </div>
-        </div>
-      </footer>
-    </div>
+export default function LandingPage() {
+  return (
+    <main className="font-sans">
+      <Navbar />
+      <Hero />
+      <StatsSection />
+      <TentangSection />
+      <ModulSection />
+      <CTABanner />
+      <FAQSection />
+      <Footer />
+    </main>
   );
 }

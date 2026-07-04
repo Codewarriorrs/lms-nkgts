@@ -2,21 +2,46 @@
 
 import { useState, FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 export function LoginForm() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
     setLoading(true);
-    // TODO: replace with actual API call
-    setTimeout(() => {
-      alert("Login berhasil — redirect ke dashboard...");
+    setError(null);
+
+    try {
+      const response = await fetch("http://localhost:3001/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Email atau password salah");
+      }
+
+      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
+
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Terjadi kesalahan sistem, silakan coba lagi.");
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -57,6 +82,15 @@ export function LoginForm() {
       {/* Right panel — form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12 bg-white">
         <div className="w-full max-w-sm">
+          {/* Back to Home Link */}
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-400 hover:text-primary transition-colors duration-200 mb-6"
+          >
+            <ArrowLeft size={14} />
+            Kembali ke Beranda
+          </Link>
+
           {/* Mobile logo */}
           <Link href="/" className="lg:hidden flex items-center gap-2.5 mb-10">
             <img src="/logo-kaizen-lLOIwLqFwQetrVPO.avif" alt="Logo Kaizen" className="h-9 w-auto object-contain" />
@@ -68,6 +102,12 @@ export function LoginForm() {
 
           <h1 className="text-2xl font-bold text-neutral-900 mb-1">Masuk</h1>
           <p className="text-sm text-neutral-400 mb-8">Gunakan akun yang telah didaftarkan oleh Admin sekolah Anda.</p>
+
+          {error && (
+            <div className="mb-5 p-4 rounded-xl bg-danger/10 border border-danger/20 text-xs font-semibold text-danger leading-relaxed">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div>
