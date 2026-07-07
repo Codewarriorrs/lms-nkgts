@@ -276,7 +276,6 @@ export class AppController implements OnModuleInit {
       console.error('Failed to seed training materials:', error);
     }
   }
-  }
 
   private async seedUsersIfEmpty() {
     try {
