@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Circle, BookOpen, BrainCircuit, Trophy } from "lucide-react";
 import materiModules, { MateriModule } from "@/lib/materi-data";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { API_URL } from "@/lib/api";
 
 interface ModuleProgressState {
   completed: boolean;
@@ -46,9 +47,18 @@ export default function MateriDetailPage() {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
 
+  // Menyimpan progres terakhir yang berhasil disimpan ke database untuk mencegah request berlebih
+  const lastSavedProgressRef = useRef<number>(0);
+
+  // 1. Memuat progres awal (gabungan localStorage + Database)
   useEffect(() => {
-    setProgress(getInitialProgress(module.id));
-    setSubmitted(Boolean(getInitialProgress(module.id).score !== null));
+    // Set awal dari local storage
+    const initial = getInitialProgress(module.id);
+    setProgress(initial);
+    setSubmitted(Boolean(initial.score !== null));
+    lastSavedProgressRef.current = initial.scrollProgress;
+
+    // Load jawaban kuis dari local storage
     const savedAnswers = window.localStorage.getItem(`${STORAGE_KEY}-answers-${module.id}`);
     if (savedAnswers) {
       try {
@@ -59,8 +69,42 @@ export default function MateriDetailPage() {
     } else {
       setAnswers({});
     }
+
+    // Ambil progres ter-update dari database
+    const fetchDbProgress = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch(`${API_URL}/materi/progress`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const dbProgress = data[module.id.toString()];
+          if (dbProgress) {
+            setProgress((current) => {
+              const updated = {
+                ...current,
+                completed: dbProgress.completed || current.completed,
+                scrollProgress: Math.max(current.scrollProgress, dbProgress.scrollProgress),
+                score: dbProgress.score ?? current.score,
+              };
+              lastSavedProgressRef.current = updated.scrollProgress;
+              return updated;
+            });
+            if (dbProgress.score !== null) {
+              setSubmitted(true);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Gagal memuat progres awal dari database:", err);
+      }
+    };
+    fetchDbProgress();
   }, [module.id]);
 
+  // 2. Event Listener untuk Scroll
   useEffect(() => {
     const container = document.getElementById("module-content");
     if (!container) return;
@@ -91,28 +135,81 @@ export default function MateriDetailPage() {
     };
   }, [module.id, progress.scrollTop]);
 
+  // Fungsi helper untuk menyimpan progres membaca ke database
+  const saveProgressToDb = async (percentage: number, isCompleted: boolean) => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      await fetch(`${API_URL}/materi/progress`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          modul_teori_id: module.id,
+          scroll_progress: percentage,
+          status: isCompleted ? "selesai" : "sedang_dibaca"
+        })
+      });
+    } catch (err) {
+      console.error("Gagal sinkronisasi progres ke database:", err);
+    }
+  };
+
+  // 3. Efek Sinkronisasi Progres ke LocalStorage & Database (Hanya jika perubahan >= 5%)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Simpan ke localStorage
     const saved = window.localStorage.getItem(STORAGE_KEY);
     const parsed = saved ? JSON.parse(saved) : {};
     parsed[module.id] = progress;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+
+    // Kirim ke database hanya jika ada kenaikan progres >= 5% atau selesai 100%
+    const diff = progress.scrollProgress - lastSavedProgressRef.current;
+    if (diff >= 5 || (progress.scrollProgress === 100 && lastSavedProgressRef.current < 100)) {
+      lastSavedProgressRef.current = progress.scrollProgress;
+      saveProgressToDb(progress.scrollProgress, progress.completed);
+    }
   }, [module.id, progress]);
 
+  // 4. Efek Penyimpanan Jawaban Kuis ke LocalStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(`${STORAGE_KEY}-answers-${module.id}`, JSON.stringify(answers));
   }, [answers, module.id]);
 
-  const handleSubmit = () => {
+  // 5. Submit Kuis
+  const handleSubmit = async () => {
     const correctAnswers = module.quiz.reduce((count, item, index) => {
       return count + (answers[index] === item.correct ? 1 : 0);
     }, 0);
     const score = Math.round((correctAnswers / module.quiz.length) * 100);
     const completed = score >= 70;
+
     setProgress((current) => ({ ...current, completed, score }));
     setSubmitted(true);
+
+    // Kirim nilai kuis ke database
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      await fetch(`${API_URL}/materi/quiz`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          modul_teori_id: module.id,
+          score
+        })
+      });
+    } catch (err) {
+      console.error("Gagal mengirimkan nilai kuis ke database:", err);
+    }
   };
 
   const completionLabel = progress.completed ? "Selesai" : "Belum selesai";

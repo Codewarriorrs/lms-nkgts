@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BookOpen, CheckCircle2, Circle, Sparkles } from "lucide-react";
 import materiModules from "@/lib/materi-data";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { API_URL } from "@/lib/api";
 
 interface ModuleProgressState {
   completed: boolean;
@@ -31,7 +32,28 @@ export default function MateriPage() {
   const [progressMap, setProgressMap] = useState<Record<string, ModuleProgressState>>({});
 
   useEffect(() => {
-    setProgressMap(getAllProgress());
+    const fetchProgress = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setProgressMap(getAllProgress());
+          return;
+        }
+        const res = await fetch(`${API_URL}/materi/progress`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProgressMap(data);
+        } else {
+          setProgressMap(getAllProgress());
+        }
+      } catch (err) {
+        console.error("Gagal mengambil progres dari database, menggunakan lokal:", err);
+        setProgressMap(getAllProgress());
+      }
+    };
+    fetchProgress();
   }, []);
 
   const modules = useMemo(() => {
