@@ -44,7 +44,7 @@ export default function DashboardLayout({
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Topbar Component */}
-        <Topbar onMenuClick={handleMenuClick} user={currentUser} />
+        <Topbar onMenuClick={handleMenuClick} collapsed={sidebarCollapsed} user={currentUser} />
 
         {/* Dynamic Page Content */}
         <div className="flex-1 overflow-y-auto bg-neutral-50/50">

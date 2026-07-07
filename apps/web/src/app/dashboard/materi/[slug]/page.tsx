@@ -233,9 +233,9 @@ export default function MateriDetailPage() {
     parsed[dbModule.id] = progress;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
 
-    // Kirim ke database hanya jika ada kenaikan progres >= 5% atau selesai 100%
+    // Kirim ke database hanya jika ada kenaikan progres >= 20% atau selesai 100%
     const diff = progress.scrollProgress - lastSavedProgressRef.current;
-    if (diff >= 5 || (progress.scrollProgress === 100 && lastSavedProgressRef.current < 100)) {
+    if (diff >= 20 || (progress.scrollProgress === 100 && lastSavedProgressRef.current < 100)) {
       lastSavedProgressRef.current = progress.scrollProgress;
       saveProgressToDb(progress.scrollProgress, progress.completed);
     }
@@ -375,7 +375,7 @@ export default function MateriDetailPage() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 text-xs font-bold transition-all shadow-sm"
           >
-            <FileText size={16} /> Lihat File Asli (PPT/PDF)
+            <FileText size={16} /> Download PPT/PDF Asli
           </a>
 
           {/* Tombol Edit khusus Admin */}
@@ -580,16 +580,45 @@ export default function MateriDetailPage() {
                           <div className="mt-4 space-y-2.5">
                             {options.map((option, optionIndex) => {
                               const selected = answers[quizIndex] === optionIndex;
+                              const isCorrectAnswer = optionIndex === quiz.jawaban_benar;
+
+                              let itemStyle = "border-neutral-200 text-neutral-700 bg-neutral-50/10";
+                              if (selected) {
+                                itemStyle = "border-primary bg-primary/5 text-primary";
+                              }
+
+                              if (submitted) {
+                                if (isCorrectAnswer) {
+                                  itemStyle = "border-success bg-success/5 text-success font-bold";
+                                } else if (selected) {
+                                  itemStyle = "border-danger bg-danger/5 text-danger";
+                                } else {
+                                  itemStyle = "border-neutral-200 text-neutral-400 opacity-60";
+                                }
+                              }
+
                               return (
-                                <label key={`${quiz.id}-${optionIndex}`} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 hover:border-primary/45 ${selected ? "border-primary bg-primary/5 text-primary" : "border-neutral-200 text-neutral-700 bg-neutral-50/10"}`}>
+                                <label
+                                  key={`${quiz.id}-${optionIndex}`}
+                                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+                                    !submitted ? "cursor-pointer hover:border-primary/45" : "cursor-default"
+                                  } ${itemStyle}`}
+                                >
                                   <input
                                     type="radio"
                                     name={`quiz-${quizIndex}`}
                                     checked={selected}
+                                    disabled={submitted}
                                     onChange={() => setAnswers((current) => ({ ...current, [quizIndex]: optionIndex }))}
                                     className="h-4 w-4 accent-primary"
                                   />
-                                  <span>{option}</span>
+                                  <span className="flex-1">{option}</span>
+                                  {submitted && isCorrectAnswer && (
+                                    <span className="text-success text-xs font-bold bg-success/10 px-2 py-0.5 rounded flex-shrink-0">Benar</span>
+                                  )}
+                                  {submitted && selected && !isCorrectAnswer && (
+                                    <span className="text-danger text-xs font-bold bg-danger/10 px-2 py-0.5 rounded flex-shrink-0">Salah</span>
+                                  )}
                                 </label>
                               );
                             })}
@@ -652,6 +681,19 @@ export default function MateriDetailPage() {
               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Skor Kuis Tertinggi</p>
               <p className="mt-1 font-semibold text-neutral-800">{progress.score !== null ? `${progress.score}%` : "Belum Mengerjakan"}</p>
             </div>
+          </div>
+
+          {/* Download Original File Button in Sidebar */}
+          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4 space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Berkas Asli</p>
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold transition-all shadow-sm"
+            >
+              <FileText size={15} /> Download PPT/PDF Asli
+            </a>
           </div>
 
           <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">

@@ -89,7 +89,7 @@ export function Sidebar({ open, collapsed = false, onClose }: SidebarProps) {
         {/* Logo and Brand */}
         <div className={`px-6 py-5 flex items-center border-b border-white/10 ${collapsed ? "justify-center px-2" : "justify-between"}`}>
           <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
-            <img src="/logo-nkgts.png" alt="Logo Kaizen" className="h-12 w-auto object-contain rounded p-0.5 flex-shrink-0" />
+            <img src="/logo-nkgts.png" alt="Logo Kaizen" className="h-12 w-auto object-contain rounded p-0.5 flex-shrink-0 transition-all duration-500 hover:rotate-6 hover:scale-110 active:scale-95 cursor-pointer" />
             {!collapsed && (
               <div className="leading-none text-white transition-all duration-200 overflow-hidden truncate">
                 <span className="text-[15px] font-bold tracking-tight">N-KGTS</span>

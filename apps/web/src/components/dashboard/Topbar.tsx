@@ -1,9 +1,10 @@
 "use client";
 
-import { Menu, Search, Bell } from "lucide-react";
+import { Menu, Search, Bell, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 interface TopbarProps {
   onMenuClick: () => void;
+  collapsed?: boolean;
   user: {
     name: string;
     school: string;
@@ -11,7 +12,7 @@ interface TopbarProps {
   };
 }
 
-export function Topbar({ onMenuClick, user }: TopbarProps) {
+export function Topbar({ onMenuClick, collapsed = false, user }: TopbarProps) {
   return (
     <header className="bg-white border-b border-neutral-100 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
       <div className="flex items-center gap-4 flex-1">
@@ -20,7 +21,7 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
           className="p-2 rounded-xl hover:bg-neutral-50 text-neutral-700 hover:text-primary transition-all duration-200"
           onClick={onMenuClick}
         >
-          <Menu size={22} />
+          {collapsed ? <ChevronsRight size={22} className="text-primary" /> : <ChevronsLeft size={22} />}
         </button>
 
         {/* Search Bar */}
