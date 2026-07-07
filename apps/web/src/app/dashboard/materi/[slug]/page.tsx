@@ -142,7 +142,7 @@ export default function MateriDetailPage() {
         </Link>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.6fr_0.9fr]">
+      <div className="grid gap-5 lg:grid-cols-[2fr_0.6fr]">
         <div className="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -155,7 +155,7 @@ export default function MateriDetailPage() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
+          <div className="self-start mt-6 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
             <div className="flex items-center justify-between text-sm font-semibold text-neutral-700">
               <span>Progress modul</span>
               <span>{Math.max(progress.scrollProgress, progress.score ?? 0)}%</span>
@@ -243,36 +243,36 @@ export default function MateriDetailPage() {
           </div>
         </div>
 
-        <aside className="space-y-4 rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm">
+        <aside className="space-y-3 rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm self-start">
           <div className="flex items-center gap-2 text-primary">
-            <BookOpen size={18} />
-            <h2 className="text-base font-bold text-neutral-900">Ringkasan modul</h2>
+            <BookOpen size={16} />
+            <h2 className="text-sm font-semibold text-neutral-900">Ringkasan modul</h2>
           </div>
-          <div className="space-y-3 text-sm text-neutral-600">
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Durasi</p>
+          <div className="space-y-2 text-xs text-neutral-600">
+            <div className="rounded-md bg-neutral-50 p-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">Durasi</p>
               <p className="mt-1 font-semibold text-neutral-800">{module.duration}</p>
             </div>
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Status</p>
+            <div className="rounded-md bg-neutral-50 p-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">Status</p>
               <p className="mt-1 font-semibold text-neutral-800">{progress.completed ? "Selesai" : "Belum selesai"}</p>
             </div>
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Progress scroll</p>
+            <div className="rounded-md bg-neutral-50 p-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">Progress scroll</p>
               <p className="mt-1 font-semibold text-neutral-800">{progress.scrollProgress}%</p>
             </div>
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Nilai quiz</p>
+            <div className="rounded-md bg-neutral-50 p-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">Nilai quiz</p>
               <p className="mt-1 font-semibold text-neutral-800">{progress.score ?? "Belum ada"}</p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
+          <div className="rounded-md border border-neutral-100 bg-neutral-50 p-3">
             <div className="flex items-center gap-2 text-accent-dark">
-              <Trophy size={18} />
-              <h3 className="text-sm font-bold text-neutral-900">Target pencapaian</h3>
+              <Trophy size={16} />
+              <h3 className="text-xs font-semibold text-neutral-900">Target pencapaian</h3>
             </div>
-            <p className="mt-2 text-sm text-neutral-600">
+            <p className="mt-1 text-xs text-neutral-600">
               Baca seluruh isi modul, lalu selesaikan kuis agar status modul berubah menjadi selesai dan nilai muncul di daftar modul.
             </p>
           </div>
