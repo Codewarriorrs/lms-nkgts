@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   BookOpen,
   ClipboardList,
@@ -11,78 +11,12 @@ import {
   BookMarked,
   ChevronRight,
 } from "lucide-react";
+import Link from "next/link";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { MateriCard } from "@/components/dashboard/MateriCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-
-// ── DATA DUMMY ──────────────────────────────────────────────
-const user = {
-  name: "Budi Santoso",
-  school: "SMK Negeri 1 Semarang",
-  avatar: "BS",
-};
-
-const stats = [
-  { label: "Materi Diakses", value: 8, total: 15, icon: BookOpen, color: "text-primary" },
-  { label: "Tugas Selesai", value: 3, total: 5, icon: ClipboardList, color: "text-success" },
-  { label: "Laporan Progress", value: 2, total: null, icon: FolderKanban, color: "text-accent-dark" },
-];
-
-const materiLanjutkan = [
-  {
-    id: 1,
-    topik: "Topik 3",
-    judul: "Diagram Pareto & Analisis Data",
-    progress: 60,
-    durasi: "45 menit",
-    tag: "Teori",
-    tagColor: "bg-primary/10 text-primary",
-  },
-  {
-    id: 2,
-    topik: "Topik 4",
-    judul: "Diagram Tulang Ikan (Fishbone)",
-    progress: 20,
-    durasi: "30 menit",
-    tag: "Teori",
-    tagColor: "bg-primary/10 text-primary",
-  },
-  {
-    id: 3,
-    topik: "Topik 2",
-    judul: "Checksheet & Pengumpulan Data",
-    progress: 100,
-    durasi: "30 menit",
-    tag: "Selesai",
-    tagColor: "bg-success/10 text-success",
-  },
-  {
-    id: 4,
-    topik: "Topik 1",
-    judul: "Pengenalan Metodologi Kaizen",
-    progress: 100,
-    durasi: "60 menit",
-    tag: "Selesai",
-    tagColor: "bg-success/10 text-success",
-  },
-];
-
-const recentMateri = [
-  {
-    id: 1,
-    judul: "Diagram Pareto & Analisis Data",
-    topik: "Topik 3",
-    lastAccessed: "Hari ini, 09.30",
-    progress: 60,
-  },
-  {
-    id: 2,
-    judul: "Checksheet & Pengumpulan Data",
-    topik: "Topik 2",
-    lastAccessed: "Kemarin, 14.00",
-    progress: 100,
-  },
-];
+import materiModules from "@/lib/materi-data";
+import { API_URL } from "@/lib/api";
 
 const tugasBelumDikumpulkan = [
   {
@@ -123,6 +57,7 @@ export default function DashboardPage() {
     school: "SMK Negeri 1 Semarang",
     avatar: "BS",
   });
+  const [progressMap, setProgressMap] = useState<Record<string, any>>({});
 
   useEffect(() => {
     setGreeting(getGreeting());
@@ -135,6 +70,88 @@ export default function DashboardPage() {
       }
     }
   }, []);
+
+  // Fetch real-time progress map from backend database
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch(`${API_URL}/materi/progress`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProgressMap(data);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil progres dari database:", err);
+      }
+    };
+    fetchProgress();
+  }, []);
+
+  // Compute real-time stats count
+  const stats = useMemo(() => {
+    const accessedCount = Object.values(progressMap).filter(
+      (p: any) => p.scrollProgress > 0 || (p.score !== null && p.score > 0)
+    ).length;
+
+    return [
+      { label: "Materi Diakses", value: accessedCount, total: 5, icon: BookOpen, color: "text-primary" },
+      { label: "Tugas Selesai", value: 0, total: 0, icon: ClipboardList, color: "text-success" },
+      { label: "Laporan Progress", value: accessedCount >= 5 ? 100 : Math.round((accessedCount / 5) * 100), total: null, icon: FolderKanban, color: "text-accent-dark" },
+    ];
+  }, [progressMap]);
+
+  // Compute real-time Materi Lanjutkan (first 4 modules)
+  const materiLanjutkan = useMemo(() => {
+    return materiModules.slice(0, 4).map((module) => {
+      const progress = progressMap[module.id.toString()] ?? { completed: false, scrollProgress: 0, score: null };
+      const percent = Math.max(progress.scrollProgress, progress.score ?? 0);
+      const isCompleted = progress.completed || (progress.score ?? 0) >= 70;
+      return {
+        id: module.id,
+        topik: module.topic,
+        judul: module.title,
+        progress: percent,
+        durasi: module.duration,
+        slug: module.slug,
+        tag: isCompleted ? "Selesai" : "Teori",
+        tagColor: isCompleted ? "bg-success/10 text-success" : "bg-primary/10 text-primary",
+      };
+    });
+  }, [progressMap]);
+
+  // Compute active recent materi list (highest progress first)
+  const recentMateri = useMemo(() => {
+    const active = materiModules
+      .map((module) => {
+        const progress = progressMap[module.id.toString()] ?? { completed: false, scrollProgress: 0, score: null };
+        const percent = Math.max(progress.scrollProgress, progress.score ?? 0);
+        return {
+          id: module.id,
+          judul: module.title,
+          topik: module.topic,
+          progress: percent,
+          slug: module.slug,
+          lastAccessed: percent > 0 ? "Baru saja diakses" : "Belum diakses",
+        };
+      })
+      .filter((m) => m.progress > 0);
+
+    if (active.length > 0) return active.slice(0, 2);
+
+    // Fallback to first 2 modules if no progress yet
+    return materiModules.slice(0, 2).map((m) => ({
+      id: m.id,
+      judul: m.title,
+      topik: m.topic,
+      progress: 0,
+      slug: m.slug,
+      lastAccessed: "Belum diakses",
+    }));
+  }, [progressMap]);
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">
@@ -196,7 +213,9 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {materiLanjutkan.map((item, i) => (
-              <MateriCard key={item.id} item={item} index={i} />
+              <Link key={item.id} href={`/dashboard/materi/${(item as any).slug}`}>
+                <MateriCard item={item} index={i} />
+              </Link>
             ))}
           </div>
         </div>
@@ -212,9 +231,10 @@ export default function DashboardPage() {
           </h3>
           <div className="space-y-3">
             {recentMateri.map((m) => (
-              <div
+              <Link
                 key={m.id}
-                className="p-4 rounded-xl bg-neutral-50 hover:bg-neutral-100/50 transition-colors duration-200 cursor-pointer border border-neutral-100/50 group"
+                href={`/dashboard/materi/${m.slug}`}
+                className="block p-4 rounded-xl bg-neutral-50 hover:bg-neutral-100/50 transition-colors duration-200 cursor-pointer border border-neutral-100/50 group"
               >
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-neutral-900 text-xs font-bold leading-snug group-hover:text-primary transition-colors line-clamp-2 flex-1">
@@ -234,7 +254,7 @@ export default function DashboardPage() {
                   />
                   <p className="text-neutral-400 text-[10px] font-semibold mt-1">{m.lastAccessed}</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
