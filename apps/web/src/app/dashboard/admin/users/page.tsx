@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { API_URL } from "@/lib/api";
 import { 
   Users, 
   Mail, 
@@ -117,7 +118,7 @@ export default function AdminUsersPage() {
     setErrorMsg(null);
     try {
       const token = localStorage.getItem("token");
-      const url = `http://localhost:3001/api/admin/users?page=${page}&limit=8&search=${encodeURIComponent(search)}&role=${roleFilter}`;
+      const url = `${API_URL}/admin/users?page=${page}&limit=8&search=${encodeURIComponent(search)}&role=${roleFilter}`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -137,7 +138,7 @@ export default function AdminUsersPage() {
   const fetchPendingInvitations = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/admin/invitations", {
+      const res = await fetch(`${API_URL}/admin/invitations`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -152,7 +153,7 @@ export default function AdminUsersPage() {
   // 3. Fetch Schools List
   const fetchSchools = async () => {
     try {
-      const res = await fetch("http://localhost:3001/api/schools");
+      const res = await fetch(`${API_URL}/schools`);
       const data = await res.json();
       if (res.ok) {
         setSchools(data || []);
@@ -178,7 +179,7 @@ export default function AdminUsersPage() {
     setSuccessMsg(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/admin/users/invite", {
+      const res = await fetch(`${API_URL}/admin/users/invite`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -230,7 +231,7 @@ export default function AdminUsersPage() {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/admin/users/import", {
+      const res = await fetch(`${API_URL}/admin/users/import`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`
@@ -259,7 +260,7 @@ export default function AdminUsersPage() {
     setSuccessMsg(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3001/api/admin/invitations/${id}/resend`, {
+      const res = await fetch(`${API_URL}/admin/invitations/${id}/resend`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -283,7 +284,7 @@ export default function AdminUsersPage() {
     setSuccessMsg(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3001/api/admin/invitations/${id}`, {
+      const res = await fetch(`${API_URL}/admin/invitations/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });

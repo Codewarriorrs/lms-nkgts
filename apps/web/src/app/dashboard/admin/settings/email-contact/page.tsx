@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { API_URL } from "@/lib/api";
 import { 
   Settings, 
   User, 
@@ -55,7 +56,7 @@ export default function EmailContactSettingsPage() {
     setErrorMsg(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/admin/settings/email-contact", {
+      const res = await fetch(`${API_URL}/admin/settings/email-contact`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -80,7 +81,7 @@ export default function EmailContactSettingsPage() {
     setSuccessMsg(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/admin/settings/email-contact", {
+      const res = await fetch(`${API_URL}/admin/settings/email-contact`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
