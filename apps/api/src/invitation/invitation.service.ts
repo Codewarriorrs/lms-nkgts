@@ -28,10 +28,14 @@ export class InvitationService {
   ) {
     const gmailUser = process.env.GMAIL_USER;
     const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    const resendApiKey = process.env.RESEND_API_KEY;
 
-    // Jika SMTP tidak dikonfigurasi, lewati pengiriman email namun tetap simpan token
-    if (!gmailUser || !gmailPass || gmailUser.includes('placeholder') || gmailPass.includes('placeholder')) {
-      console.warn('SMTP Gmail belum dikonfigurasi dengan benar di file .env. Pengiriman email dilewati.');
+    const hasResend = !!resendApiKey;
+    const hasGmail = gmailUser && gmailPass && !gmailUser.includes('placeholder') && !gmailPass.includes('placeholder');
+
+    // Jika tidak ada satu pun konfigurasi email, lewati pengiriman
+    if (!hasResend && !hasGmail) {
+      console.warn('Konfigurasi email (Resend atau Gmail SMTP) belum diatur di file .env. Pengiriman email dilewati.');
       return;
     }
 
@@ -45,51 +49,86 @@ export class InvitationService {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const activationLink = `${frontendUrl}/register?token=${token}`;
 
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: gmailUser,
-        pass: gmailPass,
-      },
-      tls: {
-        rejectUnauthorized: false
-      }
-    });
-
-    const mailOptions = {
-      from: `"Platform N-KGTS LMS" <${gmailUser}>`,
-      to: email,
-      subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #0d8abc; margin: 0;">N-KGTS LMS Platform</h2>
-            <p style="color: #777; margin: 5px 0 0 0;">Pembelajaran Budaya Kaizen & 5R</p>
-          </div>
-          <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;" />
-          <p>Halo, <strong>${nama}</strong>!</p>
-          <p>Anda telah diundang sebagai <strong>${role.toUpperCase()}</strong> di sekolah <strong>${namaSekolah}</strong> untuk bergabung dalam platform LMS N-KGTS.</p>
-          <p>Silakan klik tautan di bawah ini untuk mengaktifkan akun Anda dan mengatur password masuk baru:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${activationLink}" style="background-color: #0d8abc; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Aktifkan Akun Saya</a>
-          </div>
-          <p style="color: #555; font-size: 13px;">Tautan ini hanya berlaku selama 7 hari. Jika tautan kedaluwarsa, silakan hubungi Admin Sekolah Anda.</p>
-          <hr style="border: 0; border-top: 1px solid #eee; margin-top: 30px; margin-bottom: 15px;" />
-          <div style="font-size: 12px; color: #777;">
-            <p>Butuh bantuan? Hubungi Contact Person kami:</p>
-            <p>Nama: <strong>${cpName}</strong><br />WhatsApp: <a href="https://wa.me/${cpWa}" style="color: #0d8abc; text-decoration: none;">+${cpWa}</a></p>
-          </div>
+    const mailHtmlContent = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #0d8abc; margin: 0;">N-KGTS LMS Platform</h2>
+          <p style="color: #777; margin: 5px 0 0 0;">Pembelajaran Budaya Kaizen & 5R</p>
         </div>
-      `,
-    };
+        <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;" />
+        <p>Halo, <strong>${nama}</strong>!</p>
+        <p>Anda telah diundang sebagai <strong>${role.toUpperCase()}</strong> di sekolah <strong>${namaSekolah}</strong> untuk bergabung dalam platform LMS N-KGTS.</p>
+        <p>Silakan klik tautan di bawah ini untuk mengaktifkan akun Anda dan mengatur password masuk baru:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${activationLink}" style="background-color: #0d8abc; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Aktifkan Akun Saya</a>
+        </div>
+        <p style="color: #555; font-size: 13px;">Tautan ini hanya berlaku selama 7 hari. Jika tautan kedaluwarsa, silakan hubungi Admin Sekolah Anda.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin-top: 30px; margin-bottom: 15px;" />
+        <div style="font-size: 12px; color: #777;">
+          <p>Butuh bantuan? Hubungi Contact Person kami:</p>
+          <p>Nama: <strong>${cpName}</strong><br />WhatsApp: <a href="https://wa.me/${cpWa}" style="color: #0d8abc; text-decoration: none;">+${cpWa}</a></p>
+        </div>
+      </div>
+    `;
 
-    try {
-      await transporter.sendMail(mailOptions);
-    } catch (err) {
-      console.error('Gagal mengirim email undangan ke:', email, err);
-      // Jangan gagalkan seluruh proses, biarkan token tetap tersimpan agar admin bisa klik "Kirim Ulang"
+    // 1. Coba Mengirim Lewat Resend API (HTTPS Port 443, pasti tembus di Railway)
+    if (hasResend) {
+      const resendFrom = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${resendApiKey}`,
+          },
+          body: JSON.stringify({
+            from: `Platform N-KGTS LMS <${resendFrom}>`,
+            to: email,
+            subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
+            html: mailHtmlContent,
+          }),
+        });
+
+        if (response.ok) {
+          console.log('Email undangan berhasil dikirim via Resend API ke:', email);
+          return; // Sukses, langsung keluar
+        } else {
+          const errData = await response.json();
+          console.error('Gagal mengirim email via Resend API, mencoba fallback Gmail...', errData);
+        }
+      } catch (err) {
+        console.error('Error saat menghubungi API Resend, mencoba fallback Gmail...', err);
+      }
+    }
+
+    // 2. Fallback ke Gmail SMTP jika Resend belum diatur atau gagal
+    if (hasGmail) {
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: gmailUser,
+          pass: gmailPass,
+        },
+        tls: {
+          rejectUnauthorized: false
+        }
+      });
+
+      const mailOptions = {
+        from: `"Platform N-KGTS LMS" <${gmailUser}>`,
+        to: email,
+        subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
+        html: mailHtmlContent,
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log('Email undangan berhasil dikirim via Gmail SMTP ke:', email);
+      } catch (err) {
+        console.error('Gagal mengirim email undangan via Gmail SMTP ke:', email, err);
+      }
     }
   }
 
