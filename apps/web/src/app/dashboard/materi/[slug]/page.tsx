@@ -45,6 +45,7 @@ export default function MateriDetailPage() {
   const [progress, setProgress] = useState<ModuleProgressState>({ completed: false, scrollProgress: 0, scrollTop: 0, score: null });
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [lockedByPrev, setLockedByPrev] = useState(false);
 
   useEffect(() => {
     setProgress(getInitialProgress(module.id));
@@ -58,6 +59,22 @@ export default function MateriDetailPage() {
       }
     } else {
       setAnswers({});
+    }
+  }, [module.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (module.id > 1) {
+      try {
+        const saved = window.localStorage.getItem(STORAGE_KEY);
+        const parsed = saved ? JSON.parse(saved) : {};
+        const prev = parsed[(module.id - 1).toString()];
+        setLockedByPrev(!(prev && prev.completed));
+      } catch {
+        setLockedByPrev(true);
+      }
+    } else {
+      setLockedByPrev(false);
     }
   }, [module.id]);
 
@@ -148,17 +165,37 @@ export default function MateriDetailPage() {
             </div>
           </div>
 
-          <div id="module-content" className="mt-6 max-h-[520px] overflow-y-auto pr-2 space-y-6">
-            {module.sections.map((section, index) => (
-              <section key={`${section.title}-${index}`} className="space-y-3 rounded-xl border border-neutral-100 p-4">
-                <h2 className="text-lg font-bold text-neutral-900">{section.title}</h2>
-                {section.paragraphs.map((paragraph, paragraphIndex) => (
-                  <p key={`${section.title}-${paragraphIndex}`} className="text-sm leading-7 text-neutral-600">
-                    {paragraph}
-                  </p>
-                ))}
-              </section>
-            ))}
+          <div id="module-content" className="mt-6 max-h-[820px] lg:max-h-[920px] overflow-y-auto pr-2 space-y-6">
+            {lockedByPrev ? (
+              <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-6 text-center">
+                <p className="text-sm font-semibold text-neutral-800">Modul ini terkunci</p>
+                <p className="mt-2 text-sm text-neutral-600">Selesaikan modul sebelumnya terlebih dahulu untuk membuka akses ke materi ini.</p>
+                {(() => {
+                  const prevModule = materiModules.find((m) => m.id === module.id - 1);
+                  if (prevModule) {
+                    return (
+                      <div className="mt-4">
+                        <Link href={`/dashboard/materi/${prevModule.slug}`} className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-white">
+                          Buka modul sebelumnya
+                        </Link>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            ) : (
+              module.sections.map((section, index) => (
+                <section key={`${section.title}-${index}`} className="space-y-3 rounded-xl border border-neutral-100 p-4">
+                  <h2 className="text-lg font-bold text-neutral-900">{section.title}</h2>
+                  {section.paragraphs.map((paragraph, paragraphIndex) => (
+                    <p key={`${section.title}-${paragraphIndex}`} className="text-sm leading-7 text-neutral-600">
+                      {paragraph}
+                    </p>
+                  ))}
+                </section>
+              ))
+            )}
 
             <section className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
               <div className="flex items-center gap-2 text-primary">
@@ -176,7 +213,7 @@ export default function MateriDetailPage() {
                       {quiz.options.map((option, optionIndex) => {
                         const selected = answers[quizIndex] === optionIndex;
                         return (
-                          <label key={`${quiz.question}-${optionIndex}`} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm ${selected ? "border-primary bg-primary/5 text-primary" : "border-neutral-200 text-neutral-700"}`}>
+                          <label key={`${quiz.question}-${optionIndex}`} className={`flex ${lockedByPrev ? "opacity-60 pointer-events-none" : "cursor-pointer"} items-center gap-3 rounded-lg border px-3 py-2 text-sm ${selected ? "border-primary bg-primary/5 text-primary" : "border-neutral-200 text-neutral-700"}`}>
                             <input
                               type="radio"
                               name={`quiz-${quizIndex}`}
@@ -192,9 +229,11 @@ export default function MateriDetailPage() {
                   </div>
                 ))}
               </div>
-              <button onClick={handleSubmit} className="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-light">
-                Submit jawaban
-              </button>
+              {!lockedByPrev && (
+                <button onClick={handleSubmit} className="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-light">
+                  Submit jawaban
+                </button>
+              )}
               {submitted && progress.score !== null && (
                 <div className="mt-4 rounded-lg border border-success/20 bg-success/10 p-3 text-sm text-success">
                   Skor quiz Anda: {progress.score}%
