@@ -15,9 +15,9 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
   return (
     <header className="bg-white border-b border-neutral-100 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
       <div className="flex items-center gap-4 flex-1">
-        {/* Toggle Menu Button for Mobile */}
+        {/* Toggle Menu Button for Mobile & Desktop */}
         <button
-          className="lg:hidden p-2 rounded-xl hover:bg-neutral-50 text-neutral-700 hover:text-primary transition-all duration-200"
+          className="p-2 rounded-xl hover:bg-neutral-50 text-neutral-700 hover:text-primary transition-all duration-200"
           onClick={onMenuClick}
         >
           <Menu size={22} />

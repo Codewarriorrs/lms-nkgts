@@ -19,6 +19,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 interface SidebarProps {
   open: boolean;
+  collapsed?: boolean;
   onClose: () => void;
 }
 
@@ -30,7 +31,7 @@ const navItems = [
   { label: "Project Kaizen", icon: FolderKanban, href: "/dashboard/project" },
 ];
 
-export function Sidebar({ open, onClose }: SidebarProps) {
+export function Sidebar({ open, collapsed = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -78,33 +79,38 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
       <aside
         className={`
-          fixed top-0 left-0 h-full w-64 bg-primary z-50 flex flex-col
-          transform transition-transform duration-300 ease-in-out
+          fixed top-0 left-0 h-full bg-primary z-50 flex flex-col
+          transform transition-all duration-300 ease-in-out
           ${open ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0 lg:static lg:z-auto lg:h-screen
+          w-64 ${collapsed ? "lg:w-20" : "lg:w-64"}
         `}
       >
         {/* Logo and Brand */}
-        <div className="px-6 py-5 flex items-center justify-between border-b border-white/10">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <img src="/logo-nkgts.png" alt="Logo Kaizen" className="h-16 w-auto object-contain rounded p-0.5" />
-            <div className="leading-none text-white">
-              <span className="text-[15px] font-bold tracking-tight">N-KGTS</span>
-              <span className="block text-accent text-[10px] font-semibold tracking-wider uppercase mt-0.5">
-                LMS Platform
-              </span>
-            </div>
+        <div className={`px-6 py-5 flex items-center border-b border-white/10 ${collapsed ? "justify-center px-2" : "justify-between"}`}>
+          <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
+            <img src="/logo-nkgts.png" alt="Logo Kaizen" className="h-12 w-auto object-contain rounded p-0.5 flex-shrink-0" />
+            {!collapsed && (
+              <div className="leading-none text-white transition-all duration-200 overflow-hidden truncate">
+                <span className="text-[15px] font-bold tracking-tight">N-KGTS</span>
+                <span className="block text-accent text-[10px] font-semibold tracking-wider uppercase mt-0.5">
+                  LMS Platform
+                </span>
+              </div>
+            )}
           </Link>
-          <button
-            onClick={onClose}
-            className="lg:hidden text-white/60 hover:text-white transition-colors duration-200"
-          >
-            <X size={18} />
-          </button>
+          {!collapsed && (
+            <button
+              onClick={onClose}
+              className="lg:hidden text-white/60 hover:text-white transition-colors duration-200"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
           {items.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -114,9 +120,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 key={item.label}
                 href={item.href}
                 onClick={onClose}
+                title={collapsed ? item.label : undefined}
                 className={`
-                  flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold
+                  flex items-center rounded-xl text-sm font-semibold
                   transition-all duration-200 group border-l-4
+                  ${collapsed ? "justify-center px-1 py-3 border-l-0" : "gap-3.5 px-4 py-3"}
                   ${
                     isActive
                       ? "bg-white/10 text-white border-accent"
@@ -130,28 +138,30 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                     isActive ? "text-accent" : "text-white/60 group-hover:text-white"
                   }`}
                 />
-                {item.label}
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
         {/* Footer profile & logout */}
-        <div className="px-4 py-4 border-t border-white/10 space-y-1">
+        <div className={`px-3 py-4 border-t border-white/10 space-y-1 ${collapsed ? "flex flex-col items-center" : ""}`}>
           <Link
             href="/dashboard/profile"
             onClick={onClose}
-            className="flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white transition-all duration-200"
+            title={collapsed ? "Profil Saya" : undefined}
+            className={`flex items-center rounded-xl text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white transition-all duration-200 ${collapsed ? "justify-center p-3" : "gap-3.5 px-4 py-3 w-full"}`}
           >
-            <User size={18} className="text-white/60" />
-            Profil Saya
+            <User size={18} className="text-white/60 flex-shrink-0" />
+            {!collapsed && <span className="truncate">Profil Saya</span>}
           </Link>
           <button
             onClick={handleLogoutClick}
-            className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold text-white/60 hover:bg-danger/20 hover:text-red-300 transition-all duration-200 text-left"
+            title={collapsed ? "Keluar" : undefined}
+            className={`flex items-center rounded-xl text-sm font-semibold text-white/60 hover:bg-danger/20 hover:text-red-300 transition-all duration-200 text-left ${collapsed ? "justify-center p-3" : "gap-3.5 px-4 py-3 w-full"}`}
           >
-            <LogOut size={18} className="text-white/60" />
-            Keluar
+            <LogOut size={18} className="text-white/60 flex-shrink-0" />
+            {!collapsed && <span className="truncate">Keluar</span>}
           </button>
         </div>
       </aside>

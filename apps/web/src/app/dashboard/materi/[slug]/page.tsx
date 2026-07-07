@@ -3,8 +3,24 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Circle, BookOpen, BrainCircuit, Trophy } from "lucide-react";
-import materiModules, { MateriModule } from "@/lib/materi-data";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Circle,
+  BookOpen,
+  BrainCircuit,
+  Trophy,
+  Edit,
+  Save,
+  X,
+  FileText,
+  Image as ImageIcon,
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered
+} from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { API_URL } from "@/lib/api";
 
@@ -16,6 +32,14 @@ interface ModuleProgressState {
 }
 
 const STORAGE_KEY = "kaizen-module-progress";
+
+const pdfMap: Record<string, string> = {
+  "pengenalan-kaizen": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf-test.pdf",
+  "5r": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf-test.pdf",
+  "6-potensi-bahaya": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf-test.pdf",
+  "7-pemborosan": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf-test.pdf",
+  "8-langkah-penyelesaian-masalah": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf-test.pdf"
+};
 
 function getInitialProgress(moduleId: number): ModuleProgressState {
   if (typeof window === "undefined") {
@@ -38,36 +62,75 @@ function getInitialProgress(moduleId: number): ModuleProgressState {
 export default function MateriDetailPage() {
   const params = useParams();
   const slug = Array.isArray(params?.slug) ? params.slug[0] : params?.slug;
-  const module = useMemo(
-    () => materiModules.find((item) => item.slug === slug) ?? materiModules[0],
-    [slug]
-  );
+
+  const [dbModule, setDbModule] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [htmlContent, setHtmlContent] = useState("");
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const [progress, setProgress] = useState<ModuleProgressState>({ completed: false, scrollProgress: 0, scrollTop: 0, score: null });
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
 
-  // Menyimpan progres terakhir yang berhasil disimpan ke database untuk mencegah request berlebih
   const lastSavedProgressRef = useRef<number>(0);
+  const editorRef = useRef<HTMLDivElement>(null);
 
-  // 1. Memuat progres awal (gabungan localStorage + Database)
+  // 1. Memuat Info User dari LocalStorage
   useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        setCurrentUser(JSON.parse(stored));
+      } catch (e) {
+        console.error("Failed to parse stored user in page", e);
+      }
+    }
+  }, []);
+
+  // 2. Memuat Detail Modul & Kuis dari Database API
+  useEffect(() => {
+    const fetchModuleDetails = async () => {
+      if (!slug) return;
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch(`${API_URL}/materi/modules/${slug}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setDbModule(data);
+          setHtmlContent(data.deskripsi || "");
+        }
+      } catch (err) {
+        console.error("Gagal memuat detail modul dari database:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchModuleDetails();
+  }, [slug]);
+
+  // 3. Memuat Progres Awal
+  useEffect(() => {
+    if (!dbModule) return;
+
     // Set awal dari local storage
-    const initial = getInitialProgress(module.id);
+    const initial = getInitialProgress(dbModule.id);
     setProgress(initial);
     setSubmitted(Boolean(initial.score !== null));
     lastSavedProgressRef.current = initial.scrollProgress;
 
     // Load jawaban kuis dari local storage
-    const savedAnswers = window.localStorage.getItem(`${STORAGE_KEY}-answers-${module.id}`);
+    const savedAnswers = window.localStorage.getItem(`${STORAGE_KEY}-answers-${dbModule.id}`);
     if (savedAnswers) {
       try {
         setAnswers(JSON.parse(savedAnswers));
       } catch {
         setAnswers({});
       }
-    } else {
-      setAnswers({});
     }
 
     // Ambil progres ter-update dari database
@@ -80,7 +143,7 @@ export default function MateriDetailPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          const dbProgress = data[module.id.toString()];
+          const dbProgress = data[dbModule.id.toString()];
           if (dbProgress) {
             setProgress((current) => {
               const updated = {
@@ -102,10 +165,12 @@ export default function MateriDetailPage() {
       }
     };
     fetchDbProgress();
-  }, [module.id]);
+  }, [dbModule]);
 
-  // 2. Event Listener untuk Scroll
+  // 4. Event Listener untuk Scroll Progres Membaca
   useEffect(() => {
+    if (!dbModule || isEditing) return;
+
     const container = document.getElementById("module-content");
     if (!container) return;
 
@@ -133,10 +198,11 @@ export default function MateriDetailPage() {
       window.clearTimeout(restorePosition);
       container.removeEventListener("scroll", handleScroll);
     };
-  }, [module.id, progress.scrollTop]);
+  }, [dbModule, isEditing, progress.scrollTop]);
 
   // Fungsi helper untuk menyimpan progres membaca ke database
   const saveProgressToDb = async (percentage: number, isCompleted: boolean) => {
+    if (!dbModule) return;
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
@@ -147,7 +213,7 @@ export default function MateriDetailPage() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          modul_teori_id: module.id,
+          modul_teori_id: dbModule.id,
           scroll_progress: percentage,
           status: isCompleted ? "selesai" : "sedang_dibaca"
         })
@@ -157,14 +223,14 @@ export default function MateriDetailPage() {
     }
   };
 
-  // 3. Efek Sinkronisasi Progres ke LocalStorage & Database (Hanya jika perubahan >= 5%)
+  // 5. Efek Sinkronisasi Progres ke LocalStorage & Database
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!dbModule || typeof window === "undefined") return;
 
     // Simpan ke localStorage
     const saved = window.localStorage.getItem(STORAGE_KEY);
     const parsed = saved ? JSON.parse(saved) : {};
-    parsed[module.id] = progress;
+    parsed[dbModule.id] = progress;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
 
     // Kirim ke database hanya jika ada kenaikan progres >= 5% atau selesai 100%
@@ -173,20 +239,78 @@ export default function MateriDetailPage() {
       lastSavedProgressRef.current = progress.scrollProgress;
       saveProgressToDb(progress.scrollProgress, progress.completed);
     }
-  }, [module.id, progress]);
+  }, [dbModule, progress]);
 
-  // 4. Efek Penyimpanan Jawaban Kuis ke LocalStorage
+  // 6. Efek Penyimpanan Jawaban Kuis ke LocalStorage
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(`${STORAGE_KEY}-answers-${module.id}`, JSON.stringify(answers));
-  }, [answers, module.id]);
+    if (!dbModule || typeof window === "undefined") return;
+    window.localStorage.setItem(`${STORAGE_KEY}-answers-${dbModule.id}`, JSON.stringify(answers));
+  }, [answers, dbModule]);
 
-  // 5. Submit Kuis
+  // 7. Simpan Perubahan Artikel WYSIWYG ke Database (Admin Only)
+  const handleSaveWYSIWYG = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/materi/modules/${dbModule.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          deskripsi: htmlContent
+        })
+      });
+      if (res.ok) {
+        setDbModule((prev: any) => ({ ...prev, deskripsi: htmlContent }));
+        setIsEditing(false);
+      } else {
+        alert("Gagal menyimpan perubahan artikel.");
+      }
+    } catch (err) {
+      console.error("Gagal menyimpan perubahan artikel ke DB:", err);
+      alert("Kesalahan jaringan saat menyimpan artikel.");
+    }
+  };
+
+  // Exec Editor Formatting Commands
+  const execEditorCommand = (command: string, value: string = "") => {
+    document.execCommand(command, false, value);
+    if (editorRef.current) {
+      setHtmlContent(editorRef.current.innerHTML);
+    }
+  };
+
+  const handleAddImage = () => {
+    const url = prompt("Masukkan URL gambar ilustrasi (misal dari Unsplash/Cloud):");
+    if (url) {
+      execEditorCommand("insertImage", url);
+      // Berikan style rapi dan responsif secara otomatis ke image yang dimasukkan
+      setTimeout(() => {
+        if (editorRef.current) {
+          const images = editorRef.current.getElementsByTagName("img");
+          for (let i = 0; i < images.length; i++) {
+            images[i].className = "rounded-2xl my-6 mx-auto max-w-full h-auto shadow-md border border-neutral-100";
+          }
+          setHtmlContent(editorRef.current.innerHTML);
+        }
+      }, 50);
+    }
+  };
+
+  // 8. Submit Kuis
   const handleSubmit = async () => {
-    const correctAnswers = module.quiz.reduce((count, item, index) => {
-      return count + (answers[index] === item.correct ? 1 : 0);
+    if (!dbModule) return;
+
+    const quizList = dbModule.soal_latihan || [];
+    if (quizList.length === 0) return;
+
+    const correctAnswers = quizList.reduce((count: number, item: any, index: number) => {
+      return count + (answers[index] === item.jawaban_benar ? 1 : 0);
     }, 0);
-    const score = Math.round((correctAnswers / module.quiz.length) * 100);
+
+    const score = Math.round((correctAnswers / quizList.length) * 100);
     const completed = score >= 70;
 
     setProgress((current) => ({ ...current, completed, score }));
@@ -203,7 +327,7 @@ export default function MateriDetailPage() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          modul_teori_id: module.id,
+          modul_teori_id: dbModule.id,
           score
         })
       });
@@ -212,23 +336,85 @@ export default function MateriDetailPage() {
     }
   };
 
+  // State loading spinner
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!dbModule) {
+    return (
+      <div className="px-6 py-8 text-center text-neutral-500">
+        <p className="font-bold text-lg">Modul tidak ditemukan</p>
+        <Link href="/dashboard/materi" className="mt-4 inline-block text-primary font-semibold hover:underline">
+          Kembali ke daftar materi
+        </Link>
+      </div>
+    );
+  }
+
   const completionLabel = progress.completed ? "Selesai" : "Belum selesai";
+  const pdfUrl = (slug && typeof slug === "string" ? pdfMap[slug] : null) || "#";
+  const quizList = dbModule.soal_latihan || [];
 
   return (
     <div className="px-6 py-8 space-y-6">
-      <div className="flex items-center gap-3">
+      {/* Header navigasi */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <Link href="/dashboard/materi" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary-light">
           <ArrowLeft size={16} /> Kembali
         </Link>
+        <div className="flex items-center gap-3">
+          {/* Tombol Lihat PPT/PDF Asli */}
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 text-xs font-bold transition-all shadow-sm"
+          >
+            <FileText size={16} /> Lihat File Asli (PPT/PDF)
+          </a>
+
+          {/* Tombol Edit khusus Admin */}
+          {currentUser?.role === "admin" && (
+            <button
+              onClick={() => {
+                if (isEditing) {
+                  setHtmlContent(dbModule.deskripsi || "");
+                  setIsEditing(false);
+                } else {
+                  setIsEditing(true);
+                }
+              }}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-sm ${
+                isEditing
+                  ? "bg-neutral-100 hover:bg-neutral-200 text-neutral-600"
+                  : "bg-primary hover:bg-primary-light text-white"
+              }`}
+            >
+              {isEditing ? (
+                <>
+                  <X size={15} /> Batal
+                </>
+              ) : (
+                <>
+                  <Edit size={15} /> Edit Artikel
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_0.9fr]">
-        <div className="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm flex flex-col min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-neutral-400">{module.topic}</p>
-              <h1 className="text-2xl font-bold text-neutral-900">{module.title}</h1>
-              <p className="mt-2 text-sm text-neutral-500">{module.description}</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-neutral-400">Modul Teori</p>
+              <h1 className="text-2xl font-bold text-neutral-900 mt-1">{dbModule.judul}</h1>
             </div>
             <div className={`rounded-full px-3 py-1 text-xs font-semibold ${progress.completed ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
               {completionLabel}
@@ -237,7 +423,7 @@ export default function MateriDetailPage() {
 
           <div className="mt-6 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
             <div className="flex items-center justify-between text-sm font-semibold text-neutral-700">
-              <span>Progress modul</span>
+              <span>Progress belajar Anda</span>
               <span>{Math.max(progress.scrollProgress, progress.score ?? 0)}%</span>
             </div>
             <div className="mt-3">
@@ -245,93 +431,236 @@ export default function MateriDetailPage() {
             </div>
           </div>
 
-          <div id="module-content" className="mt-6 max-h-[520px] overflow-y-auto pr-2 space-y-6">
-            {module.sections.map((section, index) => (
-              <section key={`${section.title}-${index}`} className="space-y-3 rounded-xl border border-neutral-100 p-4">
-                <h2 className="text-lg font-bold text-neutral-900">{section.title}</h2>
-                {section.paragraphs.map((paragraph, paragraphIndex) => (
-                  <p key={`${section.title}-${paragraphIndex}`} className="text-sm leading-7 text-neutral-600">
-                    {paragraph}
-                  </p>
-                ))}
-              </section>
-            ))}
+          {/* Bagian Artikel / WYSIWYG Editor */}
+          {isEditing ? (
+            <div className="mt-6 flex flex-col flex-1">
+              {/* WYSIWYG Toolbar */}
+              <div className="flex flex-wrap gap-1 p-2 bg-neutral-50 border border-neutral-200 rounded-t-xl select-none">
+                <button
+                  type="button"
+                  onClick={() => execEditorCommand("bold")}
+                  title="Tebal (Bold)"
+                  className="p-2 rounded hover:bg-neutral-200 text-neutral-700"
+                >
+                  <Bold size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => execEditorCommand("italic")}
+                  title="Miring (Italic)"
+                  className="p-2 rounded hover:bg-neutral-200 text-neutral-700"
+                >
+                  <Italic size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => execEditorCommand("underline")}
+                  title="Garis Bawah (Underline)"
+                  className="p-2 rounded hover:bg-neutral-200 text-neutral-700"
+                >
+                  <Underline size={16} />
+                </button>
+                <div className="h-6 w-px bg-neutral-300 mx-1 align-middle self-center" />
+                <button
+                  type="button"
+                  onClick={() => execEditorCommand("formatBlock", "H2")}
+                  title="Judul Bab (Heading 2)"
+                  className="px-2.5 py-1 text-xs font-extrabold rounded hover:bg-neutral-200 text-neutral-700"
+                >
+                  H2
+                </button>
+                <button
+                  type="button"
+                  onClick={() => execEditorCommand("formatBlock", "H3")}
+                  title="Sub-Bab (Heading 3)"
+                  className="px-2.5 py-1 text-xs font-bold rounded hover:bg-neutral-200 text-neutral-700"
+                >
+                  H3
+                </button>
+                <button
+                  type="button"
+                  onClick={() => execEditorCommand("formatBlock", "P")}
+                  title="Paragraf Biasa"
+                  className="px-2 py-1 text-xs rounded hover:bg-neutral-200 text-neutral-700"
+                >
+                  Normal
+                </button>
+                <div className="h-6 w-px bg-neutral-300 mx-1 align-middle self-center" />
+                <button
+                  type="button"
+                  onClick={() => execEditorCommand("insertUnorderedList")}
+                  title="Bullet List"
+                  className="p-2 rounded hover:bg-neutral-200 text-neutral-700"
+                >
+                  <List size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => execEditorCommand("insertOrderedList")}
+                  title="Number List"
+                  className="p-2 rounded hover:bg-neutral-200 text-neutral-700"
+                >
+                  <ListOrdered size={16} />
+                </button>
+                <div className="h-6 w-px bg-neutral-300 mx-1 align-middle self-center" />
+                <button
+                  type="button"
+                  onClick={handleAddImage}
+                  title="Masukkan Gambar Ilustrasi"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded hover:bg-neutral-200 text-primary"
+                >
+                  <ImageIcon size={15} /> Tambah Gambar
+                </button>
+              </div>
 
-            <section className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
-              <div className="flex items-center gap-2 text-primary">
-                <BrainCircuit size={18} />
-                <h2 className="text-lg font-bold text-neutral-900">Quiz pemahaman</h2>
+              {/* contentEditable Div */}
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(e) => setHtmlContent(e.currentTarget.innerHTML)}
+                dangerouslySetInnerHTML={{ __html: dbModule.deskripsi || "" }}
+                className="min-h-[400px] border border-t-0 border-neutral-200 rounded-b-xl p-6 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white overflow-y-auto prose max-w-none text-neutral-700 leading-8 space-y-4"
+              />
+
+              <div className="mt-4 flex items-center gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setHtmlContent(dbModule.deskripsi || "");
+                    setIsEditing(false);
+                  }}
+                  className="rounded-xl border border-neutral-200 text-neutral-600 px-4 py-2.5 text-sm font-bold transition hover:bg-neutral-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleSaveWYSIWYG}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-sm font-bold transition shadow-sm"
+                >
+                  <Save size={16} /> Simpan Perubahan
+                </button>
               </div>
-              <p className="mt-2 text-sm text-neutral-600">
-                Selesaikan quiz di bagian bawah untuk mengonfirmasi pemahaman Anda terhadap modul ini.
-              </p>
-              <div className="mt-4 space-y-4">
-                {module.quiz.map((quiz, quizIndex) => (
-                  <div key={`${quiz.question}-${quizIndex}`} className="rounded-lg border border-neutral-200 bg-white p-4">
-                    <p className="text-sm font-semibold text-neutral-800">{quizIndex + 1}. {quiz.question}</p>
-                    <div className="mt-3 space-y-2">
-                      {quiz.options.map((option, optionIndex) => {
-                        const selected = answers[quizIndex] === optionIndex;
-                        return (
-                          <label key={`${quiz.question}-${optionIndex}`} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm ${selected ? "border-primary bg-primary/5 text-primary" : "border-neutral-200 text-neutral-700"}`}>
-                            <input
-                              type="radio"
-                              name={`quiz-${quizIndex}`}
-                              checked={selected}
-                              onChange={() => setAnswers((current) => ({ ...current, [quizIndex]: optionIndex }))}
-                              className="h-4 w-4 accent-primary"
-                            />
-                            <span>{option}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
+            </div>
+          ) : (
+            /* Ruangguru / Zenius Style flowing article view */
+            <div
+              id="module-content"
+              className="mt-6 max-h-[600px] overflow-y-auto pr-2 space-y-6 prose max-w-none text-neutral-700 leading-8"
+            >
+              {/* Render Rich HTML Artikel */}
+              <div
+                dangerouslySetInnerHTML={{ __html: dbModule.deskripsi || "" }}
+                className="space-y-4
+                  prose-h2:text-xl prose-h2:font-extrabold prose-h2:text-neutral-900 prose-h2:pt-4 prose-h2:pb-2
+                  prose-h3:text-lg prose-h3:font-bold prose-h3:text-neutral-800 prose-h3:pt-2
+                  prose-p:text-neutral-600 prose-p:leading-8
+                  prose-ul:list-disc prose-ul:pl-6 prose-ul:space-y-2
+                  prose-ol:list-decimal prose-ol:pl-6 prose-ol:space-y-2
+                  prose-li:text-neutral-600
+                  prose-img:mx-auto prose-img:rounded-2xl prose-img:shadow-sm"
+              />
+
+              {/* Section Kuis */}
+              {quizList.length > 0 && (
+                <section className="rounded-2xl border border-neutral-100 bg-neutral-50/50 p-5 mt-10 space-y-4">
+                  <div className="flex items-center gap-2 text-primary">
+                    <BrainCircuit size={18} />
+                    <h2 className="text-lg font-bold text-neutral-900">Kuis Pemahaman</h2>
                   </div>
-                ))}
-              </div>
-              <button onClick={handleSubmit} className="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-light">
-                Submit jawaban
-              </button>
-              {submitted && progress.score !== null && (
-                <div className="mt-4 rounded-lg border border-success/20 bg-success/10 p-3 text-sm text-success">
-                  Skor quiz Anda: {progress.score}%
-                </div>
+                  <p className="text-sm text-neutral-600">
+                    Selesaikan kuis pemahaman berikut ini untuk menguji pemahaman Anda. Anda dianggap lulus jika skor mencapai minimal 70.
+                  </p>
+                  
+                  <div className="space-y-5 mt-4">
+                    {quizList.map((quiz: any, quizIndex: number) => {
+                      const options = [quiz.pilihan_a, quiz.pilihan_b, quiz.pilihan_c, quiz.pilihan_d];
+                      return (
+                        <div key={`${quiz.id}-${quizIndex}`} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+                          <p className="text-sm font-bold text-neutral-800">{quizIndex + 1}. {quiz.pertanyaan}</p>
+                          <div className="mt-4 space-y-2.5">
+                            {options.map((option, optionIndex) => {
+                              const selected = answers[quizIndex] === optionIndex;
+                              return (
+                                <label key={`${quiz.id}-${optionIndex}`} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 hover:border-primary/45 ${selected ? "border-primary bg-primary/5 text-primary" : "border-neutral-200 text-neutral-700 bg-neutral-50/10"}`}>
+                                  <input
+                                    type="radio"
+                                    name={`quiz-${quizIndex}`}
+                                    checked={selected}
+                                    onChange={() => setAnswers((current) => ({ ...current, [quizIndex]: optionIndex }))}
+                                    className="h-4 w-4 accent-primary"
+                                  />
+                                  <span>{option}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={handleSubmit}
+                    className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-3 text-sm font-bold transition-all shadow-md"
+                  >
+                    Kirim Jawaban Kuis
+                  </button>
+
+                  {submitted && progress.score !== null && (
+                    <div className={`mt-5 rounded-xl border p-4 text-sm font-semibold ${
+                      progress.score >= 70
+                        ? "border-success/20 bg-success/10 text-success"
+                        : "border-warning/20 bg-warning/10 text-warning"
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <Trophy size={18} />
+                        <span>Skor Kuis Anda: {progress.score}%</span>
+                      </div>
+                      <p className="mt-1 text-xs opacity-80 font-normal">
+                        {progress.score >= 70
+                          ? "Selamat! Anda dinyatakan lulus pada kuis modul ini."
+                          : "Skor belum mencapai target kelulusan 70%. Silakan coba lagi."}
+                      </p>
+                    </div>
+                  )}
+                </section>
               )}
-            </section>
-          </div>
+            </div>
+          )}
         </div>
 
-        <aside className="space-y-4 rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm">
+        {/* Panel Samping / Info Modul */}
+        <aside className="space-y-4 rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm self-start">
           <div className="flex items-center gap-2 text-primary">
             <BookOpen size={18} />
-            <h2 className="text-base font-bold text-neutral-900">Ringkasan modul</h2>
+            <h2 className="text-base font-bold text-neutral-900">Ringkasan Modul</h2>
           </div>
           <div className="space-y-3 text-sm text-neutral-600">
             <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Durasi</p>
-              <p className="mt-1 font-semibold text-neutral-800">{module.duration}</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Durasi Belajar</p>
+              <p className="mt-1 font-semibold text-neutral-800">45-60 Menit</p>
             </div>
             <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Status</p>
-              <p className="mt-1 font-semibold text-neutral-800">{progress.completed ? "Selesai" : "Belum selesai"}</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Status Penyelesaian</p>
+              <p className="mt-1 font-semibold text-neutral-800">{progress.completed ? "Lulus / Selesai" : "Belum Selesai"}</p>
             </div>
             <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Progress scroll</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Persentase Baca</p>
               <p className="mt-1 font-semibold text-neutral-800">{progress.scrollProgress}%</p>
             </div>
             <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Nilai quiz</p>
-              <p className="mt-1 font-semibold text-neutral-800">{progress.score ?? "Belum ada"}</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Skor Kuis Tertinggi</p>
+              <p className="mt-1 font-semibold text-neutral-800">{progress.score !== null ? `${progress.score}%` : "Belum Mengerjakan"}</p>
             </div>
           </div>
 
           <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
             <div className="flex items-center gap-2 text-accent-dark">
               <Trophy size={18} />
-              <h3 className="text-sm font-bold text-neutral-900">Target pencapaian</h3>
+              <h3 className="text-sm font-bold text-neutral-900">Target Belajar</h3>
             </div>
-            <p className="mt-2 text-sm text-neutral-600">
-              Baca seluruh isi modul, lalu selesaikan kuis agar status modul berubah menjadi selesai dan nilai muncul di daftar modul.
+            <p className="mt-2 text-xs leading-5 text-neutral-500">
+              Silakan baca artikel secara perlahan untuk memahami isinya. Setelah selesai membaca, Anda bisa mencoba kuis kelulusan di bagian bawah artikel.
             </p>
           </div>
         </aside>

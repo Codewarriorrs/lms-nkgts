@@ -163,4 +163,38 @@ export class MateriService {
 
     return attempt;
   }
+
+  async getModuleDetails(slug: string) {
+    const modul = await this.prisma.modulTeori.findUnique({
+      where: { slug },
+      include: {
+        soal_latihan: {
+          orderBy: { id: 'asc' }
+        }
+      }
+    });
+
+    if (!modul) {
+      throw new NotFoundException('Modul teori tidak ditemukan');
+    }
+
+    return modul;
+  }
+
+  async updateModuleContent(id: number, content: string) {
+    const modul = await this.prisma.modulTeori.findUnique({
+      where: { id },
+    });
+
+    if (!modul) {
+      throw new NotFoundException('Modul teori tidak ditemukan');
+    }
+
+    return this.prisma.modulTeori.update({
+      where: { id },
+      data: {
+        deskripsi: content,
+      },
+    });
+  }
 }
