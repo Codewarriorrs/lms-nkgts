@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -12,6 +12,8 @@ import {
   User,
   LogOut,
   X,
+  Users,
+  Settings
 } from "lucide-react";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
@@ -32,6 +34,18 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        setCurrentUser(JSON.parse(stored));
+      } catch (e) {
+        console.error("Failed to parse stored user in sidebar", e);
+      }
+    }
+  }, []);
 
   const handleLogoutClick = () => {
     setIsLogoutModalOpen(true);
@@ -42,6 +56,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     localStorage.removeItem("token");
     router.push("/login");
   };
+
+  // Conditionally build navigation items list based on user role
+  const items = [...navItems];
+  if (currentUser?.role === "admin") {
+    items.push(
+      { label: "Kelola Pengguna", icon: Users, href: "/dashboard/admin/users" },
+      { label: "Pengaturan Kontak", icon: Settings, href: "/dashboard/admin/settings/email-contact" }
+    );
+  }
 
   return (
     <>
@@ -64,7 +87,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {/* Logo and Brand */}
         <div className="px-6 py-5 flex items-center justify-between border-b border-white/10">
           <Link href="/dashboard" className="flex items-center gap-2.5">
-            <img src="/logo-kaizen-lLOIwLqFwQetrVPO.avif" alt="Logo Kaizen" className="h-8 w-auto object-contain bg-white rounded p-0.5" />
+            <img src="/logo-nkgts.png" alt="Logo Kaizen" className="h-16 w-auto object-contain rounded p-0.5" />
             <div className="leading-none text-white">
               <span className="text-[15px] font-bold tracking-tight">N-KGTS</span>
               <span className="block text-accent text-[10px] font-semibold tracking-wider uppercase mt-0.5">
@@ -82,7 +105,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Navigation Items */}
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
+          {items.map((item) => {
             const isActive =
               pathname === item.href ||
               (item.href !== "/dashboard" && pathname.startsWith(item.href));

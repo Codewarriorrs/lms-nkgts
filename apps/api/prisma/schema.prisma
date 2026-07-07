@@ -8,6 +8,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // === ENUMS (PENGATURAN PILIHAN ROLE) ===
@@ -30,6 +31,7 @@ model Sekolah {
   alamat       String?  @db.Text
   created_at   DateTime @default(now())
   users        User[]   // Relasi: 1 Sekolah bisa memiliki banyak User
+  invitation_tokens InvitationToken[]
 }
 
 // === DATA PENGGUNA (RBAC) ===
@@ -42,8 +44,122 @@ model User {
   password_hash String          @db.VarChar(255)
   role          RoleEnum
   status_guru   StatusGuruEnum? // Hanya terisi secara dinamis jika role = guru
+  nis           String?         @db.VarChar(50) // Ditambahkan sesuai requirement admin invitation
   created_at    DateTime        @default(now())
   updated_at    DateTime        @updatedAt
 
+  // Relasi Progres & Nilai Latihan (Dari ERD)
+  progres_teori ProgresTeori[]
+  nilai_latihan NilaiLatihan[]
+
   @@map("users") // Mengubah nama tabel di database menjadi huruf kecil 'users'
+}
+
+// === TOKENS UNDANGAN AKTIVASI ===
+model InvitationToken {
+  id         Int      @id @default(autoincrement())
+  email      String   @db.VarChar(100)
+  token      String   @unique @db.VarChar(255)
+  role       RoleEnum
+  sekolah_id Int
+  sekolah    Sekolah  @relation(fields: [sekolah_id], references: [id], onDelete: Cascade)
+  nama       String   @db.VarChar(150)
+  nis        String?  @db.VarChar(50)
+  is_used    Boolean  @default(false)
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  @@map("invitation_tokens")
+}
+
+// === SETTINGS GLOBAL ===
+model Settings {
+  id         Int      @id @default(autoincrement())
+  key        String   @unique @db.VarChar(100)
+  value      String   @db.Text
+  updated_at DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// === ENUMS PROGRES ===
+enum ProgresEnum {
+  belum_dimulai
+  sedang_dibaca
+  selesai
+}
+
+// === TOPIK PELATIHAN ===
+model TopikPelatihan {
+  id          Int          @id @default(autoincrement())
+  nama_topik  String       @db.VarChar(150)
+  deskripsi   String?      @db.Text
+  created_at  DateTime     @default(now())
+  modul_teori ModulTeori[]
+
+  @@map("topik_pelatihan")
+}
+
+// === MODUL TEORI ===
+model ModulTeori {
+  id             Int             @id @default(autoincrement())
+  topik_id       Int
+  topik          TopikPelatihan  @relation(fields: [topik_id], references: [id], onDelete: Cascade)
+  judul          String          @db.VarChar(255)
+  slug           String          @unique @db.VarChar(100)
+  deskripsi      String?         @db.Text
+  file_pdf_url   String?         @db.VarChar(255)
+  urutan         Int
+  created_at     DateTime        @default(now())
+
+  // Relasi
+  progres_teori  ProgresTeori[]
+  nilai_latihan  NilaiLatihan[]
+  soal_latihan   SoalLatihan[]
+
+  @@map("modul_teori")
+}
+
+// === PROGRES TEORI ===
+model ProgresTeori {
+  id             Int          @id @default(autoincrement())
+  siswa_id       String       @db.Uuid
+  siswa          User         @relation(fields: [siswa_id], references: [id], onDelete: Cascade)
+  modul_teori_id Int
+  modul_teori    ModulTeori   @relation(fields: [modul_teori_id], references: [id], onDelete: Cascade)
+  status         ProgresEnum  @default(belum_dimulai)
+  persentase     Int          @default(0) // Ditambahkan agar melacak % scroll riil
+  updated_at     DateTime     @updatedAt
+
+  @@unique([siswa_id, modul_teori_id]) // Satu siswa memiliki satu status progres per modul
+  @@map("progres_teori")
+}
+
+// === NILAI LATIHAN ===
+model NilaiLatihan {
+  id             Int        @id @default(autoincrement())
+  siswa_id       String     @db.Uuid
+  siswa          User       @relation(fields: [siswa_id], references: [id], onDelete: Cascade)
+  modul_teori_id Int
+  modul_teori    ModulTeori @relation(fields: [modul_teori_id], references: [id], onDelete: Cascade)
+  skor           Int
+  disubmit_at    DateTime   @default(now())
+
+  @@map("nilai_latihan")
+}
+
+// === SOAL LATIHAN ===
+model SoalLatihan {
+  id             Int        @id @default(autoincrement())
+  modul_teori_id Int
+  modul_teori    ModulTeori @relation(fields: [modul_teori_id], references: [id], onDelete: Cascade)
+  pertanyaan     String     @db.Text
+  pilihan_a      String     @db.Text
+  pilihan_b      String     @db.Text
+  pilihan_c      String     @db.Text
+  pilihan_d      String     @db.Text
+  jawaban_benar  Int        // Menyimpan index jawaban benar (0, 1, 2, atau 3)
+  created_at     DateTime   @default(now())
+
+  @@map("soal_latihan")
 }

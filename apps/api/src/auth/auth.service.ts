@@ -3,11 +3,14 @@ import { PrismaService } from '../prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-  // Inject PrismaService yang mengarah ke klien terisolasi kita
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   async register(dto: RegisterDto) {
     try {
@@ -70,14 +73,27 @@ export class AuthService {
       ? (nameParts[0][0] + nameParts[1][0]).toUpperCase()
       : nameParts[0][0].substring(0, 2).toUpperCase();
 
-    // Mock Token terstruktur sebelum implementasi JWT resmi minggu depan
-    const mockAccessToken = `nkgts_v1_secure_pack.${Buffer.from(JSON.stringify({ id: user.id, role: user.role })).toString('base64')}`;
+    // Menghasilkan JWT token asli berbasis payload terenkripsi
+    const tokenPayload = { sub: user.id, role: user.role, email: user.email };
+    const jwtToken = this.jwtService.sign(tokenPayload);
 
     return {
+      // Format 1: Kompatibilitas dengan frontend yang membaca data.token & data.user
+      token: jwtToken,
+      user: {
+        id: user.id,
+        name: user.nama,
+        school: user.sekolah?.nama_sekolah || 'PT Toyota-Astra Motor (TAM)',
+        avatar: `https://ui-avatars.com/api/?name=${initials}&background=0D8ABC&color=fff&bold=true`,
+        email: user.email,
+        role: user.role.toLowerCase(), // Pastikan lowercase
+        status_guru: user.status_guru,
+      },
+      // Format 2: Format respons API terstandarisasi baru
       status: 'success',
       message: 'Autentikasi berhasil dieksekusi',
       data: {
-        access_token: mockAccessToken,
+        access_token: jwtToken,
         profile: {
           id: user.id,
           nama: user.nama,

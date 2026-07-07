@@ -95,50 +95,11 @@ export class AppController implements OnModuleInit {
     return this.appService.getHello();
   }
 
-  @Post('auth/login')
-  @HttpCode(200)
-  async login(@Body() body: any) {
-    const { email, password } = body;
-    if (!email || !password) {
-      throw new UnauthorizedException('Email dan password harus diisi');
-    }
-
-    const emailLower = email.toLowerCase();
-    
-    // Find user in database
-    const user = await this.prisma.user.findUnique({
-      where: { email: emailLower },
-      include: { sekolah: true }
+  @Get('schools')
+  async getSchools() {
+    return this.prisma.sekolah.findMany({
+      orderBy: { nama_sekolah: 'asc' }
     });
-
-    if (!user) {
-      throw new UnauthorizedException('Email tidak terdaftar');
-    }
-
-    // Verify hashed password
-    const isPasswordValid = bcrypt.compareSync(password, user.password_hash);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Password salah');
-    }
-
-    const initials = user.nama
-      ? user.nama
-          .split(' ')
-          .map((n: string) => n[0])
-          .join('')
-          .substring(0, 2)
-          .toUpperCase()
-      : 'US';
-
-    return {
-      token: `mock-jwt-token-${user.email.split('@')[0]}-${Date.now()}`,
-      user: {
-        name: user.nama,
-        school: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
-        avatar: initials,
-        email: user.email,
-        role: user.role, // e.g. admin, guru, siswa (lowercase)
-      }
-    };
   }
 }
+
