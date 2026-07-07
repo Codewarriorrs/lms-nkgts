@@ -46,11 +46,16 @@ export class InvitationService {
     const activationLink = `${frontendUrl}/register?token=${token}`;
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
       auth: {
         user: gmailUser,
         pass: gmailPass,
       },
+      tls: {
+        rejectUnauthorized: false
+      }
     });
 
     const mailOptions = {
@@ -133,8 +138,8 @@ export class InvitationService {
       },
     });
 
-    // Kirim email undangan secara asinkron
-    await this.sendInvitationEmail(emailLower, nama, token, role, sekolah.nama_sekolah);
+    // Kirim email undangan secara asinkron (tanpa await agar request tidak hang)
+    this.sendInvitationEmail(emailLower, nama, token, role, sekolah.nama_sekolah);
 
     return inviteToken;
   }
@@ -321,8 +326,8 @@ export class InvitationService {
       },
     });
 
-    // Kirim Ulang Email
-    await this.sendInvitationEmail(
+    // Kirim Ulang Email secara asinkron (tanpa await agar request tidak hang)
+    this.sendInvitationEmail(
       invite.email,
       invite.nama,
       newToken,
