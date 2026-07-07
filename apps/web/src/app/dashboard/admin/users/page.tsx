@@ -69,6 +69,7 @@ export default function AdminUsersPage() {
   // Modals & Forms
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [inviteForm, setInviteForm] = useState({
     email: "",
     nama: "",
@@ -196,7 +197,11 @@ export default function AdminUsersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Gagal mengirim undangan");
 
-      setSuccessMsg(`Undangan aktivasi berhasil dikirim ke ${inviteForm.email}`);
+      if (data.emailError) {
+        setErrorMsg(`Undangan disimpan, tetapi email gagal dikirim: ${data.emailError}`);
+      } else {
+        setSuccessMsg(`Undangan aktivasi berhasil dikirim ke ${inviteForm.email}`);
+      }
       setIsInviteModalOpen(false);
       setInviteForm({
         email: "",
@@ -267,7 +272,11 @@ export default function AdminUsersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Gagal mengirim ulang undangan");
 
-      setSuccessMsg(`Undangan aktivasi berhasil dikirim ulang ke ${email}`);
+      if (data.emailError) {
+        setErrorMsg(`Undangan berhasil diperbarui, tetapi gagal mengirim email: ${data.emailError}`);
+      } else {
+        setSuccessMsg(`Undangan aktivasi berhasil dikirim ulang ke ${email}`);
+      }
       fetchPendingInvitations();
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -277,8 +286,7 @@ export default function AdminUsersPage() {
   };
 
   // 7. Delete/Cancel Invitation
-  const handleDeleteInvite = async (id: number) => {
-    if (!confirm("Apakah Anda yakin ingin membatalkan dan menghapus undangan ini?")) return;
+  const confirmDeleteInvite = async (id: number) => {
     setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -601,7 +609,7 @@ export default function AdminUsersPage() {
                             Kirim Ulang
                           </button>
                           <button
-                            onClick={() => handleDeleteInvite(invite.id)}
+                            onClick={() => setDeleteTargetId(invite.id)}
                             disabled={loading}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-danger/10 hover:bg-danger/10 text-danger text-xs font-bold transition cursor-pointer disabled:opacity-50"
                             title="Batalkan dan hapus undangan"
@@ -619,6 +627,41 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      {/* ================= MODAL KONFIRMASI HAPUS UNDANGAN ================= */}
+      {deleteTargetId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-neutral-100 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-danger">
+              <div className="p-2 rounded-xl bg-danger/10">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="font-bold text-lg text-neutral-900">Batalkan Undangan?</h3>
+            </div>
+            <p className="text-sm text-neutral-500 leading-relaxed">
+              Apakah Anda yakin ingin membatalkan dan menghapus undangan ini? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex items-center gap-3 justify-end pt-2">
+              <button
+                onClick={() => setDeleteTargetId(null)}
+                className="rounded-xl border border-neutral-200 text-neutral-600 px-4 py-2 text-sm font-semibold transition hover:bg-neutral-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={async () => {
+                  const id = deleteTargetId;
+                  setDeleteTargetId(null);
+                  await confirmDeleteInvite(id);
+                }}
+                className="rounded-xl bg-danger hover:bg-danger/90 text-white px-4 py-2 text-sm font-bold transition shadow-sm cursor-pointer"
+              >
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= MODAL UNDANG MANUAL ================= */}
       {isInviteModalOpen && (

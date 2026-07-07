@@ -18,28 +18,27 @@ export class InvitationService {
     private readonly authService: AuthService,
   ) {}
 
-  // 1. Kirim Email Undangan
   private async sendInvitationEmail(
     email: string,
     nama: string,
     token: string,
     role: string,
     namaSekolah: string,
-  ) {
+  ): Promise<string | undefined> {
     const gmailUser = process.env.GMAIL_USER;
     const gmailPass = process.env.GMAIL_APP_PASSWORD;
-    const resendApiKey = process.env.RESEND_API_KEY;
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    const brevoSenderEmail = process.env.BREVO_SENDER_EMAIL;
 
-    const hasResend = !!resendApiKey;
+    const hasBrevo = !!brevoApiKey && !!brevoSenderEmail;
     const hasGmail = gmailUser && gmailPass && !gmailUser.includes('placeholder') && !gmailPass.includes('placeholder');
 
     // Jika tidak ada satu pun konfigurasi email, lewati pengiriman
-    if (!hasResend && !hasGmail) {
-      console.warn('Konfigurasi email (Resend atau Gmail SMTP) belum diatur di file .env. Pengiriman email dilewati.');
-      return;
+    if (!hasBrevo && !hasGmail) {
+      return 'Konfigurasi email (Brevo API Key atau Gmail SMTP) belum diatur di server.';
     }
 
-    // Ambil data Contact Person dari Settings
+    // ... (sisa pengisian variabel cpName, cpWa, frontendUrl, dll)
     const cpNameSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_name' } });
     const cpWaSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_whatsapp' } });
 
@@ -71,37 +70,49 @@ export class InvitationService {
       </div>
     `;
 
-    // 1. Coba Mengirim Lewat Resend API (HTTPS Port 443, pasti tembus di Railway)
-    if (hasResend) {
-      const resendFrom = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    // 1. Coba Mengirim Lewat Brevo API (HTTPS Port 443, gratis 300 email/hari & mendukung verifikasi satu email Gmail/Sekolah tanpa domain kustom)
+    if (hasBrevo) {
+      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Platform N-KGTS LMS';
       try {
-        const response = await fetch('https://api.resend.com/emails', {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${resendApiKey}`,
+            'accept': 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json',
           },
           body: JSON.stringify({
-            from: `Platform N-KGTS LMS <${resendFrom}>`,
-            to: email,
+            sender: {
+              name: brevoSenderName,
+              email: brevoSenderEmail,
+            },
+            to: [{ email, name: nama }],
             subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
-            html: mailHtmlContent,
+            htmlContent: mailHtmlContent,
           }),
+          signal: AbortSignal.timeout(5000), // Timeout 5 detik
         });
 
         if (response.ok) {
-          console.log('Email undangan berhasil dikirim via Resend API ke:', email);
-          return; // Sukses, langsung keluar
+          console.log('Email undangan berhasil dikirim via Brevo API ke:', email);
+          return undefined; // Sukses
         } else {
           const errData = await response.json();
-          console.error('Gagal mengirim email via Resend API, mencoba fallback Gmail...', errData);
+          const errMsg = errData.message || 'Error API Brevo';
+          console.error('Gagal mengirim email via Brevo API:', errData);
+          if (!hasGmail) {
+            return `Brevo API: ${errMsg}`;
+          }
         }
-      } catch (err) {
-        console.error('Error saat menghubungi API Resend, mencoba fallback Gmail...', err);
+      } catch (err: any) {
+        console.error('Error saat menghubungi API Brevo:', err);
+        if (!hasGmail) {
+          return `Brevo API: ${err.message || 'Koneksi timeout'}`;
+        }
       }
     }
 
-    // 2. Fallback ke Gmail SMTP jika Resend belum diatur atau gagal
+    // 3. Fallback ke Gmail SMTP (dengan timeout 5 detik)
     if (hasGmail) {
       const transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
@@ -111,6 +122,9 @@ export class InvitationService {
           user: gmailUser,
           pass: gmailPass,
         },
+        connectionTimeout: 5000, // Timeout koneksi 5 detik
+        greetingTimeout: 5000,
+        socketTimeout: 5000,
         tls: {
           rejectUnauthorized: false
         }
@@ -126,10 +140,14 @@ export class InvitationService {
       try {
         await transporter.sendMail(mailOptions);
         console.log('Email undangan berhasil dikirim via Gmail SMTP ke:', email);
-      } catch (err) {
+        return undefined; // Sukses
+      } catch (err: any) {
         console.error('Gagal mengirim email undangan via Gmail SMTP ke:', email, err);
+        return `Gmail SMTP: ${err.message || 'Koneksi timeout'}`;
       }
     }
+
+    return 'Gagal memproses pengiriman email.';
   }
 
   // 2. Buat Token Baru & Kirim Email (Proses Utama)
@@ -177,10 +195,13 @@ export class InvitationService {
       },
     });
 
-    // Kirim email undangan secara asinkron (tanpa await agar request tidak hang)
-    this.sendInvitationEmail(emailLower, nama, token, role, sekolah.nama_sekolah);
+    // Kirim email undangan secara sinkron dengan batas timeout 5 detik
+    const emailError = await this.sendInvitationEmail(emailLower, nama, token, role, sekolah.nama_sekolah);
 
-    return inviteToken;
+    return {
+      ...inviteToken,
+      emailError: emailError || null
+    };
   }
 
   // 3. Undang Pengguna Secara Manual
@@ -320,6 +341,7 @@ export class InvitationService {
       created_at: invite.created_at,
       expires_at: invite.expires_at,
       is_expired: new Date() > invite.expires_at,
+      token: invite.token,
     }));
   }
 
@@ -365,8 +387,8 @@ export class InvitationService {
       },
     });
 
-    // Kirim Ulang Email secara asinkron (tanpa await agar request tidak hang)
-    this.sendInvitationEmail(
+    // Kirim Ulang Email secara sinkron dengan batas timeout 5 detik
+    const emailError = await this.sendInvitationEmail(
       invite.email,
       invite.nama,
       newToken,
@@ -375,8 +397,11 @@ export class InvitationService {
     );
 
     return {
-      message: 'Email undangan berhasil dikirim ulang dengan token baru',
+      message: emailError
+        ? `Undangan berhasil diperbarui, tetapi gagal mengirim email: ${emailError}`
+        : 'Email undangan berhasil dikirim ulang dengan token baru',
       data: updatedInvite,
+      emailError: emailError || null
     };
   }
 
