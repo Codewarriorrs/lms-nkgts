@@ -37,8 +37,12 @@ export default function ProfilePage() {
       <div className="bg-white rounded-xl border border-neutral-100 p-6 max-w-2xl space-y-6">
         {/* Avatar Header */}
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center text-neutral-900 font-extrabold text-xl shadow-inner select-none">
-            {currentUser.avatar}
+          <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center text-neutral-900 font-extrabold text-xl shadow-inner select-none overflow-hidden">
+            {currentUser.avatar && (currentUser.avatar.startsWith("http") || currentUser.avatar.startsWith("/")) ? (
+              <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+            ) : (
+              currentUser.avatar
+            )}
           </div>
           <div>
             <h3 className="text-lg font-bold text-neutral-900">{currentUser.name}</h3>

@@ -44,8 +44,12 @@ export function Topbar({ onMenuClick, user }: TopbarProps) {
 
         {/* User Profile Info */}
         <div className="flex items-center gap-3 pl-3 border-l border-neutral-100">
-          <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-neutral-900 font-extrabold text-sm shadow-sm flex-shrink-0 hover:scale-105 transition-transform duration-200 select-none">
-            {user.avatar}
+          <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-neutral-900 font-extrabold text-sm shadow-sm flex-shrink-0 hover:scale-105 transition-transform duration-200 select-none overflow-hidden">
+            {user.avatar && (user.avatar.startsWith("http") || user.avatar.startsWith("/")) ? (
+              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              user.avatar
+            )}
           </div>
           <div className="hidden md:block text-left leading-tight">
             <p className="text-sm font-bold text-neutral-900">{user.name}</p>
