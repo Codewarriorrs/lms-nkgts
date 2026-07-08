@@ -409,7 +409,7 @@ export default function MateriDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.6fr_0.9fr]">
+      <div className="grid gap-6 lg:grid-cols-[1.8fr_0.7fr]">
         <div className="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm flex flex-col min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>

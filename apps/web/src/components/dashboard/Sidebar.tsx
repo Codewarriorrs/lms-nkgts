@@ -13,7 +13,8 @@ import {
   LogOut,
   X,
   Users,
-  Settings
+  Settings,
+  Globe
 } from "lucide-react";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
@@ -146,6 +147,14 @@ export function Sidebar({ open, collapsed = false, onClose }: SidebarProps) {
 
         {/* Footer profile & logout */}
         <div className={`px-3 py-4 border-t border-white/10 space-y-1 ${collapsed ? "flex flex-col items-center" : ""}`}>
+          <Link
+            href="/"
+            title={collapsed ? "Halaman Utama" : undefined}
+            className={`flex items-center rounded-xl text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white transition-all duration-200 ${collapsed ? "justify-center p-3" : "gap-3.5 px-4 py-3 w-full"}`}
+          >
+            <Globe size={18} className="text-white/60 flex-shrink-0" />
+            {!collapsed && <span className="truncate">Halaman Utama</span>}
+          </Link>
           <Link
             href="/dashboard/profile"
             onClick={onClose}
