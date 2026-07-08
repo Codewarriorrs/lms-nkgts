@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import {
   BookOpen,
   ClipboardList,
@@ -168,6 +169,19 @@ function useInView(ref: React.RefObject<HTMLElement | null>) {
 function Navbar() {
   const scrolled = useScrolled();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
+    if (stored && token) {
+      try {
+        setCurrentUser(JSON.parse(stored));
+      } catch (e) {
+        console.error("Failed to parse user in landing page navbar", e);
+      }
+    }
+  }, []);
 
   return (
     <header
@@ -217,20 +231,44 @@ function Navbar() {
 
           {/* CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <a
-              href="/login"
-              className={`text-sm font-semibold transition-colors duration-300 ${
-                scrolled ? "text-primary-dark hover:text-primary" : "text-white/80 hover:text-white"
-              }`}
-            >
-              Masuk
-            </a>
-            <a
-              href="/login"
-              className="bg-accent text-neutral-900 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-accent-dark transition-all duration-200 hover:shadow-md"
-            >
-              Mulai Sekarang →
-            </a>
+            {currentUser ? (
+              <div className="flex items-center gap-4">
+                <Link
+                  href="/dashboard"
+                  className="bg-accent text-neutral-900 text-sm font-bold px-4 py-2 rounded-lg hover:bg-accent-dark transition-all duration-200 hover:shadow-md cursor-pointer"
+                >
+                  Ke Dashboard
+                </Link>
+                <Link
+                  href="/dashboard/profile"
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-white font-bold border-2 border-accent transition-transform hover:scale-105 cursor-pointer overflow-hidden"
+                  title={`Profil ${currentUser.name}`}
+                >
+                  {currentUser.avatar && currentUser.avatar.startsWith("http") ? (
+                    <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}</span>
+                  )}
+                </Link>
+              </div>
+            ) : (
+              <>
+                <a
+                  href="/login"
+                  className={`text-sm font-semibold transition-colors duration-300 ${
+                    scrolled ? "text-primary-dark hover:text-primary" : "text-white/80 hover:text-white"
+                  }`}
+                >
+                  Masuk
+                </a>
+                <a
+                  href="/login"
+                  className="bg-accent text-neutral-900 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-accent-dark transition-all duration-200 hover:shadow-md"
+                >
+                  Mulai Sekarang →
+                </a>
+              </>
+            )}
           </div>
 
           {/* Mobile toggle */}
@@ -262,12 +300,29 @@ function Navbar() {
               {l.label}
             </a>
           ))}
-          <a
-            href="/login"
-            className="block w-full text-center bg-primary text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-primary-light transition mt-2"
-          >
-            Masuk ke Platform
-          </a>
+          {currentUser ? (
+            <div className="flex flex-col gap-2 pt-2">
+              <a
+                href="/dashboard"
+                className="block w-full text-center bg-primary text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-primary-light transition"
+              >
+                Ke Dashboard
+              </a>
+              <a
+                href="/dashboard/profile"
+                className="block w-full text-center bg-neutral-100 text-neutral-700 text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-neutral-200 transition"
+              >
+                Profil Saya ({currentUser.name})
+              </a>
+            </div>
+          ) : (
+            <a
+              href="/login"
+              className="block w-full text-center bg-primary text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-primary-light transition mt-2"
+            >
+              Masuk ke Platform
+            </a>
+          )}
         </div>
       </div>
     </header>

@@ -4,6 +4,7 @@ import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { API_URL } from "@/lib/api";
 
 export function LoginForm() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export function LoginForm() {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:3001/api/auth/login", {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

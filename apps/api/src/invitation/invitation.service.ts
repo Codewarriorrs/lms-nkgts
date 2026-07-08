@@ -18,24 +18,27 @@ export class InvitationService {
     private readonly authService: AuthService,
   ) {}
 
-  // 1. Kirim Email Undangan
   private async sendInvitationEmail(
     email: string,
     nama: string,
     token: string,
     role: string,
     namaSekolah: string,
-  ) {
+  ): Promise<string | undefined> {
     const gmailUser = process.env.GMAIL_USER;
     const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    const brevoSenderEmail = process.env.BREVO_SENDER_EMAIL;
 
-    // Jika SMTP tidak dikonfigurasi, lewati pengiriman email namun tetap simpan token
-    if (!gmailUser || !gmailPass || gmailUser.includes('placeholder') || gmailPass.includes('placeholder')) {
-      console.warn('SMTP Gmail belum dikonfigurasi dengan benar di file .env. Pengiriman email dilewati.');
-      return;
+    const hasBrevo = !!brevoApiKey && !!brevoSenderEmail;
+    const hasGmail = gmailUser && gmailPass && !gmailUser.includes('placeholder') && !gmailPass.includes('placeholder');
+
+    // Jika tidak ada satu pun konfigurasi email, lewati pengiriman
+    if (!hasBrevo && !hasGmail) {
+      return 'Konfigurasi email (Brevo API Key atau Gmail SMTP) belum diatur di server.';
     }
 
-    // Ambil data Contact Person dari Settings
+    // ... (sisa pengisian variabel cpName, cpWa, frontendUrl, dll)
     const cpNameSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_name' } });
     const cpWaSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_whatsapp' } });
 
@@ -45,47 +48,106 @@ export class InvitationService {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const activationLink = `${frontendUrl}/register?token=${token}`;
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: gmailUser,
-        pass: gmailPass,
-      },
-    });
-
-    const mailOptions = {
-      from: `"Platform N-KGTS LMS" <${gmailUser}>`,
-      to: email,
-      subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #0d8abc; margin: 0;">N-KGTS LMS Platform</h2>
-            <p style="color: #777; margin: 5px 0 0 0;">Pembelajaran Budaya Kaizen & 5R</p>
-          </div>
-          <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;" />
-          <p>Halo, <strong>${nama}</strong>!</p>
-          <p>Anda telah diundang sebagai <strong>${role.toUpperCase()}</strong> di sekolah <strong>${namaSekolah}</strong> untuk bergabung dalam platform LMS N-KGTS.</p>
-          <p>Silakan klik tautan di bawah ini untuk mengaktifkan akun Anda dan mengatur password masuk baru:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${activationLink}" style="background-color: #0d8abc; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Aktifkan Akun Saya</a>
-          </div>
-          <p style="color: #555; font-size: 13px;">Tautan ini hanya berlaku selama 7 hari. Jika tautan kedaluwarsa, silakan hubungi Admin Sekolah Anda.</p>
-          <hr style="border: 0; border-top: 1px solid #eee; margin-top: 30px; margin-bottom: 15px;" />
-          <div style="font-size: 12px; color: #777;">
-            <p>Butuh bantuan? Hubungi Contact Person kami:</p>
-            <p>Nama: <strong>${cpName}</strong><br />WhatsApp: <a href="https://wa.me/${cpWa}" style="color: #0d8abc; text-decoration: none;">+${cpWa}</a></p>
-          </div>
+    const mailHtmlContent = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #0d8abc; margin: 0;">N-KGTS LMS Platform</h2>
+          <p style="color: #777; margin: 5px 0 0 0;">Pembelajaran Budaya Kaizen & 5R</p>
         </div>
-      `,
-    };
+        <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;" />
+        <p>Halo, <strong>${nama}</strong>!</p>
+        <p>Anda telah diundang sebagai <strong>${role.toUpperCase()}</strong> di sekolah <strong>${namaSekolah}</strong> untuk bergabung dalam platform LMS N-KGTS.</p>
+        <p>Silakan klik tautan di bawah ini untuk mengaktifkan akun Anda dan mengatur password masuk baru:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${activationLink}" style="background-color: #0d8abc; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Aktifkan Akun Saya</a>
+        </div>
+        <p style="color: #555; font-size: 13px;">Tautan ini hanya berlaku selama 7 hari. Jika tautan kedaluwarsa, silakan hubungi Admin Sekolah Anda.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin-top: 30px; margin-bottom: 15px;" />
+        <div style="font-size: 12px; color: #777;">
+          <p>Butuh bantuan? Hubungi Contact Person kami:</p>
+          <p>Nama: <strong>${cpName}</strong><br />WhatsApp: <a href="https://wa.me/${cpWa}" style="color: #0d8abc; text-decoration: none;">+${cpWa}</a></p>
+        </div>
+      </div>
+    `;
 
-    try {
-      await transporter.sendMail(mailOptions);
-    } catch (err) {
-      console.error('Gagal mengirim email undangan ke:', email, err);
-      // Jangan gagalkan seluruh proses, biarkan token tetap tersimpan agar admin bisa klik "Kirim Ulang"
+    // 1. Coba Mengirim Lewat Brevo API (HTTPS Port 443, gratis 300 email/hari & mendukung verifikasi satu email Gmail/Sekolah tanpa domain kustom)
+    if (hasBrevo) {
+      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Platform N-KGTS LMS';
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: {
+              name: brevoSenderName,
+              email: brevoSenderEmail,
+            },
+            to: [{ email, name: nama }],
+            subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
+            htmlContent: mailHtmlContent,
+          }),
+          signal: AbortSignal.timeout(5000), // Timeout 5 detik
+        });
+
+        if (response.ok) {
+          console.log('Email undangan berhasil dikirim via Brevo API ke:', email);
+          return undefined; // Sukses
+        } else {
+          const errData = await response.json();
+          const errMsg = errData.message || 'Error API Brevo';
+          console.error('Gagal mengirim email via Brevo API:', errData);
+          if (!hasGmail) {
+            return `Brevo API: ${errMsg}`;
+          }
+        }
+      } catch (err: any) {
+        console.error('Error saat menghubungi API Brevo:', err);
+        if (!hasGmail) {
+          return `Brevo API: ${err.message || 'Koneksi timeout'}`;
+        }
+      }
     }
+
+    // 3. Fallback ke Gmail SMTP (dengan timeout 5 detik)
+    if (hasGmail) {
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: gmailUser,
+          pass: gmailPass,
+        },
+        connectionTimeout: 5000, // Timeout koneksi 5 detik
+        greetingTimeout: 5000,
+        socketTimeout: 5000,
+        tls: {
+          rejectUnauthorized: false
+        }
+      });
+
+      const mailOptions = {
+        from: `"Platform N-KGTS LMS" <${gmailUser}>`,
+        to: email,
+        subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
+        html: mailHtmlContent,
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log('Email undangan berhasil dikirim via Gmail SMTP ke:', email);
+        return undefined; // Sukses
+      } catch (err: any) {
+        console.error('Gagal mengirim email undangan via Gmail SMTP ke:', email, err);
+        return `Gmail SMTP: ${err.message || 'Koneksi timeout'}`;
+      }
+    }
+
+    return 'Gagal memproses pengiriman email.';
   }
 
   // 2. Buat Token Baru & Kirim Email (Proses Utama)
@@ -133,10 +195,13 @@ export class InvitationService {
       },
     });
 
-    // Kirim email undangan secara asinkron
-    await this.sendInvitationEmail(emailLower, nama, token, role, sekolah.nama_sekolah);
+    // Kirim email undangan secara sinkron dengan batas timeout 5 detik
+    const emailError = await this.sendInvitationEmail(emailLower, nama, token, role, sekolah.nama_sekolah);
 
-    return inviteToken;
+    return {
+      ...inviteToken,
+      emailError: emailError || null
+    };
   }
 
   // 3. Undang Pengguna Secara Manual
@@ -276,6 +341,7 @@ export class InvitationService {
       created_at: invite.created_at,
       expires_at: invite.expires_at,
       is_expired: new Date() > invite.expires_at,
+      token: invite.token,
     }));
   }
 
@@ -321,8 +387,8 @@ export class InvitationService {
       },
     });
 
-    // Kirim Ulang Email
-    await this.sendInvitationEmail(
+    // Kirim Ulang Email secara sinkron dengan batas timeout 5 detik
+    const emailError = await this.sendInvitationEmail(
       invite.email,
       invite.nama,
       newToken,
@@ -331,8 +397,11 @@ export class InvitationService {
     );
 
     return {
-      message: 'Email undangan berhasil dikirim ulang dengan token baru',
+      message: emailError
+        ? `Undangan berhasil diperbarui, tetapi gagal mengirim email: ${emailError}`
+        : 'Email undangan berhasil dikirim ulang dengan token baru',
       data: updatedInvite,
+      emailError: emailError || null
     };
   }
 

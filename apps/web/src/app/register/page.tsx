@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { API_URL } from "@/lib/api";
 import { 
   KeyRound, 
   CheckCircle2, 
@@ -53,7 +54,7 @@ function RegisterContent() {
     setCheckingToken(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`http://localhost:3001/api/auth/activate?token=${token}`);
+      const res = await fetch(`${API_URL}/auth/activate?token=${token}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Tautan aktivasi kedaluwarsa atau tidak terdaftar");
       setTokenInfo(data);
@@ -67,7 +68,7 @@ function RegisterContent() {
 
   const fetchCpSettings = async () => {
     try {
-      const res = await fetch("http://localhost:3001/api/admin/settings/email-contact");
+      const res = await fetch(`${API_URL}/admin/settings/email-contact`);
       const data = await res.json();
       if (res.ok) {
         setCpInfo(data);
@@ -98,7 +99,7 @@ function RegisterContent() {
     setSuccessMsg(null);
 
     try {
-      const res = await fetch("http://localhost:3001/api/auth/activate", {
+      const res = await fetch(`${API_URL}/auth/activate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password })
