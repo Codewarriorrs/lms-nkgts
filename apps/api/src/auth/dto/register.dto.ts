@@ -1,5 +1,5 @@
 import { IsEmail, IsNotEmpty, IsString, MinLength, IsEnum, IsOptional, IsInt } from "class-validator";
-import { RoleEnum, StatusGuruEnum } from '../../../generated/prisma';
+import { RoleEnum} from '../../../generated/prisma';
 
 export class RegisterDto {
     @IsString()
@@ -21,9 +21,9 @@ export class RegisterDto {
 
     @IsEnum(RoleEnum, { message: 'Role harus berupa admin, guru, atau siswa'})
     @IsNotEmpty()
-    role: RoleEnum;
+    role: RoleEnum; 
 
-    @IsEnum(StatusGuruEnum, { message: 'Status guru harus berupa praktisi, kandidat, atau warga sekolah'})
     @IsOptional()
-    status_guru?: StatusGuruEnum;    
+    @IsString()
+    nis?: string;
 }

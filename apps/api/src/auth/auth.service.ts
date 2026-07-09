@@ -27,9 +27,8 @@ export class AuthService {
           email: emailLower,
           password_hash: hashedPassword,
           role: dto.role,
-          // Kondisional: Status guru hanya diisi jika role-nya adalah guru
-          status_guru: dto.role === 'guru' ? dto.status_guru : null,
           sekolah_id: dto.sekolah_id || null,
+          nis: dto.nis,
         },
         include: { sekolah: true },
       });
@@ -87,7 +86,7 @@ export class AuthService {
         avatar: `https://ui-avatars.com/api/?name=${initials}&background=0D8ABC&color=fff&bold=true`,
         email: user.email,
         role: user.role.toLowerCase(), // Pastikan lowercase
-        status_guru: user.status_guru,
+        nis: user.nis,
       },
       // Format 2: Format respons API terstandarisasi baru
       status: 'success',
@@ -99,7 +98,7 @@ export class AuthService {
           nama: user.nama,
           email: user.email,
           role: user.role,
-          status_guru: user.status_guru,
+          nis: user.nis,
           nama_sekolah: user.sekolah?.nama_sekolah || 'PT Toyota-Astra Motor (TAM)',
           dynamic_avatar: `https://ui-avatars.com/api/?name=${initials}&background=0D8ABC&color=fff&bold=true`,
         },

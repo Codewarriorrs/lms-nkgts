@@ -13,6 +13,7 @@ export class AppController implements OnModuleInit {
   async onModuleInit() {
     await this.seedUsersIfEmpty();
     await this.seedMateriIfEmpty();
+    await this.seedTugasIfEmpty();
   }
 
   private async seedMateriIfEmpty() {
@@ -351,6 +352,54 @@ export class AppController implements OnModuleInit {
     } catch (error) {
       console.error('Failed to seed default users:', error);
     }
+  }
+
+  private async seedTugasIfEmpty() {
+    const hitungTugas = await this.prisma.tugasPraktek.count();
+    
+    // Jika di database cloud sudah ada datanya, batalkan proses (agar tidak duplikat)
+    if (hitungTugas > 0) return;
+
+    console.log('*** Menyuntikkan 5 Master Tugas Praktek N-KGTS ke Cloud Neon... ***');
+
+    const masterTugas = [
+      {
+        id: 1,
+        judul: 'Pengenalan Budaya Kaizen',
+        deskripsi: 'Lakukan observasi dan catat contoh penerapan budaya Kaizen di lingkungan Anda.',
+        urutan: 1,
+      },
+      {
+        id: 2,
+        judul: '5R (Ringkas, Rapi, Resik, Rawat, Rajin)',
+        deskripsi: 'Terapkan dan dokumentasikan langkah 5R pada area kerja yang Anda pilih.',
+        urutan: 2,
+      },
+      {
+        id: 3,
+        judul: '6 Potensi Bahaya',
+        deskripsi: 'Identifikasi acronym 6 potensi bahaya di lokasi kerja dan usulkan mitigasinya.',
+        urutan: 3,
+      },
+      {
+        id: 4,
+        judul: '7 Pemborosan',
+        deskripsi: 'Amati contoh pemborosan (muda-mudahan) dan catat cara menguranginya.',
+        urutan: 4,
+      },
+      {
+        id: 5,
+        judul: '8 Langkah Penyelesaian Masalah',
+        deskripsi: 'Praktikkan 8 langkah penyelesaian masalah pada studi kasus sederhana.',
+        urutan: 5,
+      },
+    ];
+
+    for (const tugas of masterTugas) {
+      await this.prisma.tugasPraktek.create({ data: tugas });
+    }
+
+    console.log('✅ 5 Master Tugas Praktek Berhasil Di-seed!');
   }
 
   @Get()
