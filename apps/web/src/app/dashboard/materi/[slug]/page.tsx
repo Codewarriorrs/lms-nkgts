@@ -169,7 +169,8 @@ export default function MateriDetailPage() {
     fetchDbProgress();
   }, [dbModule]);
 
-  // 4. Event Listener untuk Scroll Progres Membaca
+  // 4. Event Listener untuk Scroll Progres Membaca & Sistem Lock Modul
+  useEffect(() => {
     if (!dbModule || isEditing) return;
 
     if (dbModule.id > 1) {
