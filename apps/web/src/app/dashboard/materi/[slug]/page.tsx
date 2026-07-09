@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { API_URL } from "@/lib/api";
+import materiModules from "@/lib/materi-data";
 
 interface ModuleProgressState {
   completed: boolean;
@@ -72,6 +73,7 @@ export default function MateriDetailPage() {
   const [progress, setProgress] = useState<ModuleProgressState>({ completed: false, scrollProgress: 0, scrollTop: 0, score: null });
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [lockedByPrev, setLockedByPrev] = useState(false);
 
   const lastSavedProgressRef = useRef<number>(0);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -168,9 +170,23 @@ export default function MateriDetailPage() {
   }, [dbModule]);
 
   // 4. Event Listener untuk Scroll Progres Membaca
-  useEffect(() => {
     if (!dbModule || isEditing) return;
 
+    if (dbModule.id > 1) {
+      try {
+        const saved = window.localStorage.getItem(STORAGE_KEY);
+        const parsed = saved ? JSON.parse(saved) : {};
+        const prev = parsed[(dbModule.id - 1).toString()];
+        setLockedByPrev(!(prev && prev.completed));
+      } catch {
+        setLockedByPrev(true);
+      }
+    } else {
+      setLockedByPrev(false);
+    }
+  }, [dbModule, isEditing]);
+
+  useEffect(() => {
     const container = document.getElementById("module-content");
     if (!container) return;
 
@@ -409,7 +425,7 @@ export default function MateriDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.8fr_0.7fr]">
+      <div className="grid gap-5 lg:grid-cols-[2fr_0.6fr]">
         <div className="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm flex flex-col min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -421,7 +437,7 @@ export default function MateriDetailPage() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
+          <div className="self-start mt-6 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
             <div className="flex items-center justify-between text-sm font-semibold text-neutral-700">
               <span>Progress belajar Anda</span>
               <span>{Math.max(progress.scrollProgress, progress.score ?? 0)}%</span>
@@ -540,6 +556,24 @@ export default function MateriDetailPage() {
                   <Save size={16} /> Simpan Perubahan
                 </button>
               </div>
+            </div>
+          ) : lockedByPrev ? (
+            <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-6 text-center mt-6">
+              <p className="text-sm font-semibold text-neutral-800">Modul ini terkunci</p>
+              <p className="mt-2 text-sm text-neutral-600">Selesaikan modul sebelumnya terlebih dahulu untuk membuka akses ke materi ini.</p>
+              {(() => {
+                const prevModule = materiModules.find((m) => m.id === dbModule.id - 1);
+                if (prevModule) {
+                  return (
+                    <div className="mt-4">
+                      <Link href={`/dashboard/materi/${prevModule.slug}`} className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-white">
+                        Buka modul sebelumnya
+                      </Link>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           ) : (
             /* Ruangguru / Zenius Style flowing article view */
@@ -667,7 +701,12 @@ export default function MateriDetailPage() {
           <div className="space-y-3 text-sm text-neutral-600">
             <div className="rounded-lg bg-neutral-50 p-3">
               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Durasi Belajar</p>
-              <p className="mt-1 font-semibold text-neutral-800">45-60 Menit</p>
+              <p className="mt-1 font-semibold text-neutral-800">
+                {(() => {
+                  const staticModule = materiModules.find((m) => m.id === dbModule.id);
+                  return staticModule?.duration || "45 menit";
+                })()}
+              </p>
             </div>
             <div className="rounded-lg bg-neutral-50 p-3">
               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Status Penyelesaian</p>
