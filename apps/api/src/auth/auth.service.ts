@@ -2,6 +2,7 @@ import { Injectable, ConflictException, UnauthorizedException, InternalServerErr
 import { PrismaService } from '../prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 
@@ -64,6 +65,29 @@ export class AuthService {
     return this.buildAuthResponse(user);
   }
 
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const dataToUpdate: any = {};
+
+    if (dto.nama !== undefined) dataToUpdate.nama = dto.nama;
+    if (dto.kelas !== undefined) dataToUpdate.kelas = dto.kelas;
+    if (dto.no_hp !== undefined) dataToUpdate.no_hp = dto.no_hp;
+    if (dto.tempat_lahir !== undefined) dataToUpdate.tempat_lahir = dto.tempat_lahir;
+    if (dto.tahun_pendaftaran !== undefined) dataToUpdate.tahun_pendaftaran = dto.tahun_pendaftaran;
+    if (dto.foto_profil !== undefined) dataToUpdate.foto_profil = dto.foto_profil;
+
+    if (dto.tanggal_lahir !== undefined) {
+      dataToUpdate.tanggal_lahir = dto.tanggal_lahir ? new Date(dto.tanggal_lahir) : null;
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: dataToUpdate,
+      include: { sekolah: true },
+    });
+
+    return this.buildAuthResponse(updatedUser);
+  }
+
   // Helper pembentuk response terstandarisasi & Dynamic Avatar
   private buildAuthResponse(user: any) {
     // Algoritma pemecah nama untuk inisial gambar profil otonom
@@ -76,6 +100,8 @@ export class AuthService {
     const tokenPayload = { sub: user.id, role: user.role, email: user.email };
     const jwtToken = this.jwtService.sign(tokenPayload);
 
+    const userPhoto = user.foto_profil || `https://ui-avatars.com/api/?name=${initials}&background=0D8ABC&color=fff&bold=true`;
+
     return {
       // Format 1: Kompatibilitas dengan frontend yang membaca data.token & data.user
       token: jwtToken,
@@ -83,10 +109,15 @@ export class AuthService {
         id: user.id,
         name: user.nama,
         school: user.sekolah?.nama_sekolah || 'PT Toyota-Astra Motor (TAM)',
-        avatar: `https://ui-avatars.com/api/?name=${initials}&background=0D8ABC&color=fff&bold=true`,
+        avatar: userPhoto,
         email: user.email,
         role: user.role.toLowerCase(), // Pastikan lowercase
         nis: user.nis,
+        kelas: user.kelas,
+        no_hp: user.no_hp,
+        tanggal_lahir: user.tanggal_lahir,
+        tempat_lahir: user.tempat_lahir,
+        tahun_pendaftaran: user.tahun_pendaftaran,
       },
       // Format 2: Format respons API terstandarisasi baru
       status: 'success',
@@ -99,8 +130,14 @@ export class AuthService {
           email: user.email,
           role: user.role,
           nis: user.nis,
+          kelas: user.kelas,
+          no_hp: user.no_hp,
+          tanggal_lahir: user.tanggal_lahir,
+          tempat_lahir: user.tempat_lahir,
+          tahun_pendaftaran: user.tahun_pendaftaran,
+          foto_profil: user.foto_profil,
           nama_sekolah: user.sekolah?.nama_sekolah || 'PT Toyota-Astra Motor (TAM)',
-          dynamic_avatar: `https://ui-avatars.com/api/?name=${initials}&background=0D8ABC&color=fff&bold=true`,
+          dynamic_avatar: userPhoto,
         },
       },
     };

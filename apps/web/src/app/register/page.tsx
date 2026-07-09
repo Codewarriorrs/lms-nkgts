@@ -39,6 +39,14 @@ function RegisterContent() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Auth Guard for logged-in users
+  useEffect(() => {
+    const userToken = localStorage.getItem("token");
+    if (userToken) {
+      router.replace("/dashboard");
+    }
+  }, [router]);
+
   // 1. Validate Token on Mount
   useEffect(() => {
     if (!token) {

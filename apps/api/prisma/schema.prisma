@@ -44,6 +44,8 @@ model User {
   no_hp         String?         @db.VarChar(20)
   tanggal_lahir DateTime?       @db.Date
   tahun_pendaftaran Int?
+  foto_profil   String?         @db.Text
+  tempat_lahir  String?         @db.VarChar(100)
 
   created_at    DateTime        @default(now())
   updated_at    DateTime        @updatedAt

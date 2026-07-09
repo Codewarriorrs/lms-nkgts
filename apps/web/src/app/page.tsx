@@ -42,7 +42,7 @@ const stats = [
   },
   {
     icon: GraduationCap,
-    value: "17+",
+    value: "30+",
     label: "Guru Praktisi Bersertifikat",
     color: "bg-success/10 text-success",
   },

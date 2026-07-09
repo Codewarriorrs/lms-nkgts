@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -12,6 +12,40 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      router.replace("/dashboard");
+    } else {
+      setCheckingAuth(false);
+    }
+  }, [router]);
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex animate-pulse">
+        {/* Left branding panel skeleton */}
+        <div className="hidden lg:block lg:w-1/2 bg-neutral-100 p-12" />
+        {/* Right form panel skeleton */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-12 bg-white">
+          <div className="w-full max-w-sm space-y-6">
+            <div className="h-4 w-28 bg-neutral-200 rounded" />
+            <div className="space-y-2">
+              <div className="h-8 w-24 bg-neutral-200 rounded" />
+              <div className="h-4 w-64 bg-neutral-200 rounded" />
+            </div>
+            <div className="space-y-4">
+              <div className="h-12 bg-neutral-100 rounded" />
+              <div className="h-12 bg-neutral-100 rounded" />
+              <div className="h-12 bg-neutral-200 rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
