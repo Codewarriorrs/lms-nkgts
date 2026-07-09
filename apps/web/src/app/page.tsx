@@ -244,7 +244,7 @@ function Navbar() {
                   className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-white font-bold border-2 border-accent transition-transform hover:scale-105 cursor-pointer overflow-hidden"
                   title={`Profil ${currentUser.name}`}
                 >
-                  {currentUser.avatar && currentUser.avatar.startsWith("http") ? (
+                  {currentUser.avatar && (currentUser.avatar.startsWith("http") || currentUser.avatar.startsWith("/") || currentUser.avatar.startsWith("data:image")) ? (
                     <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
                   ) : (
                     <span>{currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}</span>
