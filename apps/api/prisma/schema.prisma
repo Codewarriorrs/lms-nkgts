@@ -56,6 +56,8 @@ model User {
 
   // Relasi Baru ke Modul Praktek
   submisi_praktek SubmisiPraktek[]
+  file_project    FileProject[]
+  nilai_latsol    NilaiLatsol[]
 
   @@map("users") // Mengubah nama tabel di database menjadi huruf kecil 'users'
 }
@@ -121,6 +123,8 @@ model ModulTeori {
   progres_teori  ProgresTeori[]
   nilai_latihan  NilaiLatihan[]
   soal_latihan   SoalLatihan[]
+  latihan_soal   LatihanSoal[]
+  nilai_latsol   NilaiLatsol[]
 
   @@map("modul_teori")
 }
@@ -202,4 +206,53 @@ model SubmisiPraktek {
 
   @@unique([siswa_id, tugas_praktek_id]) // Memastikan 1 siswa hanya bisa submit 1 kali per topik
   @@map("submisi_praktek")
+}
+
+// === DATA PENGUMPULAN PROJECT KAIZEN SISWA ===
+model FileProject {
+  id               String   @id @default(uuid()) @db.Uuid
+  siswa_id         String   @db.Uuid
+  siswa            User     @relation(fields: [siswa_id], references: [id], onDelete: Cascade)
+  tipe             String   @db.VarChar(50) // "proposal" atau "laporan"
+  file_url         String   @db.Text        // File Base64 kustom
+  file_name        String   @db.VarChar(255)
+  catatan_siswa    String?  @db.Text
+  file_revisi_url  String?  @db.Text        // Diunggah balik oleh Guru jika ada revisi
+  file_revisi_name String?  @db.VarChar(255)
+  catatan_guru     String?  @db.Text
+  nilai            Int?
+  submitted_at     DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@map("file_project")
+}
+
+// === LATIHAN SOAL (Dinamis JSON untuk Pilihan) ===
+model LatihanSoal {
+  id             Int        @id @default(autoincrement())
+  modul_teori_id Int
+  modul_teori    ModulTeori @relation(fields: [modul_teori_id], references: [id], onDelete: Cascade)
+  pertanyaan     String     @db.Text
+  pilihan        Json       // Array of strings: ["Opsi A", "Opsi B", ...]
+  jawaban_benar  Int        // Index pada array pilihan (0, 1, 2, dst)
+  poin           Int        @default(10)
+  image_url      String?    @db.Text
+  created_at     DateTime   @default(now())
+
+  @@map("latihan_soal")
+}
+
+// === REKAP NILAI LATIHAN SOAL (LATSOL) SISWA ===
+model NilaiLatsol {
+  id             Int        @id @default(autoincrement())
+  siswa_id       String     @db.Uuid
+  siswa          User       @relation(fields: [siswa_id], references: [id], onDelete: Cascade)
+  modul_teori_id Int
+  modul_teori    ModulTeori @relation(fields: [modul_teori_id], references: [id], onDelete: Cascade)
+  skor           Int        // Skor persen (0-100)
+  total_poin     Int        // Akumulasi poin yang didapatkan
+  disubmit_at    DateTime   @default(now())
+
+  @@unique([siswa_id, modul_teori_id])
+  @@map("nilai_latsol")
 }

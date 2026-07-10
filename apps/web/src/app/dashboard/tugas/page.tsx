@@ -66,8 +66,22 @@ const defaultTasks = (): Task[] => {
   ];
 };
 
+import TeacherDashboard from "@/components/dashboard/TeacherDashboard";
+
 export default function TugasPage() {
   const [tasks, setTasks] = useState<Task[]>(defaultTasks);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setCurrentUser(JSON.parse(storedUser));
+      } catch (e) {}
+    }
+    setIsLoaded(true);
+  }, []);
 
   useEffect(() => {
     try {
@@ -114,6 +128,18 @@ export default function TugasPage() {
       s.map((t) => (t.id === id ? { ...t, submitted: true, date: t.date || new Date().toISOString().slice(0, 10) } : t))
     );
   };
+
+  if (!isLoaded) {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (currentUser?.role === "guru") {
+    return <TeacherDashboard tab="tugas" />;
+  }
 
   return (
     <div className="px-6 py-8 space-y-6">

@@ -75,4 +75,57 @@ export class TugasPraktekService {
       },
     });
   }
+
+  // 3. Ambil semua tugas siswa dari sekolah guru yang sama
+  async getAllSubmisi(guruId: string) {
+    const guru = await this.prisma.user.findUnique({
+      where: { id: guruId },
+      select: { sekolah_id: true },
+    });
+
+    if (!guru || !guru.sekolah_id) {
+      return [];
+    }
+
+    return this.prisma.submisiPraktek.findMany({
+      where: {
+        siswa: {
+          sekolah_id: guru.sekolah_id,
+        },
+      },
+      include: {
+        siswa: {
+          select: {
+            id: true,
+            nama: true,
+            email: true,
+            kelas: true,
+          },
+        },
+        tugas_praktek: true,
+      },
+      orderBy: {
+        submitted_at: 'desc',
+      },
+    });
+  }
+
+  // 4. Beri nilai dan catatan/feedback pada submisi
+  async gradeSubmisi(submisiId: string, nilai: number, catatanGuru?: string) {
+    const submisi = await this.prisma.submisiPraktek.findUnique({
+      where: { id: submisiId },
+    });
+
+    if (!submisi) {
+      throw new NotFoundException('Submisi tugas tidak ditemukan!');
+    }
+
+    return this.prisma.submisiPraktek.update({
+      where: { id: submisiId },
+      data: {
+        nilai,
+        catatan_guru: catatanGuru !== undefined ? catatanGuru : submisi.catatan_guru,
+      },
+    });
+  }
 }

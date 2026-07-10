@@ -503,4 +503,18 @@ export class InvitationService {
       message: 'Akun Anda berhasil diaktifkan. Selamat datang!',
     };
   }
+
+  // 11. Memperbarui role pengguna aktif (admin, guru, siswa)
+  async updateUserRole(userId: string, role: RoleEnum) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new NotFoundException('Pengguna tidak ditemukan!');
+    }
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { role },
+    });
+  }
 }

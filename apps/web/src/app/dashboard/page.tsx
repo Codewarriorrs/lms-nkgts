@@ -17,6 +17,7 @@ import { MateriCard } from "@/components/dashboard/MateriCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import materiModules from "@/lib/materi-data";
 import { API_URL } from "@/lib/api";
+import TeacherDashboard from "@/components/dashboard/TeacherDashboard";
 
 const tugasBelumDikumpulkan = [
   {
@@ -52,11 +53,8 @@ function getGreeting() {
 
 export default function DashboardPage() {
   const [greeting, setGreeting] = useState("Selamat Pagi");
-  const [currentUser, setCurrentUser] = useState({
-    name: "Budi Santoso",
-    school: "SMK Negeri 1 Semarang",
-    avatar: "BS",
-  });
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [progressMap, setProgressMap] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -69,6 +67,7 @@ export default function DashboardPage() {
         console.error("Failed to parse stored user", e);
       }
     }
+    setIsLoaded(true);
   }, []);
 
   // Fetch real-time progress map from backend database
@@ -152,6 +151,18 @@ export default function DashboardPage() {
       lastAccessed: "Belum diakses",
     }));
   }, [progressMap]);
+
+  if (!isLoaded) {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (currentUser?.role === "guru") {
+    return <TeacherDashboard />;
+  }
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">

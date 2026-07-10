@@ -130,4 +130,22 @@ export class InvitationController {
   async activateAccount(@Body() activateAccountDto: ActivateAccountDto) {
     return this.invitationService.activateAccount(activateAccountDto);
   }
+
+  // 11. Perbarui role user (Admin only)
+  @Patch('admin/users/:id/role')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async updateRole(
+    @Param('id') id: string,
+    @Body('role') role: string
+  ) {
+    let roleEnum: RoleEnum;
+    if (role === 'admin') roleEnum = RoleEnum.admin;
+    else if (role === 'guru') roleEnum = RoleEnum.guru;
+    else if (role === 'siswa') roleEnum = RoleEnum.siswa;
+    else {
+      throw new BadRequestException('Role tidak valid');
+    }
+    return this.invitationService.updateUserRole(id, roleEnum);
+  }
 }

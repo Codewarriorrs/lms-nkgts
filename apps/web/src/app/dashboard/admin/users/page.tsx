@@ -70,6 +70,9 @@ export default function AdminUsersPage() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [selectedEditUser, setSelectedEditUser] = useState<UserType | null>(null);
+  const [editRoleValue, setEditRoleValue] = useState("");
+  const [updatingRole, setUpdatingRole] = useState(false);
   const [inviteForm, setInviteForm] = useState({
     email: "",
     nama: "",
@@ -215,6 +218,35 @@ export default function AdminUsersPage() {
       setErrorMsg(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 4b. Handle role update submit
+  const handleUpdateRoleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEditUser || !editRoleValue) return;
+    setUpdatingRole(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/users/${selectedEditUser.id}/role`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ role: editRoleValue })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal mengubah role pengguna");
+      setSuccessMsg(`Role ${selectedEditUser.nama} berhasil diubah menjadi ${editRoleValue}`);
+      setSelectedEditUser(null);
+      fetchActiveUsers();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setUpdatingRole(false);
     }
   };
 
@@ -474,21 +506,22 @@ export default function AdminUsersPage() {
                     <th className="px-6 py-4">Role</th>
                     <th className="px-6 py-4">Sekolah</th>
                     <th className="px-6 py-4">Bergabung</th>
+                    <th className="px-6 py-4 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-50 text-sm text-neutral-700">
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-neutral-400">
+                      <td colSpan={7} className="px-6 py-12 text-center text-neutral-400">
                         <div className="flex items-center justify-center gap-2.5">
                           <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-primary"></div>
-                          Memuat data pengguna...
+                           Memuat data pengguna...
                         </div>
                       </td>
                     </tr>
                   ) : users.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-neutral-400">
+                      <td colSpan={7} className="px-6 py-12 text-center text-neutral-400">
                         Tidak ada pengguna aktif ditemukan.
                       </td>
                     </tr>
@@ -516,6 +549,17 @@ export default function AdminUsersPage() {
                             month: "short",
                             day: "numeric"
                           })}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => {
+                              setSelectedEditUser(user);
+                              setEditRoleValue(user.role);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-100 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer"
+                          >
+                            Ubah Role
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -877,6 +921,65 @@ export default function AdminUsersPage() {
                   className="flex items-center gap-2 px-5 py-2 bg-primary hover:bg-primary-light text-white rounded-xl text-sm font-semibold shadow-md shadow-primary/10 transition cursor-pointer disabled:opacity-50"
                 >
                   {loading ? "Mengimpor..." : "Mulai Import"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL UBAH ROLE PENGGUNA ================= */}
+      {selectedEditUser && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden border border-neutral-100 animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-neutral-50 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                Ubah Peran (Role)
+              </h2>
+              <button 
+                onClick={() => setSelectedEditUser(null)}
+                className="text-neutral-400 hover:text-neutral-600 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdateRoleSubmit} className="p-6 space-y-4 text-xs">
+              <div>
+                <p className="text-neutral-400 font-semibold mb-2">Mengubah peran untuk pengguna berikut:</p>
+                <div className="p-3 bg-neutral-50 border border-neutral-100 rounded-xl space-y-1">
+                  <p className="font-bold text-neutral-900 text-sm">{selectedEditUser.nama}</p>
+                  <p className="text-neutral-400 font-semibold">{selectedEditUser.email}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">Peran Baru (Role) *</label>
+                <select
+                  value={editRoleValue}
+                  onChange={(e) => setEditRoleValue(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-neutral-100 rounded-xl text-xs bg-white font-bold text-neutral-700 focus:outline-none focus:border-primary transition cursor-pointer"
+                >
+                  <option value="siswa">Siswa (Siswa Peserta N-KGTS)</option>
+                  <option value="guru">Guru (Guru Praktisi Kaizen)</option>
+                  <option value="admin">Admin (Administrator TAM)</option>
+                </select>
+              </div>
+
+              <div className="pt-4 border-t border-neutral-50 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedEditUser(null)}
+                  className="px-4 py-2 border border-neutral-100 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingRole}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-light text-white rounded-xl text-xs font-bold shadow-md shadow-primary/10 transition cursor-pointer disabled:opacity-50"
+                >
+                  {updatingRole ? "Menyimpan..." : "Simpan Perubahan"}
                 </button>
               </div>
             </form>

@@ -60,8 +60,16 @@ export function Sidebar({ open, collapsed = false, onClose }: SidebarProps) {
   };
 
   // Conditionally build navigation items list based on user role
-  const items = [...navItems];
-  if (currentUser?.role === "admin") {
+  let items = [...navItems];
+  if (currentUser?.role === "guru") {
+    items = [
+      { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+      { label: "Kelola Materi & Kuis", icon: BookOpen, href: "/dashboard/materi" },
+      { label: "Tugas Praktikum", icon: ClipboardList, href: "/dashboard/tugas" },
+      { label: "Project Kaizen", icon: FolderKanban, href: "/dashboard/project" },
+      { label: "Progres Siswa", icon: Users, href: "/dashboard/progres" },
+    ];
+  } else if (currentUser?.role === "admin") {
     items.push(
       { label: "Kelola Pengguna", icon: Users, href: "/dashboard/admin/users" },
       { label: "Pengaturan Kontak", icon: Settings, href: "/dashboard/admin/settings/email-contact" }

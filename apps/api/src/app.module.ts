@@ -6,9 +6,11 @@ import { AuthModule } from './auth/auth.module';
 import { InvitationModule } from './invitation/invitation.module';
 import { MateriModule } from './materi/materi.module';
 import { TugasPraktekModule } from './tugas-praktek/tugas-praktek.module';
+import { ProjectKaizenModule } from './project-kaizen/project-kaizen.module';
+import { LatsolModule } from './latsol/latsol.module';
 
 @Module({
-  imports: [AuthModule, InvitationModule, MateriModule, TugasPraktekModule],
+  imports: [AuthModule, InvitationModule, MateriModule, TugasPraktekModule, ProjectKaizenModule, LatsolModule],
   controllers: [AppController],
   providers: [AppService, PrismaService],
 })

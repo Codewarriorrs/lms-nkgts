@@ -1,9 +1,36 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { FileText, FileCheck } from "lucide-react";
+import TeacherDashboard from "@/components/dashboard/TeacherDashboard";
 
 export default function ProjectPage() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setCurrentUser(JSON.parse(storedUser));
+      } catch (e) {}
+    }
+    setIsLoaded(true);
+  }, []);
+
+  if (!isLoaded) {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (currentUser?.role === "guru") {
+    return <TeacherDashboard tab="project" />;
+  }
+
   return (
     <div className="px-6 py-8 space-y-6">
       <div>

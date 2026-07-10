@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
 import { TugasPraktekService } from './tugas-praktek.service';
 import { CreateTugasPraktekDto } from './dto/create-tugas-praktek.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,5 +28,23 @@ export class TugasPraktekController {
     @Req() req: any
   ) {
     return this.tugasPraktekService.submitTugas(req.user.id, id, dto);
+  }
+
+  // Endpoint: GET http://localhost:PORT/api/tugas-praktek/all (Guru & Admin Only)
+  @Get('all')
+  @Roles(RoleEnum.guru, RoleEnum.admin)
+  async dapatkanSemuaTugasSiswa(@Req() req: any) {
+    return this.tugasPraktekService.getAllSubmisi(req.user.id);
+  }
+
+  // Endpoint: PATCH http://localhost:PORT/api/tugas-praktek/submisi/:submisiId/grade (Guru & Admin Only)
+  @Patch('submisi/:submisiId/grade')
+  @Roles(RoleEnum.guru, RoleEnum.admin)
+  async beriNilaiTugas(
+    @Param('submisiId') submisiId: string,
+    @Body('nilai', ParseIntPipe) nilai: number,
+    @Body('catatan_guru') catatanGuru?: string
+  ) {
+    return this.tugasPraktekService.gradeSubmisi(submisiId, nilai, catatanGuru);
   }
 }

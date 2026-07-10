@@ -197,4 +197,191 @@ export class MateriService {
       },
     });
   }
+
+  // 4b. Ambil semua modul terdaftar di database beserta soal latihannya
+  async getAllModules() {
+    return this.prisma.modulTeori.findMany({
+      include: {
+        soal_latihan: {
+          orderBy: { id: 'asc' }
+        }
+      },
+      orderBy: { urutan: 'asc' },
+    });
+  }
+
+  // 5. Mengambil progres belajar rinci setiap siswa per-modul
+  async getStudentsProgress(guruId: string) {
+    const guru = await this.prisma.user.findUnique({
+      where: { id: guruId },
+      select: { sekolah_id: true },
+    });
+
+    if (!guru || !guru.sekolah_id) {
+      return [];
+    }
+
+    const students = await this.prisma.user.findMany({
+      where: {
+        role: 'siswa',
+        sekolah_id: guru.sekolah_id,
+      },
+      select: {
+        id: true,
+        nama: true,
+        email: true,
+        kelas: true,
+        progres_teori: {
+          include: { modul_teori: true },
+        },
+        nilai_latihan: true,
+        nilai_latsol: true,
+      },
+      orderBy: {
+        nama: 'asc',
+      },
+    });
+
+    const allModules = await this.prisma.modulTeori.findMany({
+      orderBy: { urutan: 'asc' },
+    });
+
+    return students.map((student) => {
+      // Petakan skor latihan kuis tertinggi per modul
+      const quizMap: Record<number, number> = {};
+      for (const record of student.nilai_latihan) {
+        const existingScore = quizMap[record.modul_teori_id] ?? 0;
+        quizMap[record.modul_teori_id] = Math.max(existingScore, record.skor);
+      }
+
+      // Petakan skor Latsol per modul
+      const latsolMap: Record<number, { skor: number; total_poin: number }> = {};
+      for (const record of student.nilai_latsol) {
+        latsolMap[record.modul_teori_id] = {
+          skor: record.skor,
+          total_poin: record.total_poin
+        };
+      }
+
+      const modulesProgress = allModules.map((mod) => {
+        const prog = student.progres_teori.find((p) => p.modul_teori_id === mod.id);
+        const score = quizMap[mod.id] ?? null;
+        const latsolInfo = latsolMap[mod.id] ?? null;
+        return {
+          id: mod.id,
+          judul: mod.judul,
+          persentase: prog ? prog.persentase : 0,
+          completed: prog ? (prog.status === ProgresEnum.selesai || (score !== null && score >= 70)) : false,
+          score,
+          latsol_score: latsolInfo ? latsolInfo.skor : null,
+          latsol_poin: latsolInfo ? latsolInfo.total_poin : null,
+        };
+      });
+
+      return {
+        id: student.id,
+        nama: student.nama,
+        email: student.email,
+        kelas: student.kelas,
+        modules: modulesProgress,
+      };
+    });
+  }
+
+  // 6. Membuat modul materi baru
+  async createModule(judul: string, deskripsi: string, slug: string, urutan: number) {
+    // Cari topik pertama atau buat jika kosong
+    let topik = await this.prisma.topikPelatihan.findFirst();
+    if (!topik) {
+      topik = await this.prisma.topikPelatihan.create({
+        data: { nama_topik: 'Budaya Kaizen', deskripsi: 'Materi Pelatihan Kaizen' },
+      });
+    }
+
+    return this.prisma.modulTeori.create({
+      data: {
+        topik_id: topik.id,
+        judul,
+        deskripsi,
+        slug,
+        urutan,
+      },
+    });
+  }
+
+  // 7. Mengedit modul materi
+  async editModule(id: number, judul: string, deskripsi: string, slug: string, urutan: number) {
+    const modul = await this.prisma.modulTeori.findUnique({
+      where: { id },
+    });
+    if (!modul) {
+      throw new NotFoundException('Modul teori tidak ditemukan');
+    }
+
+    return this.prisma.modulTeori.update({
+      where: { id },
+      data: {
+        judul,
+        deskripsi,
+        slug,
+        urutan,
+      },
+    });
+  }
+
+  // 8. Menghapus modul materi
+  async deleteModule(id: number) {
+    const modul = await this.prisma.modulTeori.findUnique({
+      where: { id },
+    });
+    if (!modul) {
+      throw new NotFoundException('Modul teori tidak ditemukan');
+    }
+    return this.prisma.modulTeori.delete({
+      where: { id },
+    });
+  }
+
+  // 9. Membuat soal latihan kuis untuk modul tertentu
+  async createSoal(
+    modulTeoriId: number,
+    pertanyaan: string,
+    pilihanA: string,
+    pilihanB: string,
+    pilihanC: string,
+    pilihanD: string,
+    jawabanBenar: number
+  ) {
+    const modul = await this.prisma.modulTeori.findUnique({
+      where: { id: modulTeoriId },
+    });
+    if (!modul) {
+      throw new NotFoundException('Modul teori tidak ditemukan');
+    }
+
+    return this.prisma.soalLatihan.create({
+      data: {
+        modul_teori_id: modulTeoriId,
+        pertanyaan,
+        pilihan_a: pilihanA,
+        pilihan_b: pilihanB,
+        pilihan_c: pilihanC,
+        pilihan_d: pilihanD,
+        jawaban_benar: jawabanBenar,
+      },
+    });
+  }
+
+  // 10. Menghapus soal latihan kuis
+  async deleteSoal(id: number) {
+    const soal = await this.prisma.soalLatihan.findUnique({
+      where: { id },
+    });
+    if (!soal) {
+      throw new NotFoundException('Soal latihan tidak ditemukan');
+    }
+    return this.prisma.soalLatihan.delete({
+      where: { id },
+    });
+  }
 }

@@ -6,6 +6,7 @@ import { BookOpen, CheckCircle2, Circle, Sparkles, Lock } from "lucide-react";
 import materiModules from "@/lib/materi-data";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { API_URL } from "@/lib/api";
+import TeacherDashboard from "@/components/dashboard/TeacherDashboard";
 
 interface ModuleProgressState {
   completed: boolean;
@@ -30,13 +31,22 @@ function getAllProgress(): Record<string, ModuleProgressState> {
 
 export default function MateriPage() {
   const [progressMap, setProgressMap] = useState<Record<string, ModuleProgressState>>({});
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const fetchProgress = async () => {
       try {
         const token = localStorage.getItem("token");
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          try {
+            setCurrentUser(JSON.parse(storedUser));
+          } catch (e) {}
+        }
         if (!token) {
           setProgressMap(getAllProgress());
+          setIsLoaded(true);
           return;
         }
         const res = await fetch(`${API_URL}/materi/progress`, {
@@ -51,6 +61,8 @@ export default function MateriPage() {
       } catch (err) {
         console.error("Gagal mengambil progres dari database, menggunakan lokal:", err);
         setProgressMap(getAllProgress());
+      } finally {
+        setIsLoaded(true);
       }
     };
     fetchProgress();
@@ -67,6 +79,18 @@ export default function MateriPage() {
       };
     });
   }, [progressMap]);
+
+  if (!isLoaded) {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (currentUser?.role === "guru") {
+    return <TeacherDashboard tab="materi" />;
+  }
 
   return (
     <div className="px-6 py-8 space-y-6">
