@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { FilePlus, Download, CheckCircle2, Clock, MessageSquare, AlertCircle } from "lucide-react";
 import { API_URL } from "@/lib/api";
 
+import { uploadFileOrBase64 } from "@/utils/upload";
+
 interface SampleFile {
   name: string;
   url: string;
@@ -53,39 +55,35 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
     if (f) setSelected(f);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selected || !token) return;
-    setSubmitting(true);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const base64Url = reader.result as string;
-        const res = await fetch(`${API_URL}/project-kaizen/submit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            tipe,
-            file_name: selected.name,
-            file_url: base64Url,
-            catatan_siswa: comment
-          })
-        });
-        if (res.ok) {
-          setSelected(null);
-          fetchStatus();
-        } else {
-          alert("Gagal mengunggah berkas proyek.");
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setSubmitting(false);
+    try {
+      setSubmitting(true);
+      const fileUrl = await uploadFileOrBase64(selected, "project");
+      const res = await fetch(`${API_URL}/project-kaizen/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          tipe,
+          file_name: selected.name,
+          file_url: fileUrl,
+          catatan_siswa: comment
+        })
+      });
+      if (res.ok) {
+        setSelected(null);
+        fetchStatus();
+      } else {
+        alert("Gagal mengunggah berkas proyek.");
       }
-    };
-    reader.readAsDataURL(selected);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {

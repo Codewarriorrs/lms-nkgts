@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { uploadFileOrBase64 } from "@/utils/upload";
 
 interface TeacherDashboardProps {
   tab?: "ringkasan" | "tugas" | "project" | "progres" | "materi";
@@ -267,18 +268,22 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
     }
   };
 
-  // Handle local file read for project revision upload
-  const handleUploadRevisi = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle project revision upload
+  const handleUploadRevisi = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
+    try {
+      setSubmittingGrade(true);
+      const fileUrl = await uploadFileOrBase64(file, "revisi");
       setGradingRevisiFile({
         name: file.name,
-        url: reader.result as string
+        url: fileUrl
       });
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Gagal mengunggah file revisi:", err);
+    } finally {
+      setSubmittingGrade(false);
+    }
   };
 
   // Executive commands for rich contentEditable WYSIWYG
@@ -290,15 +295,15 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
   };
 
   // Image insertion into contentEditable
-  const handleInsertImageToEditor = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInsertImageToEditor = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64Url = reader.result as string;
-      execEditorCommand("insertImage", base64Url);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const fileUrl = await uploadFileOrBase64(file, "materi");
+      execEditorCommand("insertImage", fileUrl);
+    } catch (err) {
+      console.error("Gagal menyisipkan gambar:", err);
+    }
   };
 
   // Module Submit (Create / Edit)
@@ -423,14 +428,15 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
   };
 
   // Latsol Google Forms Handlers
-  const handleLatsolImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLatsolImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setLatsolImageUrl(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const fileUrl = await uploadFileOrBase64(file, "latsol");
+      setLatsolImageUrl(fileUrl);
+    } catch (err) {
+      console.error("Gagal mengunggah gambar latsol:", err);
+    }
   };
 
   const handleAddLatsolChoice = () => {
