@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { User, School, Mail, Shield, Calendar, Phone, MapPin, Edit, Save, X, Camera, RefreshCw, FileText } from "lucide-react";
 import { API_URL } from "@/lib/api";
+import { uploadFileOrBase64 } from "@/utils/upload";
 
 export default function ProfilePage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -20,6 +21,7 @@ export default function ProfilePage() {
   const [tanggalLahir, setTanggalLahir] = useState("");
   const [tahunPendaftaran, setTahunPendaftaran] = useState<number | "">("");
   const [fotoProfilBase64, setFotoProfilBase64] = useState<string | null>(null);
+  const [selectedFotoFile, setSelectedFotoFile] = useState<File | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -53,6 +55,8 @@ export default function ProfilePage() {
       setErrorMsg("Ukuran file foto maksimal adalah 2 MB");
       return;
     }
+
+    setSelectedFotoFile(file);
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -89,7 +93,10 @@ export default function ProfilePage() {
         payload.tanggal_lahir = null;
       }
 
-      if (fotoProfilBase64) {
+      if (selectedFotoFile) {
+        const photoUrl = await uploadFileOrBase64(selectedFotoFile, "avatar");
+        payload.foto_profil = photoUrl;
+      } else if (fotoProfilBase64) {
         payload.foto_profil = fotoProfilBase64;
       }
 
