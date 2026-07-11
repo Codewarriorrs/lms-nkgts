@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run build -w apps/api && concurrently \"npm run dev -w apps/web\" \"npm run start:dev -w apps/api\"",
+    "dev": "concurrently \"npm run dev -w apps/web\" \"npm run start:dev -w apps/api\"",
     "build": "npm run build -w apps/web && npm run build -w apps/api"
   },
   "devDependencies": {
