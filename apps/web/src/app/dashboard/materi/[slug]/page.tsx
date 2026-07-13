@@ -173,7 +173,7 @@ export default function MateriDetailPage() {
   useEffect(() => {
     if (!dbModule || isEditing) return;
 
-    if (dbModule.id > 1) {
+    if (dbModule.urutan && dbModule.urutan > 1) {
       try {
         const saved = window.localStorage.getItem(STORAGE_KEY);
         const parsed = saved ? JSON.parse(saved) : {};
@@ -563,7 +563,7 @@ export default function MateriDetailPage() {
               <p className="text-sm font-semibold text-neutral-800">Modul ini terkunci</p>
               <p className="mt-2 text-sm text-neutral-600">Selesaikan modul sebelumnya terlebih dahulu untuk membuka akses ke materi ini.</p>
               {(() => {
-                const prevModule = materiModules.find((m) => m.id === dbModule.id - 1);
+                const prevModule = materiModules.find((m) => m.id === dbModule.urutan - 1);
                 if (prevModule) {
                   return (
                     <div className="mt-4">
