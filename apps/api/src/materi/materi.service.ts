@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { UpdateProgressDto } from './dto/update-progress.dto';
 import { SubmitQuizDto } from './dto/submit-quiz.dto';
 import { ProgresEnum } from '../../generated/prisma';
+import { UpdateMateriDto } from './dto/update-materi.dto';
 
 @Injectable()
 export class MateriService {
@@ -382,6 +383,21 @@ export class MateriService {
     }
     return this.prisma.soalLatihan.delete({
       where: { id },
+    });
+  }
+
+  // 11. Mengupdate materi (Admin/Guru)
+  async update(id: string, updateMateriDto: UpdateMateriDto) {
+    const { ringkasan, ...updateData } = updateMateriDto;
+    const modul = await this.prisma.modulTeori.findUnique({
+      where: { id: parseInt(id, 10) },
+    });
+    if (!modul) {
+      throw new NotFoundException('Modul teori tidak ditemukan');
+    }
+    return this.prisma.modulTeori.update({
+      where: { id: parseInt(id, 10) },
+      data: updateData,
     });
   }
 }

@@ -74,6 +74,7 @@ export default function MateriDetailPage() {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const [lockedByPrev, setLockedByPrev] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const lastSavedProgressRef = useRef<number>(0);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -264,12 +265,14 @@ export default function MateriDetailPage() {
     window.localStorage.setItem(`${STORAGE_KEY}-answers-${dbModule.id}`, JSON.stringify(answers));
   }, [answers, dbModule]);
 
-  // 7. Simpan Perubahan Artikel WYSIWYG ke Database (Admin Only)
-  const handleSaveWYSIWYG = async () => {
+  // 7. Simpan Perubahan Artikel WYSIWYG ke Database (Admin/Guru)
+  const handleSave = async () => {
+    if (!dbModule) return;
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/materi/modules/${dbModule.id}`, {
+      setSaving(true);
+      const res = await fetch(`${API_URL}/materi/${dbModule.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -288,6 +291,8 @@ export default function MateriDetailPage() {
     } catch (err) {
       console.error("Gagal menyimpan perubahan artikel ke DB:", err);
       alert("Kesalahan jaringan saat menyimpan artikel.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -551,10 +556,17 @@ export default function MateriDetailPage() {
                   Batal
                 </button>
                 <button
-                  onClick={handleSaveWYSIWYG}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-sm font-bold transition shadow-sm"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-sm font-bold transition shadow-sm disabled:opacity-50"
                 >
-                  <Save size={16} /> Simpan Perubahan
+                  {saving ? (
+                    <>Menyimpan...</>
+                  ) : (
+                    <>
+                      <Save size={16} /> Simpan Perubahan
+                    </>
+                  )}
                 </button>
               </div>
             </div>

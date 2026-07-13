@@ -6,6 +6,7 @@ import { RoleEnum } from '../../generated/prisma';
 import { MateriService } from './materi.service';
 import { UpdateProgressDto } from './dto/update-progress.dto';
 import { SubmitQuizDto } from './dto/submit-quiz.dto';
+import { UpdateMateriDto } from './dto/update-materi.dto';
 
 @Controller('materi')
 @UseGuards(JwtAuthGuard)
@@ -112,5 +113,16 @@ export class MateriController {
   @Roles(RoleEnum.guru, RoleEnum.admin)
   async hapusSoalLatihan(@Param('id', ParseIntPipe) id: number) {
     return this.materiService.deleteSoal(id);
+  }
+
+  // PATCH /materi/:id (Guru/Admin only)
+  @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles(RoleEnum.admin, RoleEnum.guru)
+  async update(
+    @Param('id') id: string,
+    @Body() updateMateriDto: UpdateMateriDto,
+  ) {
+    return this.materiService.update(id, updateMateriDto);
   }
 }
