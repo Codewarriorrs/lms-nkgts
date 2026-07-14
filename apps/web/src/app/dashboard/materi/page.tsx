@@ -88,7 +88,7 @@ export default function MateriPage() {
     );
   }
 
-  if (currentUser?.role === "guru") {
+  if (currentUser?.role === "admin") {
     return <TeacherDashboard tab="materi" />;
   }
 

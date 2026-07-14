@@ -40,7 +40,7 @@ export class MateriController {
 
   @Patch('modules/:id')
   @UseGuards(RolesGuard)
-  @Roles(RoleEnum.admin, RoleEnum.guru)
+  @Roles(RoleEnum.admin)
   async updateModuleContent(
     @Param('id', ParseIntPipe) id: number,
     @Body('deskripsi') deskripsi: string,
@@ -59,7 +59,7 @@ export class MateriController {
   // POST /materi/create (Guru/Admin only)
   @Post('create')
   @UseGuards(RolesGuard)
-  @Roles(RoleEnum.guru, RoleEnum.admin)
+  @Roles(RoleEnum.admin)
   async buatModul(
     @Body('judul') judul: string,
     @Body('deskripsi') deskripsi: string,
@@ -72,7 +72,7 @@ export class MateriController {
   // PATCH /materi/edit/:id (Guru/Admin only)
   @Patch('edit/:id')
   @UseGuards(RolesGuard)
-  @Roles(RoleEnum.guru, RoleEnum.admin)
+  @Roles(RoleEnum.admin)
   async editModul(
     @Param('id', ParseIntPipe) id: number,
     @Body('judul') judul: string,
@@ -86,7 +86,7 @@ export class MateriController {
   // DELETE /materi/:id (Guru/Admin only)
   @Delete(':id')
   @UseGuards(RolesGuard)
-  @Roles(RoleEnum.guru, RoleEnum.admin)
+  @Roles(RoleEnum.admin)
   async hapusModul(@Param('id', ParseIntPipe) id: number) {
     return this.materiService.deleteModule(id);
   }
@@ -94,7 +94,7 @@ export class MateriController {
   // POST /materi/soal/create (Guru/Admin only)
   @Post('soal/create')
   @UseGuards(RolesGuard)
-  @Roles(RoleEnum.guru, RoleEnum.admin)
+  @Roles(RoleEnum.admin)
   async buatSoalLatihan(
     @Body('modul_teori_id', ParseIntPipe) modulTeoriId: number,
     @Body('pertanyaan') pertanyaan: string,
@@ -110,15 +110,15 @@ export class MateriController {
   // DELETE /materi/soal/:id (Guru/Admin only)
   @Delete('soal/:id')
   @UseGuards(RolesGuard)
-  @Roles(RoleEnum.guru, RoleEnum.admin)
+  @Roles(RoleEnum.admin)
   async hapusSoalLatihan(@Param('id', ParseIntPipe) id: number) {
     return this.materiService.deleteSoal(id);
   }
 
-  // PATCH /materi/:id (Guru/Admin only)
+  // PATCH /materi/:id (Admin only)
   @Patch(':id')
   @UseGuards(RolesGuard)
-  @Roles(RoleEnum.admin, RoleEnum.guru)
+  @Roles(RoleEnum.admin)
   async update(
     @Param('id') id: string,
     @Body() updateMateriDto: UpdateMateriDto,

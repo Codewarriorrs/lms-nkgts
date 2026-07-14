@@ -64,8 +64,9 @@ export function Sidebar({ open, collapsed = false, onClose }: SidebarProps) {
   if (currentUser?.role === "guru") {
     items = [
       { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-      { label: "Kelola Materi & Kuis", icon: BookOpen, href: "/dashboard/materi" },
-      { label: "Tugas Praktikum", icon: ClipboardList, href: "/dashboard/tugas" },
+      { label: "Materi", icon: BookOpen, href: "/dashboard/materi" },
+      { label: "Soal Latihan", icon: ClipboardList, href: "/dashboard/soal" },
+      { label: "Tugas Praktikum", icon: Briefcase, href: "/dashboard/tugas" },
       { label: "Project Kaizen", icon: FolderKanban, href: "/dashboard/project" },
       { label: "Progres Siswa", icon: Users, href: "/dashboard/progres" },
     ];
