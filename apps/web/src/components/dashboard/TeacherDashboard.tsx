@@ -150,12 +150,12 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
     }
   }, [selectedModule, isCreatingModule]);
 
-  // Populate editor once when module is selected
+  // Populate editor once when module is selected or tab switches back
   useEffect(() => {
     if (editorRef.current) {
       editorRef.current.innerHTML = moduleContentHtml;
     }
-  }, [selectedModule?.id, isCreatingModule]);
+  }, [selectedModule?.id, isCreatingModule, editorSubTab]);
 
   // Compute stats
   const stats = useMemo(() => {

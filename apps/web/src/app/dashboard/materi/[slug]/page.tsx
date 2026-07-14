@@ -19,7 +19,8 @@ import {
   Italic,
   Underline,
   List,
-  ListOrdered
+  ListOrdered,
+  Sidebar
 } from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { API_URL } from "@/lib/api";
@@ -75,6 +76,7 @@ export default function MateriDetailPage() {
   const [submitted, setSubmitted] = useState(false);
   const [lockedByPrev, setLockedByPrev] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
 
   const lastSavedProgressRef = useRef<number>(0);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -428,10 +430,19 @@ export default function MateriDetailPage() {
               )}
             </button>
           )}
+
+          {/* Tombol Toggle Sidebar Ringkasan */}
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="inline-flex items-center gap-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 text-xs font-bold transition-all shadow-sm"
+          >
+            <Sidebar size={16} />
+            {showSidebar ? "Sembunyikan Ringkasan" : "Tampilkan Ringkasan"}
+          </button>
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[2fr_0.6fr]">
+      <div className={`grid gap-5 transition-all duration-300 ${showSidebar ? "lg:grid-cols-[2fr_0.6fr]" : "grid-cols-1"}`}>
         <div className="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm flex flex-col min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -706,58 +717,60 @@ export default function MateriDetailPage() {
         </div>
 
         {/* Panel Samping / Info Modul */}
-        <aside className="space-y-4 rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm self-start">
-          <div className="flex items-center gap-2 text-primary">
-            <BookOpen size={18} />
-            <h2 className="text-base font-bold text-neutral-900">Ringkasan Modul</h2>
-          </div>
-          <div className="space-y-3 text-sm text-neutral-600">
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Durasi Belajar</p>
-              <p className="mt-1 font-semibold text-neutral-800">
-                {(() => {
-                  const staticModule = materiModules.find((m) => m.id === dbModule.id);
-                  return staticModule?.duration || "45 menit";
-                })()}
+        {showSidebar && (
+          <aside className="space-y-4 rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm self-start">
+            <div className="flex items-center gap-2 text-primary">
+              <BookOpen size={18} />
+              <h2 className="text-base font-bold text-neutral-900">Ringkasan Modul</h2>
+            </div>
+            <div className="space-y-3 text-sm text-neutral-600">
+              <div className="rounded-lg bg-neutral-50 p-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Durasi Belajar</p>
+                <p className="mt-1 font-semibold text-neutral-800">
+                  {(() => {
+                    const staticModule = materiModules.find((m) => m.id === dbModule.id);
+                    return staticModule?.duration || "45 menit";
+                  })()}
+                </p>
+              </div>
+              <div className="rounded-lg bg-neutral-50 p-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Status Penyelesaian</p>
+                <p className="mt-1 font-semibold text-neutral-800">{progress.completed ? "Lulus / Selesai" : "Belum Selesai"}</p>
+              </div>
+              <div className="rounded-lg bg-neutral-50 p-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Persentase Baca</p>
+                <p className="mt-1 font-semibold text-neutral-800">{progress.scrollProgress}%</p>
+              </div>
+              <div className="rounded-lg bg-neutral-50 p-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Skor Kuis Tertinggi</p>
+                <p className="mt-1 font-semibold text-neutral-800">{progress.score !== null ? `${progress.score}%` : "Belum Mengerjakan"}</p>
+              </div>
+            </div>
+
+            {/* Download Original File Button in Sidebar */}
+            <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4 space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Berkas Asli</p>
+              <a
+                href={pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold transition-all shadow-sm"
+              >
+                <FileText size={15} /> Download PPT/PDF Asli
+              </a>
+            </div>
+
+            <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
+              <div className="flex items-center gap-2 text-accent-dark">
+                <Trophy size={18} />
+                <h3 className="text-sm font-bold text-neutral-900">Target Belajar</h3>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-neutral-500">
+                Silakan baca artikel secara perlahan untuk memahami isinya. Setelah selesai membaca, Anda bisa mencoba kuis kelulusan di bagian bawah artikel.
               </p>
             </div>
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Status Penyelesaian</p>
-              <p className="mt-1 font-semibold text-neutral-800">{progress.completed ? "Lulus / Selesai" : "Belum Selesai"}</p>
-            </div>
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Persentase Baca</p>
-              <p className="mt-1 font-semibold text-neutral-800">{progress.scrollProgress}%</p>
-            </div>
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Skor Kuis Tertinggi</p>
-              <p className="mt-1 font-semibold text-neutral-800">{progress.score !== null ? `${progress.score}%` : "Belum Mengerjakan"}</p>
-            </div>
-          </div>
-
-          {/* Download Original File Button in Sidebar */}
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4 space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Berkas Asli</p>
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold transition-all shadow-sm"
-            >
-              <FileText size={15} /> Download PPT/PDF Asli
-            </a>
-          </div>
-
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
-            <div className="flex items-center gap-2 text-accent-dark">
-              <Trophy size={18} />
-              <h3 className="text-sm font-bold text-neutral-900">Target Belajar</h3>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-neutral-500">
-              Silakan baca artikel secara perlahan untuk memahami isinya. Setelah selesai membaca, Anda bisa mencoba kuis kelulusan di bagian bawah artikel.
-            </p>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
     </div>
   );
