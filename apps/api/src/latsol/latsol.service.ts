@@ -189,22 +189,30 @@ export class LatsolService {
       let unlocked = true;
       let alasan_terkunci = '';
 
-      // Prasyarat 1: Modul materi harus selesai dibaca
-      if (!progress || progress.status !== 'selesai') {
-        unlocked = false;
-        alasan_terkunci = `Materi modul "${mod.judul}" belum selesai dibaca.`;
-      }
-      // Prasyarat 2: Kuis di dalam materi harus bernilai 100 (benar semua)
-      else if (!internalQuiz || internalQuiz.skor !== 100) {
-        unlocked = false;
-        alasan_terkunci = `Kuis materi di akhir modul "${mod.judul}" belum diselesaikan dengan nilai 100%.`;
-      }
-      // Prasyarat 3: Modul sebelumnya harus sudah menyelesaikan Latsol-nya (berurutan)
-      else if (i > 0) {
-        const prevStatus = statusList[i - 1];
-        if (!prevStatus.completed) {
+      const isFirstModule = mod.urutan === 1 || i === 0;
+
+      if (isFirstModule) {
+        // Modul 1 / Modul pertama otomatis terbuka (bypassed)
+        unlocked = true;
+        alasan_terkunci = '';
+      } else {
+        // Prasyarat 1: Modul materi harus selesai dibaca
+        if (!progress || progress.status !== 'selesai') {
           unlocked = false;
-          alasan_terkunci = `Anda harus menyelesaikan Latihan Soal untuk modul "${prevStatus.judul}" terlebih dahulu.`;
+          alasan_terkunci = `Materi modul "${mod.judul}" belum selesai dibaca.`;
+        }
+        // Prasyarat 2: Kuis di dalam materi harus bernilai 100 (benar semua)
+        else if (!internalQuiz || internalQuiz.skor !== 100) {
+          unlocked = false;
+          alasan_terkunci = `Kuis materi di akhir modul "${mod.judul}" belum diselesaikan dengan nilai 100%.`;
+        }
+        // Prasyarat 3: Modul sebelumnya harus sudah menyelesaikan Latsol-nya (berurutan)
+        else if (i > 0) {
+          const prevStatus = statusList[i - 1];
+          if (!prevStatus || !prevStatus.completed) {
+            unlocked = false;
+            alasan_terkunci = `Anda harus menyelesaikan Latihan Soal untuk modul "${prevStatus?.judul || 'sebelumnya'}" terlebih dahulu.`;
+          }
         }
       }
 
