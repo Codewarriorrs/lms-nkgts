@@ -25,7 +25,7 @@ export class LatsolController {
   // 1. Tambah soal kuis latihan baru (Guru & Admin)
   @Post('create')
   @UseGuards(RolesGuard)
-  @Roles(RoleEnum.guru, RoleEnum.admin)
+  @Roles(RoleEnum.admin)
   async create(@Body() createLatsolDto: CreateLatsolDto) {
     return this.latsolService.createQuestion(createLatsolDto);
   }
@@ -33,7 +33,7 @@ export class LatsolController {
   // 2. Hapus soal kuis latihan (Guru & Admin)
   @Delete(':id')
   @UseGuards(RolesGuard)
-  @Roles(RoleEnum.guru, RoleEnum.admin)
+  @Roles(RoleEnum.admin)
   async delete(@Param('id', ParseIntPipe) id: number) {
     return this.latsolService.deleteQuestion(id);
   }
@@ -41,7 +41,7 @@ export class LatsolController {
   // 3. Lihat status prasyarat latsol semua modul (Siswa)
   @Get('status-siswa')
   async getStatus(@Req() req: any) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     return this.latsolService.getLatsolStatusForStudent(userId);
   }
 
@@ -51,15 +51,15 @@ export class LatsolController {
     @Param('id', ParseIntPipe) moduleId: number,
     @Req() req: any
   ) {
-    const userId = req.user.userId;
-    const isGuru = req.user.role === RoleEnum.guru || req.user.role === RoleEnum.admin;
+    const userId = req.user.id;
+    const isGuru = req.user.role === RoleEnum.admin;
     return this.latsolService.getQuestionsForModule(moduleId, isGuru, userId);
   }
 
   // 5. Submit & hitung hasil pengerjaan kuis latihan (Siswa)
   @Post('submit')
   async submit(@Req() req: any, @Body() submitLatsolDto: SubmitLatsolDto) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     return this.latsolService.submitStudentLatsol(userId, submitLatsolDto);
   }
 }
