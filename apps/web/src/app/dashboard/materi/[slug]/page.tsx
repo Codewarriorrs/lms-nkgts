@@ -434,10 +434,10 @@ export default function MateriDetailPage() {
           {/* Tombol Toggle Sidebar Ringkasan */}
           <button
             onClick={() => setShowSidebar(!showSidebar)}
-            className="inline-flex items-center gap-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 text-xs font-bold transition-all shadow-sm"
+            title={showSidebar ? "Sembunyikan Ringkasan" : "Tampilkan Ringkasan"}
+            className="inline-flex items-center justify-center rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 w-9 h-9 transition-all shadow-sm hover:scale-105 active:scale-95"
           >
             <Sidebar size={16} />
-            {showSidebar ? "Sembunyikan Ringkasan" : "Tampilkan Ringkasan"}
           </button>
         </div>
       </div>

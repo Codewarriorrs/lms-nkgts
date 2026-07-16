@@ -204,7 +204,14 @@ export default function ProfilePage() {
               {fotoProfilBase64 ? (
                 <img src={fotoProfilBase64} alt={nama} className="w-full h-full object-cover" />
               ) : currentUser.avatar && (currentUser.avatar.startsWith("http") || currentUser.avatar.startsWith("data:image")) ? (
-                <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                <img 
+                  src={currentUser.avatar} 
+                  alt={currentUser.name} 
+                  className="w-full h-full object-cover" 
+                  onError={(e) => {
+                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=0D8ABC&color=fff&bold=true`;
+                  }}
+                />
               ) : (
                 currentUser.avatar
               )}

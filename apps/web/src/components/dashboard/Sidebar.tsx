@@ -28,7 +28,7 @@ const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Materi", icon: BookOpen, href: "/dashboard/materi" },
   { label: "Soal Latihan", icon: ClipboardList, href: "/dashboard/soal" },
-  { label: "Tugas Praktek", icon: Briefcase, href: "/dashboard/tugas" },
+  { label: "Tugas Praktik", icon: Briefcase, href: "/dashboard/tugas" },
   { label: "Project Kaizen", icon: FolderKanban, href: "/dashboard/project" },
 ];
 
@@ -66,7 +66,7 @@ export function Sidebar({ open, collapsed = false, onClose }: SidebarProps) {
       { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
       { label: "Materi", icon: BookOpen, href: "/dashboard/materi" },
       { label: "Soal Latihan", icon: ClipboardList, href: "/dashboard/soal" },
-      { label: "Tugas Praktikum", icon: Briefcase, href: "/dashboard/tugas" },
+      { label: "Tugas Praktik", icon: Briefcase, href: "/dashboard/tugas" },
       { label: "Project Kaizen", icon: FolderKanban, href: "/dashboard/project" },
       { label: "Progres Siswa", icon: Users, href: "/dashboard/progres" },
     ];

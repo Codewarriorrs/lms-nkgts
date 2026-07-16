@@ -360,7 +360,14 @@ function Navbar() {
                   title={`Profil ${currentUser.name}`}
                 >
                   {currentUser.avatar && (currentUser.avatar.startsWith("http") || currentUser.avatar.startsWith("/") || currentUser.avatar.startsWith("data:image")) ? (
-                    <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                    <img 
+                      src={currentUser.avatar} 
+                      alt={currentUser.name} 
+                      className="w-full h-full object-cover" 
+                      onError={(e) => {
+                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=0D8ABC&color=fff&bold=true`;
+                      }}
+                    />
                   ) : (
                     <span>{currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}</span>
                   )}
