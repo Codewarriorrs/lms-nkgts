@@ -53,7 +53,25 @@ export class TugasPraktekService {
       }
     }
 
-    // C. Eksekusi penyimpanan menggunakan teknik UPSERT (Update jika ada, Insert jika baru)
+    // C. Ambil data submisi lama untuk proses merge detail_jawaban
+    const existing = await this.prisma.submisiPraktek.findUnique({
+      where: {
+        siswa_id_tugas_praktek_id: {
+          siswa_id: siswaId,
+          tugas_praktek_id: tugasPraktekId,
+        },
+      },
+    });
+
+    const existingDetail = existing?.detail_jawaban && typeof existing.detail_jawaban === 'object'
+      ? (existing.detail_jawaban as Record<string, any>)
+      : {};
+    const mergedDetail = {
+      ...existingDetail,
+      ...(dto.detail_jawaban && typeof dto.detail_jawaban === 'object' ? dto.detail_jawaban : {})
+    };
+
+    // D. Eksekusi penyimpanan menggunakan teknik UPSERT (Update jika ada, Insert jika baru)
     return this.prisma.submisiPraktek.upsert({
       where: {
         siswa_id_tugas_praktek_id: {
@@ -62,16 +80,18 @@ export class TugasPraktekService {
         },
       },
       update: {
-        tanggal: dto.tanggal,
-        area_pengisian: dto.area_pengisian,
-        keterangan: dto.keterangan,
+        tanggal: dto.tanggal ?? existing?.tanggal ?? new Date().toISOString().slice(0, 10),
+        area_pengisian: dto.area_pengisian ?? existing?.area_pengisian ?? "",
+        keterangan: dto.keterangan ?? existing?.keterangan ?? "",
+        detail_jawaban: mergedDetail,
       },
       create: {
         siswa_id: siswaId,
         tugas_praktek_id: tugasPraktekId,
-        tanggal: dto.tanggal,
-        area_pengisian: dto.area_pengisian,
-        keterangan: dto.keterangan,
+        tanggal: dto.tanggal ?? new Date().toISOString().slice(0, 10),
+        area_pengisian: dto.area_pengisian ?? "",
+        keterangan: dto.keterangan ?? "",
+        detail_jawaban: mergedDetail,
       },
     });
   }
