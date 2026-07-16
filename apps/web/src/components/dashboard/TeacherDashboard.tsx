@@ -1575,7 +1575,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       {/* ── DETAIL MODAL: PENILAIAN TUGAS PRAKTIKUM ── */}
       {selectedTaskSubmisi && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-neutral-100 flex flex-col space-y-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-neutral-100 flex flex-col space-y-4 max-h-[90vh]">
             <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
               <div>
                 <h3 className="font-bold text-neutral-900 text-sm">Penilaian Tugas Praktikum</h3>
@@ -1589,29 +1589,238 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-4 text-xs overflow-y-auto pr-1 flex-1">
               <div className="p-3.5 bg-neutral-50 rounded-xl space-y-2 border border-neutral-100">
                 <p className="font-bold text-neutral-700">Topik Praktikum:</p>
                 <p className="font-semibold text-neutral-900 text-sm">{selectedTaskSubmisi.tugas_praktek.judul}</p>
+                <p className="text-[10px] text-neutral-400">Tanggal Kumpul: {new Date(selectedTaskSubmisi.submitted_at).toLocaleString("id-ID")}</p>
               </div>
 
-              {selectedTaskSubmisi.tugas_praktek.deskripsi && (
-                <div className="space-y-1">
-                  <p className="font-bold text-neutral-500">Hasil Pengamatan Siswa:</p>
-                  <p className="text-neutral-800 font-semibold whitespace-pre-wrap border border-neutral-100 p-3 bg-white rounded-lg leading-relaxed">
-                    {selectedTaskSubmisi.pengamatan}
-                  </p>
-                </div>
-              )}
+              {/* RENDER DETAILED SUBMISSION DATA */}
+              {(() => {
+                const detail = selectedTaskSubmisi.detail_jawaban;
+                const taskId = selectedTaskSubmisi.tugas_praktek_id;
 
-              {selectedTaskSubmisi.foto_area && (
-                <div className="space-y-1">
-                  <p className="font-bold text-neutral-500">Foto Area Terkait:</p>
-                  <img src={selectedTaskSubmisi.foto_area} alt="Foto Area" className="max-h-48 w-full object-cover rounded-lg border border-neutral-200 mt-1" />
-                </div>
-              )}
+                if (!detail || typeof detail !== "object") {
+                  return (
+                    <div className="space-y-2 bg-neutral-50/50 p-4 rounded-xl border border-neutral-150">
+                      <p className="font-bold text-neutral-800">Hasil Pengamatan (Format Lama):</p>
+                      <p className="text-neutral-700 whitespace-pre-wrap leading-relaxed">
+                        {selectedTaskSubmisi.area_pengisian || "Tidak ada keterangan tertulis."}
+                      </p>
+                      {selectedTaskSubmisi.keterangan && (
+                        <p className="text-neutral-600 mt-2"><strong>Keterangan:</strong> {selectedTaskSubmisi.keterangan}</p>
+                      )}
+                    </div>
+                  );
+                }
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
+                // Render dynamic view per submenu
+                if (taskId === 1) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="bg-neutral-50/50 p-3.5 rounded-xl border border-neutral-150 space-y-2">
+                        <p className="text-xs font-bold text-neutral-550 uppercase tracking-wider">Detail Observasi Seiri (Pemilahan)</p>
+                        <p className="text-neutral-700"><strong>Area Observasi:</strong> {selectedTaskSubmisi.area_pengisian}</p>
+                        <div className="grid grid-cols-1 gap-2.5 pt-2">
+                          <div className="p-2.5 bg-white border border-neutral-200 rounded-lg">
+                            <span className="font-bold text-success block">Barang Diperlukan (Rutin):</span>
+                            <span className="text-neutral-750 mt-0.5 block">{detail.barang_rutin || "-"}</span>
+                          </div>
+                          <div className="p-2.5 bg-white border border-neutral-200 rounded-lg">
+                            <span className="font-bold text-primary block">Barang Diperlukan (Jarang/Tidak Rutin):</span>
+                            <span className="text-neutral-750 mt-0.5 block">{detail.barang_tidak_rutin || "-"}</span>
+                          </div>
+                          <div className="p-2.5 bg-white border border-neutral-200 rounded-lg">
+                            <span className="font-bold text-danger block">Barang Tidak Diperlukan (Harus Disingkirkan):</span>
+                            <span className="text-neutral-750 mt-0.5 block">{detail.barang_tidak_diperlukan || "-"}</span>
+                          </div>
+                        </div>
+                      </div>
+                      {detail.foto_url && (
+                        <div className="space-y-1">
+                          <p className="font-bold text-neutral-500">Foto Bukti Pemilahan:</p>
+                          <img src={detail.foto_url} alt="Foto Pemilahan" className="max-h-56 w-full object-contain rounded-lg border border-neutral-200 mt-1 bg-neutral-50 p-1" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (taskId === 2) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="bg-neutral-50/50 p-3.5 rounded-xl border border-neutral-150 space-y-2">
+                        <p className="text-xs font-bold text-neutral-550 uppercase tracking-wider">Detail Observasi Seiton (Penataan)</p>
+                        <p className="text-neutral-700"><strong>Referensi Barang Tidak Diperlukan:</strong> {detail.barang_tidak_diperlukan_ref || "-"}</p>
+                        <div className="grid grid-cols-1 gap-2.5 pt-2">
+                          <div className="p-2.5 bg-white border border-neutral-200 rounded-lg">
+                            <span className="font-bold text-success block">Daur Ulang (Recycle):</span>
+                            <span className="text-neutral-750 mt-0.5 block">{detail.recycle || "-"}</span>
+                          </div>
+                          <div className="p-2.5 bg-white border border-neutral-200 rounded-lg">
+                            <span className="font-bold text-primary block">Relokasi (Relocation):</span>
+                            <span className="text-neutral-750 mt-0.5 block">{detail.relocation || "-"}</span>
+                          </div>
+                          <div className="p-2.5 bg-white border border-neutral-200 rounded-lg">
+                            <span className="font-bold text-danger block">Pembuangan (Dispose):</span>
+                            <span className="text-neutral-750 mt-0.5 block">{detail.dispose || "-"}</span>
+                          </div>
+                        </div>
+                      </div>
+                      {detail.foto_url && (
+                        <div className="space-y-1">
+                          <p className="font-bold text-neutral-500">Foto Bukti Penataan:</p>
+                          <img src={detail.foto_url} alt="Foto Penataan" className="max-h-56 w-full object-contain rounded-lg border border-neutral-200 mt-1 bg-neutral-50 p-1" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (taskId === 3) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="bg-neutral-50/50 p-3.5 rounded-xl border border-neutral-150 space-y-2">
+                        <p className="text-xs font-bold text-neutral-550 uppercase tracking-wider">Detail Observasi Seiso (Pembersihan)</p>
+                        <p className="text-neutral-700"><strong>Ruang yang Dibersihkan:</strong> {detail.ruang || "-"}</p>
+                        <div className="p-2.5 bg-white border border-neutral-200 rounded-lg">
+                          <span className="font-bold text-neutral-700 block mb-1">Aktivitas Pembersihan yang Dilakukan:</span>
+                          <ul className="list-disc pl-4 space-y-1 text-neutral-750">
+                            {Array.isArray(detail.checklist) && detail.checklist.length > 0 ? (
+                              detail.checklist.map((c: any, idx: number) => (
+                                <li key={idx}>{c}</li>
+                              ))
+                            ) : (
+                              <li>Tidak ada aktivitas yang dipilih.</li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                      {detail.foto_url && (
+                        <div className="space-y-1">
+                          <p className="font-bold text-neutral-500">Foto Bukti Pembersihan:</p>
+                          <img src={detail.foto_url} alt="Foto Pembersihan" className="max-h-56 w-full object-contain rounded-lg border border-neutral-200 mt-1 bg-neutral-50 p-1" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (taskId === 4) {
+                  const renderRiskTable = (rows: any[], title: string) => (
+                    <div className="space-y-1.5 pt-1">
+                      <p className="font-bold text-neutral-750">{title}:</p>
+                      <div className="border border-neutral-150 rounded-lg overflow-hidden bg-white text-[10px]">
+                        <table className="w-full border-collapse text-left">
+                          <thead>
+                            <tr className="bg-neutral-50 border-b border-neutral-150 text-neutral-500 font-extrabold uppercase text-[8px] tracking-wider">
+                              <th className="px-2.5 py-1.5">Kategori</th>
+                              <th className="px-2.5 py-1.5">Deskripsi</th>
+                              <th className="px-2.5 py-1.5">Mitigasi</th>
+                              <th className="px-2.5 py-1.5 text-center">Risiko</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-100 text-neutral-750">
+                            {rows && rows.length > 0 ? (
+                              rows.map((row: any, idx: number) => (
+                                <tr key={idx} className="hover:bg-neutral-50/50">
+                                  <td className="px-2.5 py-1.5 font-bold uppercase">{row.kategori}</td>
+                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap">{row.deskripsi}</td>
+                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap">{row.tindakan}</td>
+                                  <td className="px-2.5 py-1.5 text-center">
+                                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                                      row.risiko?.includes("Tinggi")
+                                        ? "bg-danger/10 text-danger"
+                                        : row.risiko?.includes("Sedang")
+                                        ? "bg-warning/10 text-warning-dark"
+                                        : "bg-success/10 text-success"
+                                    }`}>
+                                      {row.risiko || "Rendah"} ({row.skor})
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={4} className="px-2.5 py-2 text-center text-neutral-400 italic">Belum ada data diinput.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+
+                  return (
+                    <div className="space-y-4">
+                      {renderRiskTable(detail.bahaya_sekolah, "Daftar Potensi Bahaya K3 di Sekolah")}
+                      {renderRiskTable(detail.bahaya_rumah, "Daftar Potensi Bahaya K3 di Rumah")}
+                      {detail.foto_url && (
+                        <div className="space-y-1">
+                          <p className="font-bold text-neutral-500">Foto Temuan Potensi Bahaya:</p>
+                          <img src={detail.foto_url} alt="Foto K3" className="max-h-56 w-full object-contain rounded-lg border border-neutral-200 mt-1 bg-neutral-50 p-1" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (taskId === 5) {
+                  const renderWasteTable = (rows: any[], title: string) => (
+                    <div className="space-y-1.5 pt-1">
+                      <p className="font-bold text-neutral-750">{title}:</p>
+                      <div className="border border-neutral-150 rounded-lg overflow-hidden bg-white text-[10px]">
+                        <table className="w-full border-collapse text-left">
+                          <thead>
+                            <tr className="bg-neutral-50 border-b border-neutral-150 text-neutral-500 font-extrabold uppercase text-[8px] tracking-wider">
+                              <th className="px-2.5 py-1.5">Jenis Waste</th>
+                              <th className="px-2.5 py-1.5">Kondisi Aktual</th>
+                              <th className="px-2.5 py-1.5">Situasi Ideal</th>
+                              <th className="px-2.5 py-1.5">Masalah / Gap</th>
+                              <th className="px-2.5 py-1.5">Rencana Kaizen</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-100 text-neutral-750">
+                            {rows && rows.length > 0 ? (
+                              rows.map((row: any, idx: number) => (
+                                <tr key={idx} className="hover:bg-neutral-50/50">
+                                  <td className="px-2.5 py-1.5 font-bold uppercase">{row.jenis}</td>
+                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap">{row.aktual}</td>
+                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap">{row.ideal}</td>
+                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap text-danger font-semibold">{row.gap}</td>
+                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap text-primary font-semibold">{row.rencana}</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={5} className="px-2.5 py-2 text-center text-neutral-400 italic">Belum ada data diinput.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+
+                  return (
+                    <div className="space-y-4">
+                      {renderWasteTable(detail.pemborosan_sekolah, "Tabel Analisa Pemborosan di Sekolah")}
+                      {renderWasteTable(detail.pemborosan_rumah, "Tabel Analisa Pemborosan di Rumah")}
+                      {detail.foto_url && (
+                        <div className="space-y-1">
+                          <p className="font-bold text-neutral-500">Foto Bukti Pemborosan:</p>
+                          <img src={detail.foto_url} alt="Foto Pemborosan" className="max-h-56 w-full object-contain rounded-lg border border-neutral-200 mt-1 bg-neutral-50 p-1" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                return null;
+              })()}
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-neutral-150">
                 <div className="space-y-1">
                   <label className="font-bold text-neutral-600">Skor Penilaian (0-100) *</label>
                   <input

@@ -142,7 +142,10 @@ export default function TugasPage() {
   }, []);
 
   const loadStatus = async () => {
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await fetch(`${API_URL}/tugas-praktek/status-siswa`, {
@@ -172,6 +175,8 @@ export default function TugasPage() {
   useEffect(() => {
     if (token && currentUser?.role === "siswa") {
       loadStatus();
+    } else if (currentUser && currentUser.role !== "siswa") {
+      setLoading(false);
     }
   }, [token, currentUser]);
 
@@ -200,7 +205,7 @@ export default function TugasPage() {
     );
   }
 
-  if (currentUser?.role === "guru") {
+  if (currentUser?.role === "guru" || currentUser?.role === "admin") {
     return <TeacherDashboard tab="tugas" />;
   }
 
