@@ -110,7 +110,6 @@ export function LoginForm() {
         <div className="relative z-10 flex gap-6 text-xs text-white/40">
           <span>© 2026 N-KGTS</span>
           <span>PT Toyota-Astra Motor</span>
-          <span>PT Kode Solusi</span>
         </div>
       </div>
 

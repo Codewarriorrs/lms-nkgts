@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useInView as useMotionInView, useMotionValue, useSpring } from "motion/react";
 import {
   BookOpen,
   ClipboardList,
@@ -18,6 +19,7 @@ import {
   GraduationCap,
   ArrowRight,
 } from "lucide-react";
+import CardSwap, { Card } from "@/components/ui/CardSwap";
 
 // ── DATA ─────────────────────────────────────────────────────
 
@@ -30,27 +32,33 @@ const navLinks = [
 const stats = [
   {
     icon: School,
-    value: "100+",
+    value: 100,
+    suffix: "+",
+    animate: true,
     label: "Sekolah Terlibat",
-    color: "bg-primary/10 text-primary",
+    color: "bg-accent/70 text-primary",
   },
   {
     icon: Users,
-    value: "210",
+    value: 420,
+    animate: true,
     label: "Siswa Peserta 2026",
-    color: "bg-accent/20 text-accent-dark",
+    color: "bg-accent/70 text-primary",
   },
   {
     icon: GraduationCap,
-    value: "30+",
+    value: 30,
+    suffix: "+",
+    animate: true,
     label: "Guru Praktisi Bersertifikat",
-    color: "bg-success/10 text-success",
+    color: "bg-accent/70 text-primary",
   },
   {
     icon: Award,
-    value: "2014",
+    value: 2014,
+    animate: false,
     label: "Tahun Program Dimulai",
-    color: "bg-primary/10 text-primary",
+    color: "bg-accent/70 text-primary",
   },
 ];
 
@@ -61,7 +69,7 @@ const moduls = [
     deskripsi:
       "Akses materi soft skill problem solving berbasis metodologi Kaizen dalam 5 topik pelatihan terstruktur.",
     icon: BookOpen,
-    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Materi+Pelatihan",
+    img: "https://images.unsplash.com/photo-1610500796385-3ffc1ae2f046?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Teori",
   },
   {
@@ -70,7 +78,7 @@ const moduls = [
     deskripsi:
       "Uji pemahaman materi melalui soal latihan yang tersedia setelah kamu menyelesaikan setiap topik.",
     icon: ClipboardList,
-    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Soal+Latihan",
+    img: "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Evaluasi",
   },
   {
@@ -79,7 +87,7 @@ const moduls = [
     deskripsi:
       "Kerjakan dan kumpulkan tugas praktek yang diberikan guru langsung melalui platform LMS.",
     icon: Briefcase,
-    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Tugas+Praktek",
+    img: "https://images.unsplash.com/photo-1589087394593-e1f8a7d30fed?q=80&w=1467&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Praktek",
   },
   {
@@ -88,7 +96,7 @@ const moduls = [
     deskripsi:
       "Daftarkan, jalankan, dan laporkan progress project kaizen kamu secara berkala dengan template terstruktur.",
     icon: FolderKanban,
-    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Project+Kaizen",
+    img: "https://images.unsplash.com/photo-1557734864-c78b6dfef1b1?q=80&w=1634&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Project",
   },
   {
@@ -97,7 +105,7 @@ const moduls = [
     deskripsi:
       "Terima penilaian dan feedback langsung dari Guru Praktisi Kaizen untuk setiap tugas dan project.",
     icon: BarChart2,
-    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Penilaian",
+    img: "https://images.unsplash.com/photo-1664382953518-4a664ab8a8c9?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Feedback",
   },
   {
@@ -106,7 +114,7 @@ const moduls = [
     deskripsi:
       "Raih Sertifikat Partisipasi Kaizen dan Sertifikat Penyelesaian Project setelah menuntaskan program.",
     icon: Award,
-    img: "https://placehold.co/400x220/E8ECF4/9099AE?text=Sertifikasi",
+    img: "https://images.unsplash.com/photo-1667967699372-1c26d40dec46?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Sertifikat",
   },
 ];
@@ -139,6 +147,113 @@ const faqs = [
 ];
 
 // ── HOOKS ─────────────────────────────────────────────────────
+
+function CountUp({
+  to,
+  from = 0,
+  direction = "up",
+  delay = 0,
+  duration = 2,
+  className = "",
+  startWhen = true,
+  separator = "",
+  onStart,
+  onEnd,
+}: {
+  to: number;
+  from?: number;
+  direction?: "up" | "down";
+  delay?: number;
+  duration?: number;
+  className?: string;
+  startWhen?: boolean;
+  separator?: string;
+  onStart?: () => void;
+  onEnd?: () => void;
+}) {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const motionValue = useMotionValue(direction === "down" ? to : from);
+
+  const damping = 20 + 40 * (1 / duration);
+  const stiffness = 100 * (1 / duration);
+
+  const springValue = useSpring(motionValue, {
+    damping,
+    stiffness,
+  });
+
+  const isInView = useMotionInView(ref, { once: true, margin: "0px" });
+
+  const getDecimalPlaces = useCallback((num: number) => {
+    const str = num.toString();
+
+    if (str.includes(".")) {
+      const decimals = str.split(".")[1];
+
+      if (parseInt(decimals, 10) !== 0) {
+        return decimals.length;
+      }
+    }
+
+    return 0;
+  }, []);
+
+  const maxDecimals = Math.max(getDecimalPlaces(from), getDecimalPlaces(to));
+
+  const formatValue = useCallback(
+    (latest: number) => {
+      const hasDecimals = maxDecimals > 0;
+
+      const options = {
+        useGrouping: !!separator,
+        minimumFractionDigits: hasDecimals ? maxDecimals : 0,
+        maximumFractionDigits: hasDecimals ? maxDecimals : 0,
+      };
+
+      const formattedNumber = Intl.NumberFormat("en-US", options).format(latest);
+
+      return separator ? formattedNumber.replace(/,/g, separator) : formattedNumber;
+    },
+    [maxDecimals, separator]
+  );
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.textContent = formatValue(direction === "down" ? to : from);
+    }
+  }, [from, to, direction, formatValue]);
+
+  useEffect(() => {
+    if (isInView && startWhen) {
+      if (typeof onStart === "function") onStart();
+
+      const timeoutId = window.setTimeout(() => {
+        motionValue.set(direction === "down" ? from : to);
+      }, delay * 1000);
+
+      const durationTimeoutId = window.setTimeout(() => {
+        if (typeof onEnd === "function") onEnd();
+      }, delay * 1000 + duration * 1000);
+
+      return () => {
+        window.clearTimeout(timeoutId);
+        window.clearTimeout(durationTimeoutId);
+      };
+    }
+  }, [isInView, startWhen, motionValue, direction, from, to, delay, onStart, onEnd, duration]);
+
+  useEffect(() => {
+    const unsubscribe = springValue.on("change", (latest) => {
+      if (ref.current) {
+        ref.current.textContent = formatValue(latest);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [springValue, formatValue]);
+
+  return <span className={className} ref={ref} />;
+}
 
 function useScrolled(threshold = 40) {
   const [scrolled, setScrolled] = useState(false);
@@ -336,7 +451,7 @@ function Hero() {
   useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
 
   return (
-    <section className="relative min-h-screen bg-primary flex items-center overflow-hidden">
+    <section className="relative min-h-screen bg-primary flex items-center overflow-visible lg:overflow-hidden">
       {/* Decorative blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary-light/30 blur-3xl" />
@@ -350,13 +465,10 @@ function Hero() {
         <div className="absolute top-1/2 right-8 w-6 h-6 bg-accent/40 rounded-md rotate-45" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-40 pb-28 sm:pb-32 lg:pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Text */}
-          <div className={`transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
-            <span className="inline-block bg-accent text-neutral-900 text-xs font-bold px-3 py-1 rounded-full mb-5 tracking-wide uppercase">
-              #1 Platform Pelatihan Kaizen · SMK Indonesia
-            </span>
+          <div className={`transition-all duration-700 lg:-mt-36 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.08] mb-5">
               Platform Pelatihan{" "}
               <span className="text-accent">Kaizen</span>{" "}
@@ -384,59 +496,46 @@ function Hero() {
           </div>
 
           {/* Visual right */}
-          <div className={`hidden lg:flex justify-center items-center transition-all duration-700 delay-200 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
-            <div className="relative w-full max-w-sm">
-              {/* Main card */}
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-                    <BookOpen size={18} className="text-neutral-900" />
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold text-sm">Materi Aktif</p>
-                    <p className="text-white/60 text-xs">Topik 3 · Diagram Pareto</p>
-                  </div>
-                </div>
-                <div className="bg-white/10 rounded-xl p-3 space-y-1.5">
-                  <div className="flex justify-between text-xs text-white/70">
-                    <span>Progress Belajar</span><span className="text-accent font-semibold">60%</span>
-                  </div>
-                  <div className="w-full bg-white/20 rounded-full h-1.5">
-                    <div className="bg-accent h-1.5 rounded-full transition-all duration-1000" style={{ width: mounted ? "60%" : "0%" }} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: "Tugas Aktif", val: "2" },
-                    { label: "Project", val: "Disetujui" },
-                  ].map((i) => (
-                    <div key={i.label} className="bg-white/10 rounded-xl p-3">
-                      <p className="text-white/60 text-xs">{i.label}</p>
-                      <p className="text-white font-bold text-sm">{i.val}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Floating badge */}
-              <div className="absolute -top-4 -right-4 bg-success text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 animate-bounce" style={{ animationDuration: "2.5s" }}>
-                <Award size={12} /> Sertifikasi Kaizen
-              </div>
-              {/* Floating stat */}
-              <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-xl px-4 py-2.5 flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Users size={14} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-neutral-900 font-extrabold text-sm leading-none">210+</p>
-                  <p className="text-neutral-400 text-xs">Siswa Aktif</p>
-                </div>
-              </div>
+          <div className={`flex justify-center items-center transition-all duration-700 delay-200 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
+            <div className="relative w-full max-w-[320px] md:max-w-[420px] lg:max-w-[520px] px-4 sm:px-0 mt-16 sm:mt-20 lg:mt-0">
+              <CardSwap
+                width="100%"
+                height="280px"
+                cardDistance={15}
+                verticalDistance={15}
+                delay={4500}
+                pauseOnHover={false}
+                skewAmount={3}
+                easing="elastic"
+              >
+                <Card>
+                  <img
+                    src="https://kabarterdepan.com/wp-content/uploads/2023/10/WhatsApp-Image-2023-10-03-at-18.06.03.webp"
+                    alt="Preview 1"
+                    className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
+                  />
+                </Card>
+                <Card>
+                  <img
+                    src="https://vibes.koranjuri.com/wp-content/uploads/2024/08/IMG_20240829_181517.jpg"
+                    alt="Preview 2"
+                    className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
+                  />
+                </Card>
+                <Card>
+                  <img
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSKxYTpWnysl034eJwiHM-PLkdCzhg6zx1_NULPTye2aNXFopwCg7I3iMPX&s=10"
+                    alt="Preview 3"
+                    className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
+                  />
+                </Card>
+              </CardSwap>
             </div>
           </div>
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/40 animate-bounce" style={{ animationDuration: "2s" }}>
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/40 animate-bounce" style={{ animationDuration: "2s" }}>
           <span className="text-xs font-medium">Scroll</span>
           <ChevronDown size={16} />
         </div>
@@ -473,7 +572,14 @@ function StatsSection() {
               <div className={`w-12 h-12 rounded-full ${s.color} flex items-center justify-center mb-3`}>
                 <s.icon size={22} />
               </div>
-              <p className="text-3xl font-extrabold text-neutral-900 leading-none">{s.value}</p>
+              <p className="text-3xl font-extrabold text-neutral-900 leading-none">
+                {s.animate ? (
+                  <CountUp from={0} to={Number(s.value)} duration={1.4} className="inline-block" />
+                ) : (
+                  <span>{s.value}</span>
+                )}
+                {s.suffix ? <span>{s.suffix}</span> : null}
+              </p>
               <p className="text-neutral-400 text-xs font-medium mt-1.5 leading-snug">{s.label}</p>
             </div>
           ))}
@@ -525,7 +631,7 @@ function TentangSection() {
             </p>
             <a
               href="/login"
-              className="inline-flex items-center gap-2 bg-primary text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-primary-light transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+              className="inline-flex items-center gap-2 bg-accent text-neutral-900 font-semibold px-5 py-2.5 rounded-lg hover:bg-accent-dark transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
             >
               Masuk ke Platform <ChevronRight size={16} />
             </a>
@@ -533,7 +639,7 @@ function TentangSection() {
 
           {/* 8 Langkah visual */}
           <div>
-            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-4">
+            <p className="inline-block bg-accent text-neutral-900 text-xs font-bold uppercase rounded-full tracking-wider mb-4 px-3 py-1.5"> 
               8 Langkah Penyelesaian Masalah Kaizen
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -557,26 +663,35 @@ function TentangSection() {
   );
 }
 
-// ── MODUL ─────────────────────────────────────────────────────
+// ── FITUR ─────────────────────────────────────────────────────
 
 function ModulSection() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref);
 
   return (
-    <section id="modul" className="bg-neutral-50 py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="modul" className="relative overflow-hidden bg-primary py-24 text-white">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-16 right-0 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-accent/20 blur-3xl" />
+        <div className="absolute inset-x-0 top-0 h-20 opacity-20" style={{ backgroundImage: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%)", backgroundSize: "200% 100%" }} />
+        <svg viewBox="0 0 1440 320" className="absolute bottom-0 left-0 w-full h-32 opacity-20" preserveAspectRatio="none">
+          <path d="M0,224L48,208C96,192,192,160,288,154C384,148,480,168,576,176C672,184,768,180,864,160C960,140,1056,104,1152,96C1248,88,1344,108,1392,118L1440,128L1440,320L0,320Z" fill="currentColor" />
+        </svg>
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <span className="inline-block bg-accent text-neutral-900 text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-wide uppercase">
             Fitur Platform
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 leading-tight">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">
             Apa yang Bisa Kamu Lakukan
             <br />
-            <span className="text-primary">di Platform Ini?</span>
+            <span className="text-accent">di Platform Ini?</span>
           </h2>
-          <p className="text-neutral-400 text-sm mt-3 max-w-lg mx-auto">
-            Enam modul terstruktur untuk mendukung seluruh proses pelatihan Kaizen dari awal hingga sertifikasi.
+          <p className="text-white/75 text-sm mt-3 max-w-lg mx-auto">
+            Enam aktivitas terstruktur untuk mendukung seluruh proses pelatihan Kaizen dari awal hingga sertifikasi.
           </p>
         </div>
 
@@ -587,33 +702,34 @@ function ModulSection() {
           {moduls.map((m, i) => (
             <div
               key={m.id}
-              className={`bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer
+              className={`group relative h-full overflow-hidden rounded-2xl border border-white/10 shadow-md hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer
                 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
               style={{ transitionDelay: `${i * 80}ms` }}
             >
-              {/* Image */}
-              <div className="relative overflow-hidden">
-                <img
-                  src={m.img}
-                  alt={m.judul}
-                  className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute top-3 left-3">
-                  <span className="bg-white text-primary text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+              <img
+                src={m.img}
+                alt={m.judul}
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-primary/35" />
+
+              <div className="relative flex min-h-[280px] flex-col justify-between p-5 text-white">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="inline-flex rounded-full border border-[#F5C400]/40 bg-[#F5C400] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-900 backdrop-blur-sm">
                     {m.tag}
                   </span>
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="p-5">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
-                    <m.icon size={16} className="text-primary group-hover:text-white transition-colors duration-300" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C400] text-neutral-900 shadow-sm">
+                    <m.icon size={16} />
                   </div>
-                  <h3 className="text-neutral-900 font-bold text-sm">{m.judul}</h3>
                 </div>
-                <p className="text-neutral-400 text-xs leading-relaxed">{m.deskripsi}</p>
+
+                <div className="mt-25">
+                  <h3 className="text-lg font-bold leading-snug text-white">{m.judul}</h3>
+                  <p className="text-sm leading-relaxed text-white/80 mt-3">{m.deskripsi}</p>
+                </div>
+
+                <div className="flex items-center justify-between text-sm font-medium text-white/80">
+                </div>
               </div>
             </div>
           ))}
@@ -764,17 +880,17 @@ function Footer() {
 
           {/* Partner */}
           <div>
-            <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-4">Mitra Program</p>
             <div className="bg-white/10 rounded-xl p-4 inline-block">
               <p className="text-white font-bold text-sm">PT Toyota-Astra Motor</p>
               <p className="text-white/50 text-xs mt-0.5">Toyota Berbagi · Bersama Membangun Indonesia</p>
+              <img src="https://pbs.twimg.com/media/CIP5tRJW8AA7045.png" alt="Logo Toyota Berbagi" className="block mx-auto h-28 w-auto object-contain mt-2 rounded p-0.5" />
             </div>
           </div>
         </div>
 
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-white/40 text-xs">
-            © 2026 PT Kode Solusi. Dikembangkan untuk PT Toyota-Astra Motor.
+            © 2026 PT Toyota-Astra Motor.
           </p>
           <p className="text-white/40 text-xs">
             National Kaizen Goes To School · Fase 4 · 2026
