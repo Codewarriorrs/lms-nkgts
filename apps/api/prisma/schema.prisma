@@ -197,6 +197,7 @@ model SubmisiPraktek {
   tanggal          String       @db.VarChar(10) // Format: YYYY-MM-DD
   area_pengisian   String       @db.Text        // Input teks area observasi
   keterangan       String?      @db.Text        // Catatan singkat / link bukti
+  detail_jawaban   Json?
   
   // Data evaluasi penilaian guru
   nilai            Int?

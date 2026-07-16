@@ -1,15 +1,19 @@
-import { IsNotEmpty, IsString, IsOptional } from "class-validator";
+import { IsString, IsOptional, IsObject } from "class-validator";
+
 export class CreateTugasPraktekDto {
-
-    @IsNotEmpty()
+    @IsOptional()
     @IsString()
-    tanggal: string; // Menampung task.date (YYYY-MM-DD)
+    tanggal?: string; // Menampung task.date (YYYY-MM-DD)
 
-    @IsNotEmpty()
+    @IsOptional()
     @IsString()
-    area_pengisian: string; // Menampung task.area (1-10)
+    area_pengisian?: string; // Menampung task.area
 
     @IsOptional()
     @IsString({ message: 'Keterangan harus berupa teks' })
     keterangan?: string; // Menampung task.note
+
+    @IsOptional()
+    @IsObject()
+    detail_jawaban?: any; // Objek JSON dinamis
 }
