@@ -750,7 +750,7 @@ export default function TugasPage() {
                               <div>
                                 <span className="font-bold text-sm text-neutral-700 block">Dokumentasi Awal</span>
                                 <span className="text-xs text-neutral-400 block mt-1">Unggah foto kondisi ruangan sebelum dirapikan</span>
-                                <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB (Otomatis dikompresi agar hemat kuota)</span>
+                                <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB</span>
                               </div>
                               <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold cursor-pointer transition shadow-sm">
                                 <Upload size={14} />
@@ -1022,7 +1022,7 @@ export default function TugasPage() {
                               <div>
                                 <span className="font-bold text-sm text-neutral-700 block">Bukti Aksi</span>
                                 <span className="text-xs text-neutral-400 block mt-1">Unggah foto saat melakukan pembersihan / pemilahan</span>
-                                <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB (Otomatis dikompresi agar hemat kuota)</span>
+                                <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB</span>
                               </div>
                               <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold cursor-pointer transition shadow-sm">
                                 <Upload size={14} />
@@ -1204,7 +1204,7 @@ export default function TugasPage() {
                           <div className="space-y-2">
                             <Camera className="mx-auto text-neutral-400" size={24} />
                             <span className="font-bold text-xs text-neutral-700 block">Foto Ruangan Terkini</span>
-                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB (Otomatis dikompresi agar hemat kuota)</span>
+                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB</span>
                             <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-3 py-2 text-xs font-bold cursor-pointer transition shadow-sm mt-1">
                               <Upload size={12} /> {uploadingS3 ? "Mengunggah..." : "Pilih File"}
                               <input type="file" accept="image/*" className="hidden" disabled={uploadingS3} onChange={(e) => handlePhotoChange(e, 3)} />
@@ -1475,7 +1475,7 @@ export default function TugasPage() {
                           <div className="space-y-2">
                             <Camera className="mx-auto text-neutral-400" size={24} />
                             <span className="font-bold text-xs text-neutral-700 block">Foto Potensi Bahaya (Representatif)</span>
-                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB (Otomatis dikompresi agar hemat kuota)</span>
+                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB</span>
                             <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-3 py-2 text-xs font-bold cursor-pointer transition shadow-sm mt-1">
                               <Upload size={12} /> {uploadingS4 ? "Mengunggah..." : "Pilih File"}
                               <input type="file" accept="image/*" className="hidden" disabled={uploadingS4} onChange={(e) => handlePhotoChange(e, 4)} />
@@ -1687,7 +1687,7 @@ export default function TugasPage() {
                           <div className="space-y-2">
                             <Camera className="mx-auto text-neutral-400" size={24} />
                             <span className="font-bold text-xs text-neutral-700 block">Foto Bukti Pemborosan (Representatif)</span>
-                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB (Otomatis dikompresi agar hemat kuota)</span>
+                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB</span>
                             <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-3 py-2 text-xs font-bold cursor-pointer transition shadow-sm mt-1">
                               <Upload size={12} /> {uploadingS5 ? "Mengunggah..." : "Pilih File"}
                               <input type="file" accept="image/*" className="hidden" disabled={uploadingS5} onChange={(e) => handlePhotoChange(e, 5)} />
