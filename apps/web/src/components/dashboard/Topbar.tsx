@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu, Search, Bell, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -13,6 +14,17 @@ interface TopbarProps {
 }
 
 export function Topbar({ onMenuClick, collapsed = false, user }: TopbarProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const handleProfileClick = () => {
+    if (pathname === "/") {
+      router.push("/dashboard");
+    } else if (pathname.startsWith("/dashboard")) {
+      router.push("/dashboard/profile");
+    }
+  };
+
   return (
     <header className="bg-white border-b border-neutral-100 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
       <div className="flex items-center gap-4 flex-1">
@@ -44,7 +56,10 @@ export function Topbar({ onMenuClick, collapsed = false, user }: TopbarProps) {
         </button>
 
         {/* User Profile Info */}
-        <div className="flex items-center gap-3 pl-3 border-l border-neutral-100">
+        <div 
+          onClick={handleProfileClick}
+          className="flex items-center gap-3 pl-3 border-l border-neutral-100 cursor-pointer select-none hover:opacity-80 transition-opacity"
+        >
           <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-neutral-900 font-extrabold text-sm shadow-sm flex-shrink-0 hover:scale-105 transition-transform duration-200 select-none overflow-hidden">
             {user.avatar && (user.avatar.startsWith("http") || user.avatar.startsWith("/") || user.avatar.startsWith("data:image")) ? (
               <img 

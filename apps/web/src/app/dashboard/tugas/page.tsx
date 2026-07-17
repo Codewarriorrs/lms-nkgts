@@ -13,7 +13,9 @@ import {
   AlertTriangle,
   ChevronRight,
   Sparkles,
-  Info
+  Info,
+  Trash2,
+  Plus
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import { uploadFileOrBase64 } from "@/utils/upload";
@@ -109,10 +111,20 @@ export default function TugasPage() {
   const [ruangS1, setRuangS1] = useState("Ruang Kelas");
   const [S1_rutin, setS1_rutin] = useState("");
   const [S1_tidakRutin, setS1_tidakRutin] = useState("");
-  const [S1_tidakPerlu, setS1_tidakPerlu] = useState<string[]>([]);
-  const [S1_tidakPerluInput, setS1_tidakPerluInput] = useState("");
+  const [S1_tidakPerlu, setS1_tidakPerlu] = useState<string[]>([""]);
   const [activePill, setActivePill] = useState<string | null>(null);
   const [pillAssignments, setPillAssignments] = useState<Record<string, "recycle" | "relocation" | "dispose">>({});
+
+  const handleAddRow = () => {
+    setS1_tidakPerlu((prev) => [...prev, ""]);
+  };
+
+  const handleDeleteRow = (index: number) => {
+    setS1_tidakPerlu((prev) => {
+      const copy = prev.filter((_, i) => i !== index);
+      return copy.length > 0 ? copy : [""];
+    });
+  };
   const [fotoS1, setFotoS1] = useState<string>("");
   const [uploadingS1, setUploadingS1] = useState(false);
 
@@ -274,7 +286,7 @@ export default function TugasPage() {
         ruang: ruangS1,
         barang_rutin: S1_rutin,
         barang_tidak_rutin: S1_tidakRutin,
-        barang_tidak_diperlukan: S1_tidakPerlu,
+        barang_tidak_diperlukan: S1_tidakPerlu.map(s => s.trim()).filter(Boolean),
         foto_url: fotoS1
       };
     } else if (submenuId === 2) {
@@ -578,48 +590,51 @@ export default function TugasPage() {
                             </div>
                           </div>
 
-                          <div className="flex flex-col gap-1.5">
+                          <div className="flex flex-col gap-2">
                             <label className="text-xs font-bold text-neutral-600">Barang yang tidak diperlukan</label>
-                            <div className="border rounded-xl p-2.5 flex flex-wrap gap-2 focus-within:ring-2 focus-within:ring-primary/20 bg-white min-h-[90px]">
-                              {S1_tidakPerlu.map((tag, idx) => (
-                                <span key={idx} className="inline-flex items-center gap-1.5 text-xs font-semibold bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full border">
-                                  {tag}
+                            
+                            <div className="space-y-2">
+                              {S1_tidakPerlu.map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={item}
+                                    onChange={(e) => {
+                                      const newVal = e.target.value;
+                                      const copy = [...S1_tidakPerlu];
+                                      copy[idx] = newVal;
+                                      if (copy.join(", ").length <= 1000) {
+                                        setS1_tidakPerlu(copy);
+                                      } else {
+                                        showToast("Total karakter barang tidak boleh melebihi 1000!", "error");
+                                      }
+                                    }}
+                                    className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 flex-1 bg-white"
+                                    placeholder={`Nama barang ke-${idx + 1}...`}
+                                    maxLength={200}
+                                  />
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      setS1_tidakPerlu((prev) => prev.filter((_, i) => i !== idx));
-                                    }}
-                                    className="text-neutral-400 hover:text-neutral-600 focus:outline-none font-bold text-xs"
+                                    onClick={() => handleDeleteRow(idx)}
+                                    className="p-2 text-neutral-400 hover:text-red-500 rounded-xl hover:bg-neutral-50 transition shrink-0"
+                                    title="Hapus baris"
                                   >
-                                    &times;
+                                    <Trash2 size={16} />
                                   </button>
-                                </span>
+                                </div>
                               ))}
-                              <input
-                                type="text"
-                                value={S1_tidakPerluInput}
-                                onChange={(e) => setS1_tidakPerluInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === ",") {
-                                    e.preventDefault();
-                                    const val = S1_tidakPerluInput.trim().replace(/,$/, "");
-                                    if (val && !S1_tidakPerlu.includes(val)) {
-                                      const newTags = [...S1_tidakPerlu, val];
-                                      if (newTags.join(", ").length <= 1000) {
-                                        setS1_tidakPerlu(newTags);
-                                        setS1_tidakPerluInput("");
-                                      } else {
-                                        showToast("Total karakter tag melebihi 1000!", "error");
-                                      }
-                                    }
-                                  }
-                                }}
-                                className="flex-1 min-w-[120px] text-sm focus:outline-none border-none p-0.5"
-                                placeholder="Ketik nama barang lalu tekan Enter / Koma..."
-                              />
                             </div>
-                            <div className="flex justify-between items-center px-1">
-                              <span className="text-[10px] text-neutral-400">Tekan Enter atau tanda koma (,) untuk menambahkan tag</span>
+
+                            <button
+                              type="button"
+                              onClick={handleAddRow}
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary-light transition w-fit px-2 py-1 mt-1 rounded hover:bg-primary/5 cursor-pointer"
+                            >
+                              <Plus size={14} /> Tambah Barang
+                            </button>
+
+                            <div className="flex justify-between items-center px-1 mt-1 border-t pt-2">
+                              <span className="text-[10px] text-neutral-400">Gunakan tombol [+ Tambah Barang] untuk input lainnya</span>
                               <span className={`text-[10px] font-bold ${S1_tidakPerlu.join(", ").length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
                                 {S1_tidakPerlu.join(", ").length} / 1000 karakter
                               </span>
