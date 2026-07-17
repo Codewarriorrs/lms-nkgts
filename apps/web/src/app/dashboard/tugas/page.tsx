@@ -109,7 +109,10 @@ export default function TugasPage() {
   const [ruangS1, setRuangS1] = useState("Ruang Kelas");
   const [S1_rutin, setS1_rutin] = useState("");
   const [S1_tidakRutin, setS1_tidakRutin] = useState("");
-  const [S1_tidakPerlu, setS1_tidakPerlu] = useState("");
+  const [S1_tidakPerlu, setS1_tidakPerlu] = useState<string[]>([]);
+  const [S1_tidakPerluInput, setS1_tidakPerluInput] = useState("");
+  const [activePill, setActivePill] = useState<string | null>(null);
+  const [pillAssignments, setPillAssignments] = useState<Record<string, "recycle" | "relocation" | "dispose">>({});
   const [fotoS1, setFotoS1] = useState<string>("");
   const [uploadingS1, setUploadingS1] = useState(false);
 
@@ -195,11 +198,14 @@ export default function TugasPage() {
   }, [token, currentUser]);
 
   // Pull Submenu 1 read-only values for Submenu 2
-  const S1_tidakPerluRefValue = useMemo(() => {
+  const S1_tidakPerluRefValue = useMemo<string[]>(() => {
     const s1 = tasks.find((t) => t.id === 1);
     const submisi = s1?.submisi?.[0];
     if (submisi?.detail_jawaban) {
-      return submisi.detail_jawaban.barang_tidak_diperlukan || "";
+      const val = submisi.detail_jawaban.barang_tidak_diperlukan;
+      if (Array.isArray(val)) return val;
+      if (typeof val === "string") return val.split("\n").map(s => s.trim()).filter(Boolean);
+      return [];
     }
     return S1_tidakPerlu;
   }, [tasks, S1_tidakPerlu]);
@@ -495,7 +501,17 @@ export default function TugasPage() {
                             </div>
                             <div>
                               <span className="text-[10px] font-bold text-neutral-400 uppercase">Barang tidak diperlukan</span>
-                              <p className="text-sm text-neutral-700 bg-neutral-50 p-3 rounded-xl border mt-1 whitespace-pre-wrap">{answers.barang_tidak_diperlukan}</p>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                {Array.isArray(answers.barang_tidak_diperlukan) ? (
+                                  answers.barang_tidak_diperlukan.map((tag: string, idx: number) => (
+                                    <span key={idx} className="inline-flex items-center text-xs font-semibold bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full border">
+                                      {tag}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-neutral-700 bg-neutral-50 p-3 rounded-xl border w-full whitespace-pre-wrap">{answers.barang_tidak_diperlukan || "-"}</p>
+                                )}
+                              </div>
                             </div>
                           </div>
                           <div>
@@ -564,18 +580,48 @@ export default function TugasPage() {
 
                           <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold text-neutral-600">Barang yang tidak diperlukan</label>
-                            <textarea 
-                              value={S1_tidakPerlu}
-                              onChange={(e) => setS1_tidakPerlu(e.target.value)}
-                              rows={3}
-                              maxLength={1000}
-                              className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              placeholder="Tuliskan barang yang tidak diperlukan lagi..."
-                            />
+                            <div className="border rounded-xl p-2.5 flex flex-wrap gap-2 focus-within:ring-2 focus-within:ring-primary/20 bg-white min-h-[90px]">
+                              {S1_tidakPerlu.map((tag, idx) => (
+                                <span key={idx} className="inline-flex items-center gap-1.5 text-xs font-semibold bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full border">
+                                  {tag}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setS1_tidakPerlu((prev) => prev.filter((_, i) => i !== idx));
+                                    }}
+                                    className="text-neutral-400 hover:text-neutral-600 focus:outline-none font-bold text-xs"
+                                  >
+                                    &times;
+                                  </button>
+                                </span>
+                              ))}
+                              <input
+                                type="text"
+                                value={S1_tidakPerluInput}
+                                onChange={(e) => setS1_tidakPerluInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === ",") {
+                                    e.preventDefault();
+                                    const val = S1_tidakPerluInput.trim().replace(/,$/, "");
+                                    if (val && !S1_tidakPerlu.includes(val)) {
+                                      const newTags = [...S1_tidakPerlu, val];
+                                      if (newTags.join(", ").length <= 1000) {
+                                        setS1_tidakPerlu(newTags);
+                                        setS1_tidakPerluInput("");
+                                      } else {
+                                        showToast("Total karakter tag melebihi 1000!", "error");
+                                      }
+                                    }
+                                  }
+                                }}
+                                className="flex-1 min-w-[120px] text-sm focus:outline-none border-none p-0.5"
+                                placeholder="Ketik nama barang lalu tekan Enter / Koma..."
+                              />
+                            </div>
                             <div className="flex justify-between items-center px-1">
-                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
-                              <span className={`text-[10px] font-bold ${S1_tidakPerlu.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
-                                {S1_tidakPerlu.length} / 1000 karakter
+                              <span className="text-[10px] text-neutral-400">Tekan Enter atau tanda koma (,) untuk menambahkan tag</span>
+                              <span className={`text-[10px] font-bold ${S1_tidakPerlu.join(", ").length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S1_tidakPerlu.join(", ").length} / 1000 karakter
                               </span>
                             </div>
                           </div>
@@ -650,7 +696,17 @@ export default function TugasPage() {
                           <div className="space-y-3">
                             <div>
                               <span className="text-[10px] font-bold text-neutral-400 uppercase">Referensi Barang tidak diperlukan (S1)</span>
-                              <p className="text-sm text-neutral-500 bg-neutral-50 p-2 rounded-xl border mt-1 italic">{answers.barang_tidak_diperlukan_ref || "Tidak ada"}</p>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                {Array.isArray(answers.barang_tidak_diperlukan_ref) ? (
+                                  answers.barang_tidak_diperlukan_ref.map((tag: string, idx: number) => (
+                                    <span key={idx} className="inline-flex items-center text-xs font-semibold bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full border">
+                                      {tag}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-neutral-500 bg-neutral-50 p-2 rounded-xl border mt-1 italic">{answers.barang_tidak_diperlukan_ref || "Tidak ada"}</p>
+                                )}
+                              </div>
                             </div>
                             <div>
                               <span className="text-[10px] font-bold text-neutral-400 uppercase">Recycle (Daur Ulang)</span>
@@ -681,9 +737,108 @@ export default function TugasPage() {
                   return (
                     <div className="space-y-4">
                       {/* Read-only reference from S1 */}
-                      <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-100 space-y-1">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase">Daftar Barang Tidak Diperlukan (Dari Tahap 1)</span>
-                        <p className="text-sm text-neutral-700 italic">{S1_tidakPerluRefValue || "Belum diisi di Tahap 1"}</p>
+                      <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-100 space-y-2">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase block">
+                          Daftar Barang Tidak Diperlukan (Dari Tahap 1) - Klik Barang untuk Memilah Otomatis
+                        </span>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {S1_tidakPerluRefValue.length > 0 ? (
+                            S1_tidakPerluRefValue.map((item, idx) => {
+                              const assignment = pillAssignments[item];
+                              const isSelected = activePill === item;
+                              
+                              return (
+                                <div key={idx} className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => setActivePill(isSelected ? null : item)}
+                                    className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition cursor-pointer ${
+                                      assignment === "recycle"
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : assignment === "relocation"
+                                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                                          : assignment === "dispose"
+                                            ? "bg-orange-50 text-orange-700 border-orange-200"
+                                            : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
+                                    }`}
+                                  >
+                                    {assignment && (
+                                      <CheckCircle size={12} className="shrink-0" />
+                                    )}
+                                    <span>{item}</span>
+                                    {assignment && (
+                                      <span className="text-[9px] opacity-75 uppercase">
+                                        ({assignment === "recycle" ? "Recycle" : assignment === "relocation" ? "Relocate" : "Dispose"})
+                                      </span>
+                                    )}
+                                  </button>
+
+                                  {/* Popover Action Menu */}
+                                  {isSelected && (
+                                    <div className="absolute left-0 mt-2 z-30 bg-white border border-neutral-100 rounded-xl shadow-xl p-2.5 flex items-center gap-1.5 whitespace-nowrap min-w-[280px]">
+                                      <span className="text-[10px] font-bold text-neutral-400 mr-1">Aksi:</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setS2_recycle((prev) => {
+                                            const line = `- ${item}: `;
+                                            if (prev.includes(line)) return prev;
+                                            return prev ? `${prev}\n${line}` : line;
+                                          });
+                                          setPillAssignments((prev) => ({ ...prev, [item]: "recycle" }));
+                                          setActivePill(null);
+                                        }}
+                                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-1 rounded-lg border border-emerald-100 transition"
+                                      >
+                                        Recycle
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setS2_relocation((prev) => {
+                                            const line = `- ${item}: `;
+                                            if (prev.includes(line)) return prev;
+                                            return prev ? `${prev}\n${line}` : line;
+                                          });
+                                          setPillAssignments((prev) => ({ ...prev, [item]: "relocation" }));
+                                          setActivePill(null);
+                                        }}
+                                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-extrabold px-2 py-1 rounded-lg border border-blue-100 transition"
+                                      >
+                                        Relocate
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setS2_dispose((prev) => {
+                                            const line = `- ${item}: `;
+                                            if (prev.includes(line)) return prev;
+                                            return prev ? `${prev}\n${line}` : line;
+                                          });
+                                          setPillAssignments((prev) => ({ ...prev, [item]: "dispose" }));
+                                          setActivePill(null);
+                                        }}
+                                        className="bg-orange-50 hover:bg-orange-100 text-orange-700 text-[10px] font-extrabold px-2 py-1 rounded-lg border border-orange-100 transition"
+                                      >
+                                        Dispose
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setActivePill(null)}
+                                        className="text-neutral-400 hover:text-neutral-600 font-bold text-xs px-1"
+                                      >
+                                        &times;
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <p className="text-xs text-neutral-400 italic">Tidak ada barang yang perlu dipilah (selesaikan Tahap 1 terlebih dahulu)</p>
+                          )}
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

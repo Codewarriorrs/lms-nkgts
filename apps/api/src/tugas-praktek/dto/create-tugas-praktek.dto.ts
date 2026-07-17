@@ -17,6 +17,11 @@ export function IsSafeDetailJawaban(validationOptions?: ValidationOptions) {
                 const val = obj[key];
                 if (typeof val === "string") {
                   if (val.length > 1000) return false;
+                } else if (Array.isArray(val)) {
+                  for (const el of val) {
+                    if (typeof el === "string" && el.length > 1000) return false;
+                    if (typeof el === "object" && el !== null && !checkStringLengths(el)) return false;
+                  }
                 } else if (typeof val === "object" && val !== null) {
                   if (!checkStringLengths(val)) return false;
                 }
