@@ -281,6 +281,10 @@ export default function TugasPage() {
 
     if (submenuId === 1) {
       if (!fotoS1) { showToast("Wajib mengunggah foto dokumentasi kondisi awal!", "error"); return; }
+      if (fotoS1.startsWith("data:image/")) {
+        showToast("Gagal mengirim: Foto masih berupa format lokal/Base64. Harap tunggu uploader Supabase selesai.", "error");
+        return;
+      }
       area = ruangS1;
       payload = {
         ruang: ruangS1,
@@ -291,6 +295,10 @@ export default function TugasPage() {
       };
     } else if (submenuId === 2) {
       if (!fotoS2) { showToast("Wajib mengunggah foto bukti pembersihan!", "error"); return; }
+      if (fotoS2.startsWith("data:image/")) {
+        showToast("Gagal mengirim: Foto masih berupa format lokal/Base64. Harap tunggu uploader Supabase selesai.", "error");
+        return;
+      }
       payload = {
         barang_tidak_diperlukan_ref: S1_tidakPerluRefValue,
         recycle: S2_recycle,
@@ -300,6 +308,10 @@ export default function TugasPage() {
       };
     } else if (submenuId === 3) {
       if (!fotoS3) { showToast("Wajib mengunggah foto ruangan terkini!", "error"); return; }
+      if (fotoS3.startsWith("data:image/")) {
+        showToast("Gagal mengirim: Foto masih berupa format lokal/Base64. Harap tunggu uploader Supabase selesai.", "error");
+        return;
+      }
       area = ruangS3;
       payload = {
         ruang: ruangS3,
@@ -308,6 +320,10 @@ export default function TugasPage() {
       };
     } else if (submenuId === 4) {
       if (!fotoS4) { showToast("Wajib mengunggah foto potensi bahaya!", "error"); return; }
+      if (fotoS4.startsWith("data:image/")) {
+        showToast("Gagal mengirim: Foto masih berupa format lokal/Base64. Harap tunggu uploader Supabase selesai.", "error");
+        return;
+      }
       payload = {
         bahaya_rumah: bahayaRumahS4.map((row) => ({
           ...row,
@@ -323,6 +339,10 @@ export default function TugasPage() {
       };
     } else if (submenuId === 5) {
       if (!fotoS5) { showToast("Wajib mengunggah foto bukti pemborosan!", "error"); return; }
+      if (fotoS5.startsWith("data:image/")) {
+        showToast("Gagal mengirim: Foto masih berupa format lokal/Base64. Harap tunggu uploader Supabase selesai.", "error");
+        return;
+      }
       payload = {
         pemborosan_sekolah: wasteSekolahS5,
         pemborosan_rumah: wasteRumahS5,
@@ -679,7 +699,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !S1_rutin.trim() || !fotoS1}
+                          disabled={submitting || !S1_rutin.trim() || !fotoS1 || uploadingS1}
                           onClick={() => handleFormSubmit(1)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
@@ -950,7 +970,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !fotoS2}
+                          disabled={submitting || !fotoS2 || uploadingS2}
                           onClick={() => handleFormSubmit(2)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
@@ -1122,7 +1142,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !fotoS3}
+                          disabled={submitting || !fotoS3 || uploadingS3}
                           onClick={() => handleFormSubmit(3)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm"
                         >
@@ -1392,7 +1412,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !fotoS4}
+                          disabled={submitting || !fotoS4 || uploadingS4}
                           onClick={() => handleFormSubmit(4)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm"
                         >
@@ -1603,7 +1623,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !fotoS5}
+                          disabled={submitting || !fotoS5 || uploadingS5}
                           onClick={() => handleFormSubmit(5)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm"
                         >

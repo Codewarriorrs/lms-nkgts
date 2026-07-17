@@ -16,10 +16,16 @@ export function IsSafeDetailJawaban(validationOptions?: ValidationOptions) {
               if (Object.prototype.hasOwnProperty.call(obj, key)) {
                 const val = obj[key];
                 if (typeof val === "string") {
-                  if (val.length > 1000) return false;
+                  const isUrl = val.startsWith("http://") || val.startsWith("https://");
+                  const limit = isUrl ? 2000 : 1000;
+                  if (val.length > limit) return false;
                 } else if (Array.isArray(val)) {
                   for (const el of val) {
-                    if (typeof el === "string" && el.length > 1000) return false;
+                    if (typeof el === "string") {
+                      const isUrl = el.startsWith("http://") || el.startsWith("https://");
+                      const limit = isUrl ? 2000 : 1000;
+                      if (el.length > limit) return false;
+                    }
                     if (typeof el === "object" && el !== null && !checkStringLengths(el)) return false;
                   }
                 } else if (typeof val === "object" && val !== null) {
@@ -33,7 +39,7 @@ export function IsSafeDetailJawaban(validationOptions?: ValidationOptions) {
           return checkStringLengths(value);
         },
         defaultMessage(args: ValidationArguments) {
-          return "Panjang teks jawaban tidak boleh melebihi 1000 karakter!";
+          return "Panjang teks jawaban tidak boleh melebihi 1000 karakter (atau 2000 karakter untuk URL)!";
         }
       },
     });
