@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { 
   Briefcase, 
@@ -105,6 +105,55 @@ export default function TugasPage() {
       setToastTimeoutId(null);
     }, 3000);
     setToastTimeoutId(timer);
+  };
+
+  const uploadPromises = useRef<Record<number, Promise<string> | null>>({});
+
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          
+          const MAX_WIDTH = 1200;
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                    type: "image/jpeg",
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                } else {
+                  resolve(file);
+                }
+              },
+              "image/jpeg",
+              0.7
+            );
+          } else {
+            resolve(file);
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   // Form states per Submenu
@@ -246,6 +295,23 @@ export default function TugasPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 10 * 1024 * 1024) {
+      showToast("Ukuran file terlalu besar! Maksimal 10MB.", "error");
+      return;
+    }
+
+    const uploadFn = async () => {
+      const compressedFile = await compressImage(file);
+      const url = await uploadFileOrBase64(compressedFile, `tugas-praktek-s${submenuId}`);
+      if (!url) {
+        throw new Error("Gagal mengunggah foto.");
+      }
+      return url;
+    };
+
+    const promise = uploadFn();
+    uploadPromises.current[submenuId] = promise;
+
     try {
       if (submenuId === 1) { setUploadingS1(true); }
       else if (submenuId === 2) { setUploadingS2(true); }
@@ -253,14 +319,12 @@ export default function TugasPage() {
       else if (submenuId === 4) { setUploadingS4(true); }
       else if (submenuId === 5) { setUploadingS5(true); }
 
-      const url = await uploadFileOrBase64(file, `tugas-praktek-s${submenuId}`);
-      if (url) {
-        if (submenuId === 1) { setFotoS1(url); }
-        else if (submenuId === 2) { setFotoS2(url); }
-        else if (submenuId === 3) { setFotoS3(url); }
-        else if (submenuId === 4) { setFotoS4(url); }
-        else if (submenuId === 5) { setFotoS5(url); }
-      }
+      const url = await promise;
+      if (submenuId === 1) { setFotoS1(url); }
+      else if (submenuId === 2) { setFotoS2(url); }
+      else if (submenuId === 3) { setFotoS3(url); }
+      else if (submenuId === 4) { setFotoS4(url); }
+      else if (submenuId === 5) { setFotoS5(url); }
     } catch (error) {
       showToast("Gagal mengunggah foto.", "error");
     } finally {
@@ -269,6 +333,7 @@ export default function TugasPage() {
       else if (submenuId === 3) { setUploadingS3(false); }
       else if (submenuId === 4) { setUploadingS4(false); }
       else if (submenuId === 5) { setUploadingS5(false); }
+      uploadPromises.current[submenuId] = null;
     }
   };
 
@@ -276,82 +341,83 @@ export default function TugasPage() {
   const handleFormSubmit = async (submenuId: number) => {
     if (!token) return;
 
-    let payload: any = {};
-    let area = "";
-
-    if (submenuId === 1) {
-      if (!fotoS1) { showToast("Wajib mengunggah foto dokumentasi kondisi awal!", "error"); return; }
-      if (fotoS1.startsWith("data:image/")) {
-        showToast("Gagal mengirim: Foto masih berupa format lokal/Base64. Harap tunggu uploader Supabase selesai.", "error");
-        return;
-      }
-      area = ruangS1;
-      payload = {
-        ruang: ruangS1,
-        barang_rutin: S1_rutin,
-        barang_tidak_rutin: S1_tidakRutin,
-        barang_tidak_diperlukan: S1_tidakPerlu.map(s => s.trim()).filter(Boolean),
-        foto_url: fotoS1
-      };
-    } else if (submenuId === 2) {
-      if (!fotoS2) { showToast("Wajib mengunggah foto bukti pembersihan!", "error"); return; }
-      if (fotoS2.startsWith("data:image/")) {
-        showToast("Gagal mengirim: Foto masih berupa format lokal/Base64. Harap tunggu uploader Supabase selesai.", "error");
-        return;
-      }
-      payload = {
-        barang_tidak_diperlukan_ref: S1_tidakPerluRefValue,
-        recycle: S2_recycle,
-        relocation: S2_relocation,
-        dispose: S2_dispose,
-        foto_url: fotoS2
-      };
-    } else if (submenuId === 3) {
-      if (!fotoS3) { showToast("Wajib mengunggah foto ruangan terkini!", "error"); return; }
-      if (fotoS3.startsWith("data:image/")) {
-        showToast("Gagal mengirim: Foto masih berupa format lokal/Base64. Harap tunggu uploader Supabase selesai.", "error");
-        return;
-      }
-      area = ruangS3;
-      payload = {
-        ruang: ruangS3,
-        checklist: checklistS3,
-        foto_url: fotoS3
-      };
-    } else if (submenuId === 4) {
-      if (!fotoS4) { showToast("Wajib mengunggah foto potensi bahaya!", "error"); return; }
-      if (fotoS4.startsWith("data:image/")) {
-        showToast("Gagal mengirim: Foto masih berupa format lokal/Base64. Harap tunggu uploader Supabase selesai.", "error");
-        return;
-      }
-      payload = {
-        bahaya_rumah: bahayaRumahS4.map((row) => ({
-          ...row,
-          skor: row.frekuensi * row.dampak,
-          risiko: (row.frekuensi * row.dampak) >= 10 ? "Resiko Tinggi" : (row.frekuensi * row.dampak) >= 5 ? "Resiko Sedang" : "Resiko Rendah"
-        })),
-        bahaya_sekolah: bahayaSekolahS4.map((row) => ({
-          ...row,
-          skor: row.frekuensi * row.dampak,
-          risiko: (row.frekuensi * row.dampak) >= 10 ? "Resiko Tinggi" : (row.frekuensi * row.dampak) >= 5 ? "Resiko Sedang" : "Resiko Rendah"
-        })),
-        foto_url: fotoS4
-      };
-    } else if (submenuId === 5) {
-      if (!fotoS5) { showToast("Wajib mengunggah foto bukti pemborosan!", "error"); return; }
-      if (fotoS5.startsWith("data:image/")) {
-        showToast("Gagal mengirim: Foto masih berupa format lokal/Base64. Harap tunggu uploader Supabase selesai.", "error");
-        return;
-      }
-      payload = {
-        pemborosan_sekolah: wasteSekolahS5,
-        pemborosan_rumah: wasteRumahS5,
-        foto_url: fotoS5
-      };
-    }
-
     try {
       setSubmitting(true);
+
+      let finalFotoUrl = "";
+      if (submenuId === 1) finalFotoUrl = fotoS1;
+      else if (submenuId === 2) finalFotoUrl = fotoS2;
+      else if (submenuId === 3) finalFotoUrl = fotoS3;
+      else if (submenuId === 4) finalFotoUrl = fotoS4;
+      else if (submenuId === 5) finalFotoUrl = fotoS5;
+
+      const activeUploadPromise = uploadPromises.current[submenuId];
+      if (activeUploadPromise) {
+        try {
+          showToast("Sedang mengompresi dan mengunggah foto...", "success");
+          finalFotoUrl = await activeUploadPromise;
+        } catch (err) {
+          showToast("Gagal mengunggah foto.", "error");
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      if (!finalFotoUrl) {
+        showToast("Wajib mengunggah foto dokumentasi terlebih dahulu!", "error");
+        setSubmitting(false);
+        return;
+      }
+
+      let payload: any = {};
+      let area = "";
+
+      if (submenuId === 1) {
+        area = ruangS1;
+        payload = {
+          ruang: ruangS1,
+          barang_rutin: S1_rutin,
+          barang_tidak_rutin: S1_tidakRutin,
+          barang_tidak_diperlukan: S1_tidakPerlu.map(s => s.trim()).filter(Boolean),
+          foto_url: finalFotoUrl
+        };
+      } else if (submenuId === 2) {
+        payload = {
+          barang_tidak_diperlukan_ref: S1_tidakPerluRefValue,
+          recycle: S2_recycle,
+          relocation: S2_relocation,
+          dispose: S2_dispose,
+          foto_url: finalFotoUrl
+        };
+      } else if (submenuId === 3) {
+        area = ruangS3;
+        payload = {
+          ruang: ruangS3,
+          checklist: checklistS3,
+          foto_url: finalFotoUrl
+        };
+      } else if (submenuId === 4) {
+        payload = {
+          bahaya_rumah: bahayaRumahS4.map((row) => ({
+            ...row,
+            skor: row.frekuensi * row.dampak,
+            risiko: (row.frekuensi * row.dampak) >= 10 ? "Resiko Tinggi" : (row.frekuensi * row.dampak) >= 5 ? "Resiko Sedang" : "Resiko Rendah"
+          })),
+          bahaya_sekolah: bahayaSekolahS4.map((row) => ({
+            ...row,
+            skor: row.frekuensi * row.dampak,
+            risiko: (row.frekuensi * row.dampak) >= 10 ? "Resiko Tinggi" : (row.frekuensi * row.dampak) >= 5 ? "Resiko Sedang" : "Resiko Rendah"
+          })),
+          foto_url: finalFotoUrl
+        };
+      } else if (submenuId === 5) {
+        payload = {
+          pemborosan_sekolah: wasteSekolahS5,
+          pemborosan_rumah: wasteRumahS5,
+          foto_url: finalFotoUrl
+        };
+      }
+
       const res = await fetch(`${API_URL}/tugas-praktek/${submenuId}/submit`, {
         method: "POST",
         headers: {
@@ -369,6 +435,10 @@ export default function TugasPage() {
       if (res.ok) {
         showToast("Tugas berhasil dikirim!", "success");
         await loadStatus();
+        if (submenuId < 5) {
+          setActiveTab(submenuId + 1);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
       } else {
         const errorData = await res.json();
         showToast(errorData.message || "Kesalahan server", "error");
@@ -680,6 +750,7 @@ export default function TugasPage() {
                               <div>
                                 <span className="font-bold text-sm text-neutral-700 block">Dokumentasi Awal</span>
                                 <span className="text-xs text-neutral-400 block mt-1">Unggah foto kondisi ruangan sebelum dirapikan</span>
+                                <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB (Otomatis dikompresi agar hemat kuota)</span>
                               </div>
                               <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold cursor-pointer transition shadow-sm">
                                 <Upload size={14} />
@@ -951,6 +1022,7 @@ export default function TugasPage() {
                               <div>
                                 <span className="font-bold text-sm text-neutral-700 block">Bukti Aksi</span>
                                 <span className="text-xs text-neutral-400 block mt-1">Unggah foto saat melakukan pembersihan / pemilahan</span>
+                                <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB (Otomatis dikompresi agar hemat kuota)</span>
                               </div>
                               <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold cursor-pointer transition shadow-sm">
                                 <Upload size={14} />
@@ -1132,6 +1204,7 @@ export default function TugasPage() {
                           <div className="space-y-2">
                             <Camera className="mx-auto text-neutral-400" size={24} />
                             <span className="font-bold text-xs text-neutral-700 block">Foto Ruangan Terkini</span>
+                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB (Otomatis dikompresi agar hemat kuota)</span>
                             <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-3 py-2 text-xs font-bold cursor-pointer transition shadow-sm mt-1">
                               <Upload size={12} /> {uploadingS3 ? "Mengunggah..." : "Pilih File"}
                               <input type="file" accept="image/*" className="hidden" disabled={uploadingS3} onChange={(e) => handlePhotoChange(e, 3)} />
@@ -1402,6 +1475,7 @@ export default function TugasPage() {
                           <div className="space-y-2">
                             <Camera className="mx-auto text-neutral-400" size={24} />
                             <span className="font-bold text-xs text-neutral-700 block">Foto Potensi Bahaya (Representatif)</span>
+                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB (Otomatis dikompresi agar hemat kuota)</span>
                             <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-3 py-2 text-xs font-bold cursor-pointer transition shadow-sm mt-1">
                               <Upload size={12} /> {uploadingS4 ? "Mengunggah..." : "Pilih File"}
                               <input type="file" accept="image/*" className="hidden" disabled={uploadingS4} onChange={(e) => handlePhotoChange(e, 4)} />
@@ -1613,6 +1687,7 @@ export default function TugasPage() {
                           <div className="space-y-2">
                             <Camera className="mx-auto text-neutral-400" size={24} />
                             <span className="font-bold text-xs text-neutral-700 block">Foto Bukti Pemborosan (Representatif)</span>
+                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB (Otomatis dikompresi agar hemat kuota)</span>
                             <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-3 py-2 text-xs font-bold cursor-pointer transition shadow-sm mt-1">
                               <Upload size={12} /> {uploadingS5 ? "Mengunggah..." : "Pilih File"}
                               <input type="file" accept="image/*" className="hidden" disabled={uploadingS5} onChange={(e) => handlePhotoChange(e, 5)} />

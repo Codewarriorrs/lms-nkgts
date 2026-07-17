@@ -15,16 +15,25 @@ export function IsSafeDetailJawaban(validationOptions?: ValidationOptions) {
             for (const key in obj) {
               if (Object.prototype.hasOwnProperty.call(obj, key)) {
                 const val = obj[key];
+                const isPhotoKey = key.toLowerCase().includes("foto") || key.toLowerCase().includes("image");
+                
                 if (typeof val === "string") {
                   const isUrl = val.startsWith("http://") || val.startsWith("https://");
-                  const limit = isUrl ? 2000 : 1000;
-                  if (val.length > limit) return false;
+                  const isBase64 = val.startsWith("data:image");
+                  if (isPhotoKey || isUrl || isBase64) {
+                    continue;
+                  }
+                  if (val.length > 1000) return false;
                 } else if (Array.isArray(val)) {
+                  if (isPhotoKey) continue;
                   for (const el of val) {
                     if (typeof el === "string") {
                       const isUrl = el.startsWith("http://") || el.startsWith("https://");
-                      const limit = isUrl ? 2000 : 1000;
-                      if (el.length > limit) return false;
+                      const isBase64 = el.startsWith("data:image");
+                      if (isUrl || isBase64) {
+                        continue;
+                      }
+                      if (el.length > 1000) return false;
                     }
                     if (typeof el === "object" && el !== null && !checkStringLengths(el)) return false;
                   }
