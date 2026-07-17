@@ -90,6 +90,20 @@ export default function TugasPage() {
   const [activeTab, setActiveTab] = useState<number>(1);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toastTimeoutId, setToastTimeoutId] = useState<NodeJS.Timeout | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    if (toastTimeoutId) {
+      clearTimeout(toastTimeoutId);
+    }
+    setToast({ message, type });
+    const timer = setTimeout(() => {
+      setToast(null);
+      setToastTimeoutId(null);
+    }, 3000);
+    setToastTimeoutId(timer);
+  };
 
   // Form states per Submenu
   const [ruangS1, setRuangS1] = useState("Ruang Kelas");
@@ -230,7 +244,7 @@ export default function TugasPage() {
         else if (submenuId === 5) { setFotoS5(url); }
       }
     } catch (error) {
-      alert("Gagal mengunggah foto.");
+      showToast("Gagal mengunggah foto.", "error");
     } finally {
       if (submenuId === 1) { setUploadingS1(false); }
       else if (submenuId === 2) { setUploadingS2(false); }
@@ -248,7 +262,7 @@ export default function TugasPage() {
     let area = "";
 
     if (submenuId === 1) {
-      if (!fotoS1) { alert("Wajib mengunggah foto dokumentasi kondisi awal!"); return; }
+      if (!fotoS1) { showToast("Wajib mengunggah foto dokumentasi kondisi awal!", "error"); return; }
       area = ruangS1;
       payload = {
         ruang: ruangS1,
@@ -258,7 +272,7 @@ export default function TugasPage() {
         foto_url: fotoS1
       };
     } else if (submenuId === 2) {
-      if (!fotoS2) { alert("Wajib mengunggah foto bukti pembersihan!"); return; }
+      if (!fotoS2) { showToast("Wajib mengunggah foto bukti pembersihan!", "error"); return; }
       payload = {
         barang_tidak_diperlukan_ref: S1_tidakPerluRefValue,
         recycle: S2_recycle,
@@ -267,7 +281,7 @@ export default function TugasPage() {
         foto_url: fotoS2
       };
     } else if (submenuId === 3) {
-      if (!fotoS3) { alert("Wajib mengunggah foto ruangan terkini!"); return; }
+      if (!fotoS3) { showToast("Wajib mengunggah foto ruangan terkini!", "error"); return; }
       area = ruangS3;
       payload = {
         ruang: ruangS3,
@@ -275,7 +289,7 @@ export default function TugasPage() {
         foto_url: fotoS3
       };
     } else if (submenuId === 4) {
-      if (!fotoS4) { alert("Wajib mengunggah foto potensi bahaya!"); return; }
+      if (!fotoS4) { showToast("Wajib mengunggah foto potensi bahaya!", "error"); return; }
       payload = {
         bahaya_rumah: bahayaRumahS4.map((row) => ({
           ...row,
@@ -290,7 +304,7 @@ export default function TugasPage() {
         foto_url: fotoS4
       };
     } else if (submenuId === 5) {
-      if (!fotoS5) { alert("Wajib mengunggah foto bukti pemborosan!"); return; }
+      if (!fotoS5) { showToast("Wajib mengunggah foto bukti pemborosan!", "error"); return; }
       payload = {
         pemborosan_sekolah: wasteSekolahS5,
         pemborosan_rumah: wasteRumahS5,
@@ -315,15 +329,15 @@ export default function TugasPage() {
       });
 
       if (res.ok) {
-        alert("Tugas berhasil dikirim!");
+        showToast("Tugas berhasil dikirim!", "success");
         await loadStatus();
       } else {
         const errorData = await res.json();
-        alert(`Gagal mengirim tugas: ${errorData.message || "Kesalahan server"}`);
+        showToast(errorData.message || "Kesalahan server", "error");
       }
     } catch (e) {
       console.error(e);
-      alert("Kesalahan jaringan saat mengirim tugas.");
+      showToast("Kesalahan jaringan saat mengirim tugas.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -518,9 +532,16 @@ export default function TugasPage() {
                               value={S1_rutin}
                               onChange={(e) => setS1_rutin(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Tuliskan barang yang selalu/rutin digunakan..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S1_rutin.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S1_rutin.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
 
                           <div className="flex flex-col gap-1.5">
@@ -529,9 +550,16 @@ export default function TugasPage() {
                               value={S1_tidakRutin}
                               onChange={(e) => setS1_tidakRutin(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Tuliskan barang yang jarang digunakan..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S1_tidakRutin.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S1_tidakRutin.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
 
                           <div className="flex flex-col gap-1.5">
@@ -540,9 +568,16 @@ export default function TugasPage() {
                               value={S1_tidakPerlu}
                               onChange={(e) => setS1_tidakPerlu(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Tuliskan barang yang tidak diperlukan lagi..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S1_tidakPerlu.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S1_tidakPerlu.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -659,9 +694,16 @@ export default function TugasPage() {
                               value={S2_recycle}
                               onChange={(e) => setS2_recycle(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Jelaskan barang apa yang didaur ulang & bagaimana..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S2_recycle.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S2_recycle.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
 
                           <div className="flex flex-col gap-1.5">
@@ -670,9 +712,16 @@ export default function TugasPage() {
                               value={S2_relocation}
                               onChange={(e) => setS2_relocation(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Jelaskan barang apa saja yang dipindahkan dan ke mana lokasi pemindahannya..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S2_relocation.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S2_relocation.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
 
                           <div className="flex flex-col gap-1.5">
@@ -681,9 +730,16 @@ export default function TugasPage() {
                               value={S2_dispose}
                               onChange={(e) => setS2_dispose(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Tuliskan barang yang langsung dibuang ke tempat sampah..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S2_dispose.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S2_dispose.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -1389,6 +1445,35 @@ export default function TugasPage() {
                 })()}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3 bg-white border border-neutral-100 rounded-2xl shadow-2xl p-4 min-w-[300px] animate-toast-slide">
+          <style>{`
+            @keyframes slideInRight {
+              from {
+                transform: translateX(120%);
+                opacity: 0;
+              }
+              to {
+                transform: translateX(0);
+                opacity: 1;
+              }
+            }
+            .animate-toast-slide {
+              animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+          `}</style>
+          <div className={`p-2 rounded-xl ${toast.type === "success" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>
+            {toast.type === "success" ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+          </div>
+          <div className="flex-1 text-xs">
+            <span className="font-bold text-neutral-800 block">
+              {toast.type === "success" ? "Sukses" : "Gagal"}
+            </span>
+            <p className="text-neutral-500 mt-0.5">{toast.message}</p>
           </div>
         </div>
       )}
