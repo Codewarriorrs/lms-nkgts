@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { 
   Briefcase, 
@@ -19,7 +19,9 @@ import {
   Car,
   ArrowDownCircle,
   Zap,
-  Flame
+  Flame,
+  Trash2,
+  Plus
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import { uploadFileOrBase64 } from "@/utils/upload";
@@ -96,12 +98,88 @@ export default function TugasPage() {
   const [activeTab, setActiveTab] = useState<number>(1);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toastTimeoutId, setToastTimeoutId] = useState<NodeJS.Timeout | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    if (toastTimeoutId) {
+      clearTimeout(toastTimeoutId);
+    }
+    setToast({ message, type });
+    const timer = setTimeout(() => {
+      setToast(null);
+      setToastTimeoutId(null);
+    }, 3000);
+    setToastTimeoutId(timer);
+  };
+
+  const uploadPromises = useRef<Record<number, Promise<string> | null>>({});
+
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          
+          const MAX_WIDTH = 1200;
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                    type: "image/jpeg",
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                } else {
+                  resolve(file);
+                }
+              },
+              "image/jpeg",
+              0.7
+            );
+          } else {
+            resolve(file);
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
 
   // Form states per Submenu
   const [ruangS1, setRuangS1] = useState("Ruang Kelas");
   const [S1_rutin, setS1_rutin] = useState("");
   const [S1_tidakRutin, setS1_tidakRutin] = useState("");
-  const [S1_tidakPerlu, setS1_tidakPerlu] = useState("");
+  const [S1_tidakPerlu, setS1_tidakPerlu] = useState<string[]>([""]);
+  const [activePill, setActivePill] = useState<string | null>(null);
+  const [pillAssignments, setPillAssignments] = useState<Record<string, "recycle" | "relocation" | "dispose">>({});
+
+  const handleAddRow = () => {
+    setS1_tidakPerlu((prev) => [...prev, ""]);
+  };
+
+  const handleDeleteRow = (index: number) => {
+    setS1_tidakPerlu((prev) => {
+      const copy = prev.filter((_, i) => i !== index);
+      return copy.length > 0 ? copy : [""];
+    });
+  };
   const [fotoS1, setFotoS1] = useState<string>("");
   const [uploadingS1, setUploadingS1] = useState(false);
 
@@ -187,11 +265,14 @@ export default function TugasPage() {
   }, [token, currentUser]);
 
   // Pull Submenu 1 read-only values for Submenu 2
-  const S1_tidakPerluRefValue = useMemo(() => {
+  const S1_tidakPerluRefValue = useMemo<string[]>(() => {
     const s1 = tasks.find((t) => t.id === 1);
     const submisi = s1?.submisi?.[0];
     if (submisi?.detail_jawaban) {
-      return submisi.detail_jawaban.barang_tidak_diperlukan || "";
+      const val = submisi.detail_jawaban.barang_tidak_diperlukan;
+      if (Array.isArray(val)) return val;
+      if (typeof val === "string") return val.split("\n").map(s => s.trim()).filter(Boolean);
+      return [];
     }
     return S1_tidakPerlu;
   }, [tasks, S1_tidakPerlu]);
@@ -207,7 +288,7 @@ export default function TugasPage() {
     return (
       S1_rutin.trim().length > 0 &&
       S1_tidakRutin.trim().length > 0 &&
-      S1_tidakPerlu.trim().length > 0 &&
+      S1_tidakPerlu.every((val) => val.trim().length > 0) &&
       fotoS1 !== ""
     );
   }, [S1_rutin, S1_tidakRutin, S1_tidakPerlu, fotoS1]);
@@ -262,6 +343,23 @@ export default function TugasPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 10 * 1024 * 1024) {
+      showToast("Ukuran file terlalu besar! Maksimal 10MB.", "error");
+      return;
+    }
+
+    const uploadFn = async () => {
+      const compressedFile = await compressImage(file);
+      const url = await uploadFileOrBase64(compressedFile, `tugas-praktek-s${submenuId}`);
+      if (!url) {
+        throw new Error("Gagal mengunggah foto.");
+      }
+      return url;
+    };
+
+    const promise = uploadFn();
+    uploadPromises.current[submenuId] = promise;
+
     try {
       if (submenuId === 1) { setUploadingS1(true); }
       else if (submenuId === 2) { setUploadingS2(true); }
@@ -269,22 +367,21 @@ export default function TugasPage() {
       else if (submenuId === 4) { setUploadingS4(true); }
       else if (submenuId === 5) { setUploadingS5(true); }
 
-      const url = await uploadFileOrBase64(file, `tugas-praktek-s${submenuId}`);
-      if (url) {
-        if (submenuId === 1) { setFotoS1(url); }
-        else if (submenuId === 2) { setFotoS2(url); }
-        else if (submenuId === 3) { setFotoS3(url); }
-        else if (submenuId === 4) { setFotoS4(url); }
-        else if (submenuId === 5) { setFotoS5(url); }
-      }
+      const url = await promise;
+      if (submenuId === 1) { setFotoS1(url); }
+      else if (submenuId === 2) { setFotoS2(url); }
+      else if (submenuId === 3) { setFotoS3(url); }
+      else if (submenuId === 4) { setFotoS4(url); }
+      else if (submenuId === 5) { setFotoS5(url); }
     } catch (error) {
-      alert("Gagal mengunggah foto.");
+      showToast("Gagal mengunggah foto.", "error");
     } finally {
       if (submenuId === 1) { setUploadingS1(false); }
       else if (submenuId === 2) { setUploadingS2(false); }
       else if (submenuId === 3) { setUploadingS3(false); }
       else if (submenuId === 4) { setUploadingS4(false); }
       else if (submenuId === 5) { setUploadingS5(false); }
+      uploadPromises.current[submenuId] = null;
     }
   };
 
@@ -292,62 +389,83 @@ export default function TugasPage() {
   const handleFormSubmit = async (submenuId: number) => {
     if (!token) return;
 
-    let payload: any = {};
-    let area = "";
-
-    if (submenuId === 1) {
-      if (!fotoS1) { alert("Wajib mengunggah foto dokumentasi kondisi awal!"); return; }
-      area = ruangS1;
-      payload = {
-        ruang: ruangS1,
-        barang_rutin: S1_rutin,
-        barang_tidak_rutin: S1_tidakRutin,
-        barang_tidak_diperlukan: S1_tidakPerlu,
-        foto_url: fotoS1
-      };
-    } else if (submenuId === 2) {
-      if (!fotoS2) { alert("Wajib mengunggah foto bukti pembersihan!"); return; }
-      payload = {
-        barang_tidak_diperlukan_ref: S1_tidakPerluRefValue,
-        recycle: S2_recycle,
-        relocation: S2_relocation,
-        dispose: S2_dispose,
-        foto_url: fotoS2
-      };
-    } else if (submenuId === 3) {
-      if (!fotoS3) { alert("Wajib mengunggah foto ruangan terkini!"); return; }
-      area = ruangS3;
-      payload = {
-        ruang: ruangS3,
-        checklist: checklistS3,
-        foto_url: fotoS3
-      };
-    } else if (submenuId === 4) {
-      if (!fotoS4) { alert("Wajib mengunggah foto potensi bahaya!"); return; }
-      payload = {
-        bahaya_rumah: bahayaRumahS4.map((row) => ({
-          ...row,
-          skor: row.frekuensi * row.dampak,
-          risiko: (row.frekuensi * row.dampak) >= 10 ? "Resiko Tinggi" : (row.frekuensi * row.dampak) >= 5 ? "Resiko Sedang" : "Resiko Rendah"
-        })),
-        bahaya_sekolah: bahayaSekolahS4.map((row) => ({
-          ...row,
-          skor: row.frekuensi * row.dampak,
-          risiko: (row.frekuensi * row.dampak) >= 10 ? "Resiko Tinggi" : (row.frekuensi * row.dampak) >= 5 ? "Resiko Sedang" : "Resiko Rendah"
-        })),
-        foto_url: fotoS4
-      };
-    } else if (submenuId === 5) {
-      if (!fotoS5) { alert("Wajib mengunggah foto bukti pemborosan!"); return; }
-      payload = {
-        pemborosan_sekolah: wasteSekolahS5,
-        pemborosan_rumah: wasteRumahS5,
-        foto_url: fotoS5
-      };
-    }
-
     try {
       setSubmitting(true);
+
+      let finalFotoUrl = "";
+      if (submenuId === 1) finalFotoUrl = fotoS1;
+      else if (submenuId === 2) finalFotoUrl = fotoS2;
+      else if (submenuId === 3) finalFotoUrl = fotoS3;
+      else if (submenuId === 4) finalFotoUrl = fotoS4;
+      else if (submenuId === 5) finalFotoUrl = fotoS5;
+
+      const activeUploadPromise = uploadPromises.current[submenuId];
+      if (activeUploadPromise) {
+        try {
+          showToast("Sedang mengompresi dan mengunggah foto...", "success");
+          finalFotoUrl = await activeUploadPromise;
+        } catch (err) {
+          showToast("Gagal mengunggah foto.", "error");
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      if (!finalFotoUrl) {
+        showToast("Wajib mengunggah foto dokumentasi terlebih dahulu!", "error");
+        setSubmitting(false);
+        return;
+      }
+
+      let payload: any = {};
+      let area = "";
+
+      if (submenuId === 1) {
+        area = ruangS1;
+        payload = {
+          ruang: ruangS1,
+          barang_rutin: S1_rutin,
+          barang_tidak_rutin: S1_tidakRutin,
+          barang_tidak_diperlukan: S1_tidakPerlu.map(s => s.trim()).filter(Boolean),
+          foto_url: finalFotoUrl
+        };
+      } else if (submenuId === 2) {
+        payload = {
+          barang_tidak_diperlukan_ref: S1_tidakPerluRefValue,
+          recycle: S2_recycle,
+          relocation: S2_relocation,
+          dispose: S2_dispose,
+          foto_url: finalFotoUrl
+        };
+      } else if (submenuId === 3) {
+        area = ruangS3;
+        payload = {
+          ruang: ruangS3,
+          checklist: checklistS3,
+          foto_url: finalFotoUrl
+        };
+      } else if (submenuId === 4) {
+        payload = {
+          bahaya_rumah: bahayaRumahS4.map((row) => ({
+            ...row,
+            skor: row.frekuensi * row.dampak,
+            risiko: (row.frekuensi * row.dampak) >= 10 ? "Resiko Tinggi" : (row.frekuensi * row.dampak) >= 5 ? "Resiko Sedang" : "Resiko Rendah"
+          })),
+          bahaya_sekolah: bahayaSekolahS4.map((row) => ({
+            ...row,
+            skor: row.frekuensi * row.dampak,
+            risiko: (row.frekuensi * row.dampak) >= 10 ? "Resiko Tinggi" : (row.frekuensi * row.dampak) >= 5 ? "Resiko Sedang" : "Resiko Rendah"
+          })),
+          foto_url: finalFotoUrl
+        };
+      } else if (submenuId === 5) {
+        payload = {
+          pemborosan_sekolah: wasteSekolahS5,
+          pemborosan_rumah: wasteRumahS5,
+          foto_url: finalFotoUrl
+        };
+      }
+
       const res = await fetch(`${API_URL}/tugas-praktek/${submenuId}/submit`, {
         method: "POST",
         headers: {
@@ -363,15 +481,19 @@ export default function TugasPage() {
       });
 
       if (res.ok) {
-        alert("Tugas berhasil dikirim!");
+        showToast("Tugas berhasil dikirim!", "success");
         await loadStatus();
+        if (submenuId < 5) {
+          setActiveTab(submenuId + 1);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
       } else {
         const errorData = await res.json();
-        alert(`Gagal mengirim tugas: ${errorData.message || "Kesalahan server"}`);
+        showToast(errorData.message || "Kesalahan server", "error");
       }
     } catch (e) {
       console.error(e);
-      alert("Kesalahan jaringan saat mengirim tugas.");
+      showToast("Kesalahan jaringan saat mengirim tugas.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -529,7 +651,17 @@ export default function TugasPage() {
                             </div>
                             <div>
                               <span className="text-[10px] font-bold text-neutral-400 uppercase">Barang tidak diperlukan</span>
-                              <p className="text-sm text-neutral-700 bg-neutral-50 p-3 rounded-xl border mt-1 whitespace-pre-wrap">{answers.barang_tidak_diperlukan}</p>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                {Array.isArray(answers.barang_tidak_diperlukan) ? (
+                                  answers.barang_tidak_diperlukan.map((tag: string, idx: number) => (
+                                    <span key={idx} className="inline-flex items-center text-xs font-semibold bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full border">
+                                      {tag}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-neutral-700 bg-neutral-50 p-3 rounded-xl border w-full whitespace-pre-wrap">{answers.barang_tidak_diperlukan || "-"}</p>
+                                )}
+                              </div>
                             </div>
                           </div>
                           <div>
@@ -566,9 +698,16 @@ export default function TugasPage() {
                               value={S1_rutin}
                               onChange={(e) => setS1_rutin(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Tuliskan barang yang selalu/rutin digunakan..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S1_rutin.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S1_rutin.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
 
                           <div className="flex flex-col gap-1.5">
@@ -577,20 +716,67 @@ export default function TugasPage() {
                               value={S1_tidakRutin}
                               onChange={(e) => setS1_tidakRutin(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Tuliskan barang yang jarang digunakan..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S1_tidakRutin.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S1_tidakRutin.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
 
-                          <div className="flex flex-col gap-1.5">
+                          <div className="flex flex-col gap-2">
                             <label className="text-xs font-bold text-neutral-600">Barang yang tidak diperlukan</label>
-                            <textarea 
-                              value={S1_tidakPerlu}
-                              onChange={(e) => setS1_tidakPerlu(e.target.value)}
-                              rows={3}
-                              className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              placeholder="Tuliskan barang yang tidak diperlukan lagi..."
-                            />
+                            
+                            <div className="space-y-2">
+                              {S1_tidakPerlu.map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={item}
+                                    onChange={(e) => {
+                                      const newVal = e.target.value;
+                                      const copy = [...S1_tidakPerlu];
+                                      copy[idx] = newVal;
+                                      if (copy.join(", ").length <= 1000) {
+                                        setS1_tidakPerlu(copy);
+                                      } else {
+                                        showToast("Total karakter barang tidak boleh melebihi 1000!", "error");
+                                      }
+                                    }}
+                                    className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 flex-1 bg-white"
+                                    placeholder={`Nama barang ke-${idx + 1}...`}
+                                    maxLength={200}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteRow(idx)}
+                                    className="p-2 text-neutral-400 hover:text-red-500 rounded-xl hover:bg-neutral-50 transition shrink-0"
+                                    title="Hapus baris"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleAddRow}
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary-light transition w-fit px-2 py-1 mt-1 rounded hover:bg-primary/5 cursor-pointer"
+                            >
+                              <Plus size={14} /> Tambah Barang
+                            </button>
+
+                            <div className="flex justify-between items-center px-1 mt-1 border-t pt-2">
+                              <span className="text-[10px] text-neutral-400">Gunakan tombol [+ Tambah Barang] untuk input lainnya</span>
+                              <span className={`text-[10px] font-bold ${S1_tidakPerlu.join(", ").length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S1_tidakPerlu.join(", ").length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -612,6 +798,7 @@ export default function TugasPage() {
                               <div>
                                 <span className="font-bold text-sm text-neutral-700 block">Dokumentasi Awal</span>
                                 <span className="text-xs text-neutral-400 block mt-1">Unggah foto kondisi ruangan sebelum dirapikan</span>
+                                <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB</span>
                               </div>
                               <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold cursor-pointer transition shadow-sm">
                                 <Upload size={14} />
@@ -631,7 +818,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !s1IsValid}
+                          disabled={submitting || !s1IsValid || uploadingS1}
                           onClick={() => handleFormSubmit(1)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
@@ -663,7 +850,17 @@ export default function TugasPage() {
                           <div className="space-y-3">
                             <div>
                               <span className="text-[10px] font-bold text-neutral-400 uppercase">Referensi Barang tidak diperlukan (S1)</span>
-                              <p className="text-sm text-neutral-500 bg-neutral-50 p-2 rounded-xl border mt-1 italic">{answers.barang_tidak_diperlukan_ref || "Tidak ada"}</p>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                {Array.isArray(answers.barang_tidak_diperlukan_ref) ? (
+                                  answers.barang_tidak_diperlukan_ref.map((tag: string, idx: number) => (
+                                    <span key={idx} className="inline-flex items-center text-xs font-semibold bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full border">
+                                      {tag}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-neutral-500 bg-neutral-50 p-2 rounded-xl border mt-1 italic">{answers.barang_tidak_diperlukan_ref || "Tidak ada"}</p>
+                                )}
+                              </div>
                             </div>
                             <div>
                               <span className="text-[10px] font-bold text-neutral-400 uppercase">Recycle (Daur Ulang)</span>
@@ -694,9 +891,108 @@ export default function TugasPage() {
                   return (
                     <div className="space-y-4">
                       {/* Read-only reference from S1 */}
-                      <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-100 space-y-1">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase">Daftar Barang Tidak Diperlukan (Dari Tahap 1)</span>
-                        <p className="text-sm text-neutral-700 italic">{S1_tidakPerluRefValue || "Belum diisi di Tahap 1"}</p>
+                      <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-100 space-y-2">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase block">
+                          Daftar Barang Tidak Diperlukan (Dari Tahap 1) - Klik Barang untuk Memilah Otomatis
+                        </span>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {S1_tidakPerluRefValue.length > 0 ? (
+                            S1_tidakPerluRefValue.map((item, idx) => {
+                              const assignment = pillAssignments[item];
+                              const isSelected = activePill === item;
+                              
+                              return (
+                                <div key={idx} className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => setActivePill(isSelected ? null : item)}
+                                    className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition cursor-pointer ${
+                                      assignment === "recycle"
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : assignment === "relocation"
+                                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                                          : assignment === "dispose"
+                                            ? "bg-orange-50 text-orange-700 border-orange-200"
+                                            : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
+                                    }`}
+                                  >
+                                    {assignment && (
+                                      <CheckCircle size={12} className="shrink-0" />
+                                    )}
+                                    <span>{item}</span>
+                                    {assignment && (
+                                      <span className="text-[9px] opacity-75 uppercase">
+                                        ({assignment === "recycle" ? "Recycle" : assignment === "relocation" ? "Relocate" : "Dispose"})
+                                      </span>
+                                    )}
+                                  </button>
+
+                                  {/* Popover Action Menu */}
+                                  {isSelected && (
+                                    <div className="absolute left-0 mt-2 z-30 bg-white border border-neutral-100 rounded-xl shadow-xl p-2.5 flex items-center gap-1.5 whitespace-nowrap min-w-[280px]">
+                                      <span className="text-[10px] font-bold text-neutral-400 mr-1">Aksi:</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setS2_recycle((prev) => {
+                                            const line = `- ${item}: `;
+                                            if (prev.includes(line)) return prev;
+                                            return prev ? `${prev}\n${line}` : line;
+                                          });
+                                          setPillAssignments((prev) => ({ ...prev, [item]: "recycle" }));
+                                          setActivePill(null);
+                                        }}
+                                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-1 rounded-lg border border-emerald-100 transition"
+                                      >
+                                        Recycle
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setS2_relocation((prev) => {
+                                            const line = `- ${item}: `;
+                                            if (prev.includes(line)) return prev;
+                                            return prev ? `${prev}\n${line}` : line;
+                                          });
+                                          setPillAssignments((prev) => ({ ...prev, [item]: "relocation" }));
+                                          setActivePill(null);
+                                        }}
+                                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-extrabold px-2 py-1 rounded-lg border border-blue-100 transition"
+                                      >
+                                        Relocate
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setS2_dispose((prev) => {
+                                            const line = `- ${item}: `;
+                                            if (prev.includes(line)) return prev;
+                                            return prev ? `${prev}\n${line}` : line;
+                                          });
+                                          setPillAssignments((prev) => ({ ...prev, [item]: "dispose" }));
+                                          setActivePill(null);
+                                        }}
+                                        className="bg-orange-50 hover:bg-orange-100 text-orange-700 text-[10px] font-extrabold px-2 py-1 rounded-lg border border-orange-100 transition"
+                                      >
+                                        Dispose
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setActivePill(null)}
+                                        className="text-neutral-400 hover:text-neutral-600 font-bold text-xs px-1"
+                                      >
+                                        &times;
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <p className="text-xs text-neutral-400 italic">Tidak ada barang yang perlu dipilah (selesaikan Tahap 1 terlebih dahulu)</p>
+                          )}
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -707,9 +1003,16 @@ export default function TugasPage() {
                               value={S2_recycle}
                               onChange={(e) => setS2_recycle(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Jelaskan barang apa yang didaur ulang & bagaimana..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S2_recycle.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S2_recycle.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
 
                           <div className="flex flex-col gap-1.5">
@@ -718,9 +1021,16 @@ export default function TugasPage() {
                               value={S2_relocation}
                               onChange={(e) => setS2_relocation(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Jelaskan barang apa saja yang dipindahkan dan ke mana lokasi pemindahannya..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S2_relocation.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S2_relocation.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
 
                           <div className="flex flex-col gap-1.5">
@@ -729,9 +1039,16 @@ export default function TugasPage() {
                               value={S2_dispose}
                               onChange={(e) => setS2_dispose(e.target.value)}
                               rows={3}
+                              maxLength={1000}
                               className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                               placeholder="Tuliskan barang yang langsung dibuang ke tempat sampah..."
                             />
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
+                              <span className={`text-[10px] font-bold ${S2_dispose.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
+                                {S2_dispose.length} / 1000 karakter
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -753,6 +1070,7 @@ export default function TugasPage() {
                               <div>
                                 <span className="font-bold text-sm text-neutral-700 block">Bukti Aksi</span>
                                 <span className="text-xs text-neutral-400 block mt-1">Unggah foto saat melakukan pembersihan / pemilahan</span>
+                                <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB</span>
                               </div>
                               <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold cursor-pointer transition shadow-sm">
                                 <Upload size={14} />
@@ -772,7 +1090,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !s2IsValid}
+                          disabled={submitting || !s2IsValid || uploadingS2}
                           onClick={() => handleFormSubmit(2)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
@@ -966,6 +1284,7 @@ export default function TugasPage() {
                           <div className="space-y-2">
                             <Camera className="mx-auto text-neutral-400" size={24} />
                             <span className="font-bold text-xs text-neutral-700 block">Foto Ruangan Terkini</span>
+                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB</span>
                             <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-3 py-2 text-xs font-bold cursor-pointer transition shadow-sm mt-1">
                               <Upload size={12} /> {uploadingS3 ? "Mengunggah..." : "Pilih File"}
                               <input type="file" accept="image/*" className="hidden" disabled={uploadingS3} onChange={(e) => handlePhotoChange(e, 3)} />
@@ -976,7 +1295,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !s3IsValid}
+                          disabled={submitting || !s3IsValid || uploadingS3}
                           onClick={() => handleFormSubmit(3)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
@@ -1272,6 +1591,7 @@ export default function TugasPage() {
                           <div className="space-y-2">
                             <Camera className="mx-auto text-neutral-400" size={24} />
                             <span className="font-bold text-xs text-neutral-700 block">Foto Potensi Bahaya (Representatif)</span>
+                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB</span>
                             <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-3 py-2 text-xs font-bold cursor-pointer transition shadow-sm mt-1">
                               <Upload size={12} /> {uploadingS4 ? "Mengunggah..." : "Pilih File"}
                               <input type="file" accept="image/*" className="hidden" disabled={uploadingS4} onChange={(e) => handlePhotoChange(e, 4)} />
@@ -1282,7 +1602,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !s4IsValid}
+                          disabled={submitting || !s4IsValid || uploadingS4}
                           onClick={() => handleFormSubmit(4)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
@@ -1483,6 +1803,7 @@ export default function TugasPage() {
                           <div className="space-y-2">
                             <Camera className="mx-auto text-neutral-400" size={24} />
                             <span className="font-bold text-xs text-neutral-700 block">Foto Bukti Pemborosan (Representatif)</span>
+                            <span className="text-[10px] text-neutral-400 block mt-1 font-medium">Maksimal file 10MB</span>
                             <label className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-3 py-2 text-xs font-bold cursor-pointer transition shadow-sm mt-1">
                               <Upload size={12} /> {uploadingS5 ? "Mengunggah..." : "Pilih File"}
                               <input type="file" accept="image/*" className="hidden" disabled={uploadingS5} onChange={(e) => handlePhotoChange(e, 5)} />
@@ -1493,7 +1814,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !s5IsValid}
+                          disabled={submitting || !s5IsValid || uploadingS5}
                           onClick={() => handleFormSubmit(5)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
@@ -1505,6 +1826,35 @@ export default function TugasPage() {
                 })()}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3 bg-white border border-neutral-100 rounded-2xl shadow-2xl p-4 min-w-[300px] animate-toast-slide">
+          <style>{`
+            @keyframes slideInRight {
+              from {
+                transform: translateX(120%);
+                opacity: 0;
+              }
+              to {
+                transform: translateX(0);
+                opacity: 1;
+              }
+            }
+            .animate-toast-slide {
+              animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+          `}</style>
+          <div className={`p-2 rounded-xl ${toast.type === "success" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>
+            {toast.type === "success" ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+          </div>
+          <div className="flex-1 text-xs">
+            <span className="font-bold text-neutral-800 block">
+              {toast.type === "success" ? "Sukses" : "Gagal"}
+            </span>
+            <p className="text-neutral-500 mt-0.5">{toast.message}</p>
           </div>
         </div>
       )}
