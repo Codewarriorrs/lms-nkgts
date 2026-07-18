@@ -13,7 +13,13 @@ import {
   AlertTriangle,
   ChevronRight,
   Sparkles,
-  Info
+  Info,
+  Wrench,
+  Package,
+  Car,
+  ArrowDownCircle,
+  Zap,
+  Flame
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import { uploadFileOrBase64 } from "@/utils/upload";
@@ -196,6 +202,48 @@ export default function TugasPage() {
     const source = activeSubmisi?.detail_jawaban?.checklist || checklistS3;
     return Object.values(source).some((v: any) => v.status === "ADA");
   }, [tasks, checklistS3]);
+
+  const s1IsValid = useMemo(() => {
+    return (
+      S1_rutin.trim().length > 0 &&
+      S1_tidakRutin.trim().length > 0 &&
+      S1_tidakPerlu.trim().length > 0 &&
+      fotoS1 !== ""
+    );
+  }, [S1_rutin, S1_tidakRutin, S1_tidakPerlu, fotoS1]);
+
+  const s2IsValid = useMemo(() => {
+    return (
+      S2_recycle.trim().length > 0 &&
+      S2_relocation.trim().length > 0 &&
+      S2_dispose.trim().length > 0 &&
+      fotoS2 !== ""
+    );
+  }, [S2_recycle, S2_relocation, S2_dispose, fotoS2]);
+
+  const s3IsValid = useMemo(() => {
+    if (!fotoS3) return false;
+    return Object.values(checklistS3).every((item) => {
+      if (item.status === "ADA") {
+        return item.catatan.trim().length > 0;
+      }
+      return true;
+    });
+  }, [fotoS3, checklistS3]);
+
+  const s4IsValid = useMemo(() => {
+    if (!fotoS4) return false;
+    const rumahValid = bahayaRumahS4.every((row) => row.temuan.trim().length > 0 && row.penyebab.trim().length > 0);
+    const sekolahValid = bahayaSekolahS4.every((row) => row.temuan.trim().length > 0 && row.penyebab.trim().length > 0);
+    return rumahValid && sekolahValid;
+  }, [fotoS4, bahayaRumahS4, bahayaSekolahS4]);
+
+  const s5IsValid = useMemo(() => {
+    if (!fotoS5) return false;
+    const sekolahValid = wasteSekolahS5.every((row) => row.temuan.trim().length > 0);
+    const rumahValid = wasteRumahS5.every((row) => row.temuan.trim().length > 0);
+    return sekolahValid && rumahValid;
+  }, [fotoS5, wasteSekolahS5, wasteRumahS5]);
 
   if (!isLoaded) {
     return (
@@ -583,7 +631,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !S1_rutin.trim() || !fotoS1}
+                          disabled={submitting || !s1IsValid}
                           onClick={() => handleFormSubmit(1)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
@@ -724,7 +772,7 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !fotoS2}
+                          disabled={submitting || !s2IsValid}
                           onClick={() => handleFormSubmit(2)}
                           className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
@@ -744,17 +792,6 @@ export default function TugasPage() {
                   <h2 className="text-lg font-bold text-neutral-900">Checklist Evaluasi 5R</h2>
                   <p className="text-neutral-400 text-xs mt-1">Lakukan audit mandiri kondisi 5R pada ruangan sekolah.</p>
                 </div>
-
-                {/* Scoring Warning Banner */}
-                {s3HasNotOk && (
-                  <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4 flex items-start gap-3 text-danger">
-                    <AlertTriangle className="shrink-0 mt-0.5" size={18} />
-                    <div className="text-xs leading-5">
-                      <span className="font-bold block">Ruangan Anda Belum Memenuhi Standar 5R Mutlak!</span>
-                      Masih terdapat temuan (ADA) ketidaksesuaian standard kebersihan dan kerapian. Segera lakukan tindakan perbaikan di ruangan tersebut.
-                    </div>
-                  </div>
-                )}
 
                 {(() => {
                   const submisi = getSubmisiData(3);
@@ -781,33 +818,50 @@ export default function TugasPage() {
                         <div className="space-y-4 border-t pt-4">
                           <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-700">Hasil Audit Indikator</h4>
                           <div className="space-y-3">
-                            {Object.entries(CHECKLIST_ITEMS).map(([groupKey, items]) => (
-                              <div key={groupKey} className="border rounded-2xl p-4 space-y-3 bg-neutral-50/20">
-                                <h5 className="text-xs font-black uppercase text-primary tracking-widest">{groupKey}</h5>
-                                <div className="divide-y text-xs space-y-2">
-                                  {items.map((item) => {
-                                    const record = listCheck[item.key] || { status: "TIDAK ADA", catatan: "" };
-                                    return (
-                                      <div key={item.key} className="pt-2 flex flex-col md:flex-row md:items-center justify-between gap-2">
-                                        <div className="flex-1">
-                                          <p className="font-semibold text-neutral-800">{item.label}</p>
-                                          {record.catatan && (
-                                            <p className="text-neutral-500 italic mt-0.5">Catatan: {record.catatan}</p>
-                                          )}
+                            {Object.entries(CHECKLIST_ITEMS).map(([groupKey, items]) => {
+                              const groupHasAda = items.some((item) => {
+                                const record = listCheck[item.key] || { status: "TIDAK ADA", catatan: "" };
+                                return record.status === "ADA";
+                              });
+                              return (
+                                <div key={groupKey} className="border rounded-2xl p-4 space-y-3 bg-neutral-50/20">
+                                  <div className="flex items-center justify-between border-b pb-2 mb-2">
+                                    <h5 className="text-xs font-black uppercase text-primary tracking-widest">{groupKey}</h5>
+                                    {groupHasAda ? (
+                                      <span className="text-[10px] font-bold text-danger bg-danger/10 border border-danger/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                        <AlertTriangle size={10} /> Ada Temuan (Not OK)
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] font-bold text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                        <CheckCircle size={10} /> Sempurna
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="divide-y text-xs space-y-2">
+                                    {items.map((item) => {
+                                      const record = listCheck[item.key] || { status: "TIDAK ADA", catatan: "" };
+                                      return (
+                                        <div key={item.key} className="pt-2 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                          <div className="flex-1">
+                                            <p className="font-semibold text-neutral-800">{item.label}</p>
+                                            {record.catatan && (
+                                              <p className="text-neutral-500 italic mt-0.5">Catatan: {record.catatan}</p>
+                                            )}
+                                          </div>
+                                          <span className={`font-bold px-2 py-0.5 rounded text-[10px] border ${
+                                            record.status === "ADA" 
+                                              ? "bg-danger/10 text-danger border-danger/10" 
+                                              : "bg-success/10 text-success border-success/10"
+                                          }`}>
+                                            {record.status === "ADA" ? "ADA (NOT OK)" : "TIDAK ADA (OK)"}
+                                          </span>
                                         </div>
-                                        <span className={`font-bold px-2 py-0.5 rounded text-[10px] border ${
-                                          record.status === "ADA" 
-                                            ? "bg-danger/10 text-danger border-danger/10" 
-                                            : "bg-success/10 text-success border-success/10"
-                                        }`}>
-                                          {record.status === "ADA" ? "ADA (NOT OK)" : "TIDAK ADA (OK)"}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
@@ -829,50 +883,76 @@ export default function TugasPage() {
 
                       {/* Interactive Checklist Form */}
                       <div className="space-y-5">
-                        {Object.entries(CHECKLIST_ITEMS).map(([groupKey, items]) => (
-                          <div key={groupKey} className="border rounded-2xl p-4 bg-white space-y-4">
-                            <h4 className="text-sm font-bold uppercase text-primary tracking-widest">{groupKey}</h4>
-                            <div className="space-y-4 divide-y">
-                              {items.map((item) => {
-                                const current = checklistS3[item.key] || { status: "TIDAK ADA", catatan: "" };
-                                return (
-                                  <div key={item.key} className="pt-4 flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
-                                    <div className="flex-1">
-                                      <p className="text-xs font-bold text-neutral-800 leading-relaxed">{item.label}</p>
+                        {Object.entries(CHECKLIST_ITEMS).map(([groupKey, items]) => {
+                          const groupHasAda = items.some((item) => {
+                            const current = checklistS3[item.key] || { status: "TIDAK ADA", catatan: "" };
+                            return current.status === "ADA";
+                          });
+                          return (
+                            <div key={groupKey} className="border rounded-2xl p-4 bg-white space-y-4">
+                              <div className="flex items-center justify-between border-b pb-2">
+                                <h4 className="text-sm font-bold uppercase text-primary tracking-widest">{groupKey}</h4>
+                                {groupHasAda ? (
+                                  <span className="text-[10px] font-bold text-danger bg-danger/10 border border-danger/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <AlertTriangle size={10} /> Ada Temuan (Not OK)
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <CheckCircle size={10} /> Sempurna
+                                  </span>
+                                )}
+                              </div>
+                              <div className="space-y-4 divide-y">
+                                {items.map((item) => {
+                                  const current = checklistS3[item.key] || { status: "TIDAK ADA", catatan: "" };
+                                  const isAda = current.status === "ADA";
+                                  return (
+                                    <div key={item.key} className="pt-4 flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
+                                      <div className="flex-1">
+                                        <p className="text-xs font-bold text-neutral-800 leading-relaxed">{item.label}</p>
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                                        <select
+                                          value={current.status}
+                                          onChange={(e) => {
+                                            setChecklistS3((prev) => ({
+                                              ...prev,
+                                              [item.key]: { ...prev[item.key], status: e.target.value as any }
+                                            }));
+                                          }}
+                                          className={`border rounded-lg text-xs font-semibold px-2 py-1.5 focus:outline-none focus:ring-2 ${
+                                            isAda 
+                                              ? "border-danger bg-danger/5 text-danger focus:ring-danger/20" 
+                                              : "border-neutral-200 focus:ring-primary/20"
+                                          }`}
+                                        >
+                                          <option value="TIDAK ADA">TIDAK ADA (OK)</option>
+                                          <option value="ADA">ADA (NOT OK)</option>
+                                        </select>
+                                        <input
+                                          type="text"
+                                          placeholder="Tuliskan temuan/catatan jika ADA..."
+                                          value={current.catatan}
+                                          onChange={(e) => {
+                                            setChecklistS3((prev) => ({
+                                              ...prev,
+                                              [item.key]: { ...prev[item.key], catatan: e.target.value }
+                                            }));
+                                          }}
+                                          className={`border rounded-lg px-2.5 py-1.5 text-xs flex-1 md:w-64 focus:outline-none focus:ring-2 ${
+                                            isAda && !current.catatan.trim()
+                                              ? "border-danger bg-danger/5 placeholder-danger/60 focus:ring-danger/20 animate-pulse"
+                                              : "border-neutral-200 focus:ring-primary/20"
+                                          }`}
+                                        />
+                                      </div>
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                                      <select
-                                        value={current.status}
-                                        onChange={(e) => {
-                                          setChecklistS3((prev) => ({
-                                            ...prev,
-                                            [item.key]: { ...prev[item.key], status: e.target.value as any }
-                                          }));
-                                        }}
-                                        className="border rounded-lg text-xs font-semibold px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                      >
-                                        <option value="TIDAK ADA">TIDAK ADA (OK)</option>
-                                        <option value="ADA">ADA (NOT OK)</option>
-                                      </select>
-                                      <input
-                                        type="text"
-                                        placeholder="Tuliskan temuan/catatan jika ADA..."
-                                        value={current.catatan}
-                                        onChange={(e) => {
-                                          setChecklistS3((prev) => ({
-                                            ...prev,
-                                            [item.key]: { ...prev[item.key], catatan: e.target.value }
-                                          }));
-                                        }}
-                                        className="border rounded-lg px-2.5 py-1.5 text-xs flex-1 md:w-64 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                      />
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       {/* Image Upload S3 */}
@@ -896,9 +976,9 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !fotoS3}
+                          disabled={submitting || !s3IsValid}
                           onClick={() => handleFormSubmit(3)}
-                          className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm"
+                          className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
                           {submitting ? "Mengirim..." : "Kumpulkan"}
                         </button>
@@ -925,19 +1005,24 @@ export default function TugasPage() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
                     {[
-                      { key: "APARATUS", title: "Aparatus", desc: "Mesin berputar, tajam, gerak", color: "bg-red-500" },
-                      { key: "BIG HEAVY", title: "Big Heavy", desc: "Tertimpa beban berat/roboh", color: "bg-orange-500" },
-                      { key: "CAR", title: "Car / Vehicle", desc: "Bahaya berkendara / lalu-lintas", color: "bg-yellow-500 text-neutral-900" },
-                      { key: "DROP FALL", title: "Drop Fall", desc: "Terjatuh dari ketinggian / terpeleset", color: "bg-green-500" },
-                      { key: "ELECTRICITY", title: "Electricity", desc: "Sengatan listrik / korsleting", color: "bg-blue-500" },
-                      { key: "FIRE", title: "Fire / Heat", desc: "Kebakaran, gas meledak, panas", color: "bg-purple-500" }
-                    ].map((item) => (
-                      <div key={item.key} className="bg-white rounded-xl border p-2 text-center flex flex-col items-center justify-between">
-                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded text-white ${item.color}`}>{item.key}</span>
-                        <h4 className="text-[10px] font-bold text-neutral-800 mt-1">{item.title}</h4>
-                        <p className="text-[9px] text-neutral-400 mt-0.5 leading-snug">{item.desc}</p>
-                      </div>
-                    ))}
+                      { key: "APARATUS", title: "Mesin", icon: Wrench, color: "bg-red-500 text-white" },
+                      { key: "BIG HEAVY", title: "Beban", icon: Package, color: "bg-orange-500 text-white" },
+                      { key: "CAR", title: "Kendaraan", icon: Car, color: "bg-yellow-500 text-neutral-900" },
+                      { key: "DROP FALL", title: "Jatuh", icon: ArrowDownCircle, color: "bg-green-500 text-white" },
+                      { key: "ELECTRICITY", title: "Listrik", icon: Zap, color: "bg-blue-500 text-white" },
+                      { key: "FIRE", title: "Api", icon: Flame, color: "bg-purple-500 text-white" }
+                    ].map((item) => {
+                      const IconComponent = item.icon;
+                      return (
+                        <div key={item.key} className="bg-white rounded-xl border p-3 text-center flex flex-col items-center justify-center gap-1.5 shadow-sm">
+                          <div className={`p-1.5 rounded-lg ${item.color}`}>
+                            <IconComponent size={16} />
+                          </div>
+                          <span className="text-[9px] font-black text-neutral-400 tracking-wider block">{item.key}</span>
+                          <h4 className="text-[10px] font-bold text-neutral-800">{item.title}</h4>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1045,7 +1130,7 @@ export default function TugasPage() {
 
                     return (
                       <div className="overflow-x-auto">
-                        <table className="w-full text-xs text-left border-collapse min-w-[700px]">
+                        <table className="w-full text-xs text-left border-collapse min-w-[900px]">
                           <thead>
                             <tr className="bg-neutral-50 text-neutral-500 font-bold uppercase text-[9px] border-b">
                               <th className="py-2 px-1 w-8">No</th>
@@ -1053,17 +1138,17 @@ export default function TugasPage() {
                               <th className="py-2 px-1 w-28">Kategori</th>
                               <th className="py-2 px-1 w-16 text-center">F</th>
                               <th className="py-2 px-1 w-16 text-center">K</th>
-                              <th className="py-2 px-1 w-20 text-center">Skor (Risiko)</th>
+                              <th className="py-2 px-1 w-24 text-center">Skor (Risiko)</th>
                               <th className="py-2 px-1">Penyebab</th>
                             </tr>
                           </thead>
                           <tbody>
                             {list.map((row, i) => {
                               const score = row.frekuensi * row.dampak;
-                              let label = "Risiko Rendah";
+                              let label = "Rendah";
                               let color = "text-success";
-                              if (score >= 10) { label = "Risiko Tinggi"; color = "text-danger"; }
-                              else if (score >= 5) { label = "Risiko Sedang"; color = "text-warning"; }
+                              if (score >= 10) { label = "Tinggi"; color = "text-danger"; }
+                              else if (score >= 5) { label = "Sedang"; color = "text-warning"; }
 
                               return (
                                 <tr key={i} className="border-b">
@@ -1090,27 +1175,27 @@ export default function TugasPage() {
                                     <select
                                       value={row.frekuensi}
                                       onChange={(e) => updateRow(i, "frekuensi", parseInt(e.target.value))}
-                                      className="border rounded px-1 py-1 w-full text-xs text-center"
+                                      className="border rounded px-1 py-1 w-full text-xs text-center font-bold"
                                     >
-                                      <option value="5">Tinggi (5)</option>
-                                      <option value="4">Sedang (4)</option>
-                                      <option value="3">Rendah (3)</option>
-                                      <option value="2">Sgt Rendah (2)</option>
-                                      <option value="1">Hampir Tidak (1)</option>
+                                      <option value="5">5</option>
+                                      <option value="4">4</option>
+                                      <option value="3">3</option>
+                                      <option value="2">2</option>
+                                      <option value="1">1</option>
                                     </select>
                                   </td>
                                   <td className="py-1 px-1">
                                     <select
                                       value={row.dampak}
                                       onChange={(e) => updateRow(i, "dampak", parseInt(e.target.value))}
-                                      className="border rounded px-1 py-1 w-full text-xs text-center"
+                                      className="border rounded px-1 py-1 w-full text-xs text-center font-bold"
                                     >
-                                      <option value="3">Fatal (3)</option>
-                                      <option value="2">Sedang (2)</option>
-                                      <option value="1">Ringan (1)</option>
+                                      <option value="3">3</option>
+                                      <option value="2">2</option>
+                                      <option value="1">1</option>
                                     </select>
                                   </td>
-                                  <td className={`py-1 px-1 text-center font-bold ${color}`}>
+                                  <td className={`py-1 px-1 text-center font-bold text-[11px] ${color}`}>
                                     {score} ({label})
                                   </td>
                                   <td className="py-1 px-1">
@@ -1133,6 +1218,37 @@ export default function TugasPage() {
 
                   return (
                     <div className="space-y-5">
+                      {/* Legend Keterangan F & K */}
+                      <div className="bg-neutral-50/50 border border-neutral-100 rounded-2xl p-4 text-xs text-neutral-600 space-y-2.5">
+                        <span className="font-bold text-neutral-800 block text-xs">Panduan Penilaian Risiko (Skor = F x K)</span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 leading-relaxed">
+                          <div className="space-y-1">
+                            <span className="font-bold text-primary block">F = Frekuensi (Seberapa Sering Kejadian):</span>
+                            <ul className="list-disc pl-4 space-y-0.5 text-neutral-500">
+                              <li><span className="font-semibold text-neutral-700">5</span>: Sangat Sering / Tinggi</li>
+                              <li><span className="font-semibold text-neutral-700">4</span>: Sering / Sedang</li>
+                              <li><span className="font-semibold text-neutral-700">3</span>: Jarang / Rendah</li>
+                              <li><span className="font-semibold text-neutral-700">2</span>: Sangat Jarang / Sangat Rendah</li>
+                              <li><span className="font-semibold text-neutral-700">1</span>: Hampir Tidak Pernah</li>
+                            </ul>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="font-bold text-primary block">K = Konsekuensi (Tingkat Dampak Cedera):</span>
+                            <ul className="list-disc pl-4 space-y-0.5 text-neutral-500">
+                              <li><span className="font-semibold text-neutral-700">3</span>: Tinggi / Fatal (Cacat, Meninggal)</li>
+                              <li><span className="font-semibold text-neutral-700">2</span>: Sedang (Cedera Sedang, Butuh Medis)</li>
+                              <li><span className="font-semibold text-neutral-700">1</span>: Ringan (Cedera Ringan, P3K)</li>
+                            </ul>
+                          </div>
+                        </div>
+                        <div className="border-t pt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-neutral-400">
+                          <div><span className="font-bold text-neutral-500">Skor Risiko (F x K):</span></div>
+                          <div><span className="text-success font-semibold">1 - 4</span>: Risiko Rendah</div>
+                          <div><span className="text-warning font-semibold">5 - 9</span>: Risiko Sedang</div>
+                          <div><span className="text-danger font-semibold">≥ 10</span>: Risiko Tinggi</div>
+                        </div>
+                      </div>
+
                       {/* Form 1: Rumah */}
                       <div className="border rounded-2xl p-4 bg-white space-y-3">
                         <h4 className="text-xs font-bold text-neutral-800 uppercase">Potensi Bahaya: Rumah / Diperjalanan (Wajib 5 baris)</h4>
@@ -1166,9 +1282,9 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !fotoS4}
+                          disabled={submitting || !s4IsValid}
                           onClick={() => handleFormSubmit(4)}
-                          className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm"
+                          className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
                           {submitting ? "Mengirim..." : "Kumpulkan"}
                         </button>
@@ -1377,9 +1493,9 @@ export default function TugasPage() {
 
                       <div className="flex justify-end border-t pt-4">
                         <button
-                          disabled={submitting || !fotoS5}
+                          disabled={submitting || !s5IsValid}
                           onClick={() => handleFormSubmit(5)}
-                          className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm"
+                          className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-2.5 text-xs font-bold transition shadow-sm disabled:opacity-50"
                         >
                           {submitting ? "Mengirim..." : "Kumpulkan"}
                         </button>
