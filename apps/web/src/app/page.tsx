@@ -71,6 +71,7 @@ const moduls = [
     icon: BookOpen,
     img: "https://images.unsplash.com/photo-1610500796385-3ffc1ae2f046?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Teori",
+    link: "/dashboard",
   },
   {
     id: 2,
@@ -80,6 +81,7 @@ const moduls = [
     icon: ClipboardList,
     img: "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Evaluasi",
+    link: "/dashboard",
   },
   {
     id: 3,
@@ -89,6 +91,7 @@ const moduls = [
     icon: Briefcase,
     img: "https://images.unsplash.com/photo-1589087394593-e1f8a7d30fed?q=80&w=1467&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Praktek",
+    link: "/dashboard/tugas",
   },
   {
     id: 4,
@@ -98,6 +101,7 @@ const moduls = [
     icon: FolderKanban,
     img: "https://images.unsplash.com/photo-1557734864-c78b6dfef1b1?q=80&w=1634&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Project",
+    link: "/dashboard/project",
   },
   {
     id: 5,
@@ -107,6 +111,7 @@ const moduls = [
     icon: BarChart2,
     img: "https://images.unsplash.com/photo-1664382953518-4a664ab8a8c9?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     tag: "Feedback",
+    link: "/dashboard",
   },
   {
     id: 6,
@@ -706,40 +711,65 @@ function ModulSection() {
           ref={ref}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          {moduls.map((m, i) => (
-            <div
-              key={m.id}
-              className={`group relative h-full overflow-hidden rounded-2xl border border-white/10 shadow-md hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer
-                ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
-              style={{ transitionDelay: `${i * 80}ms` }}
-            >
-              <img
-                src={m.img}
-                alt={m.judul}
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-primary/35" />
+          {moduls.map((m, i) => {
+            const cardContent = (
+              <>
+                <img
+                  src={m.img}
+                  alt={m.judul}
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-primary/35" />
 
-              <div className="relative flex min-h-[280px] flex-col justify-between p-5 text-white">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="inline-flex rounded-full border border-[#F5C400]/40 bg-[#F5C400] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-900 backdrop-blur-sm">
-                    {m.tag}
-                  </span>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C400] text-neutral-900 shadow-sm">
-                    <m.icon size={16} />
+                <div className="relative flex min-h-[280px] flex-col justify-between p-5 text-white">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="inline-flex rounded-full border border-[#F5C400]/40 bg-[#F5C400] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-900 backdrop-blur-sm">
+                      {m.tag}
+                    </span>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C400] text-neutral-900 shadow-sm">
+                      <m.icon size={16} />
+                    </div>
+                  </div>
+
+                  <div className="mt-25">
+                    <h3 className="text-lg font-bold leading-snug text-white">{m.judul}</h3>
+                    <p className="text-sm leading-relaxed text-white/80 mt-3">{m.deskripsi}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm font-medium text-white/80">
                   </div>
                 </div>
+              </>
+            );
 
-                <div className="mt-25">
-                  <h3 className="text-lg font-bold leading-snug text-white">{m.judul}</h3>
-                  <p className="text-sm leading-relaxed text-white/80 mt-3">{m.deskripsi}</p>
-                </div>
+            const cardClassName = `group relative h-full overflow-hidden rounded-2xl border border-white/10 shadow-md hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer block ${
+              inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+            }`;
+            const cardStyle = { transitionDelay: `${i * 80}ms` };
 
-                <div className="flex items-center justify-between text-sm font-medium text-white/80">
-                </div>
+            if (m.link) {
+              return (
+                <Link
+                  key={m.id}
+                  href={m.link}
+                  className={cardClassName}
+                  style={cardStyle}
+                >
+                  {cardContent}
+                </Link>
+              );
+            }
+
+            return (
+              <div
+                key={m.id}
+                className={cardClassName}
+                style={cardStyle}
+              >
+                {cardContent}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

@@ -160,7 +160,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (currentUser?.role === "guru") {
+  if (currentUser?.role === "guru" || currentUser?.role === "admin") {
     return <TeacherDashboard />;
   }
 

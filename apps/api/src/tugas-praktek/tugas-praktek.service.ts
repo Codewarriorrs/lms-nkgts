@@ -98,21 +98,27 @@ export class TugasPraktekService {
 
   // 3. Ambil semua tugas siswa dari sekolah guru yang sama
   async getAllSubmisi(guruId: string) {
-    const guru = await this.prisma.user.findUnique({
+    const requestor = await this.prisma.user.findUnique({
       where: { id: guruId },
-      select: { sekolah_id: true },
+      select: { sekolah_id: true, role: true },
     });
 
-    if (!guru || !guru.sekolah_id) {
+    if (!requestor) {
       return [];
     }
 
+    const whereClause: any = {};
+    if (requestor.role !== 'admin') {
+      if (!requestor.sekolah_id) {
+        return [];
+      }
+      whereClause.siswa = {
+        sekolah_id: requestor.sekolah_id,
+      };
+    }
+
     return this.prisma.submisiPraktek.findMany({
-      where: {
-        siswa: {
-          sekolah_id: guru.sekolah_id,
-        },
-      },
+      where: whereClause,
       include: {
         siswa: {
           select: {
@@ -120,6 +126,12 @@ export class TugasPraktekService {
             nama: true,
             email: true,
             kelas: true,
+            sekolah_id: true,
+            sekolah: {
+              select: {
+                nama_sekolah: true,
+              },
+            },
           },
         },
         tugas_praktek: true,

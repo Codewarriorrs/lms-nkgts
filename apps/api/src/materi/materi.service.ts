@@ -213,25 +213,36 @@ export class MateriService {
 
   // 5. Mengambil progres belajar rinci setiap siswa per-modul
   async getStudentsProgress(guruId: string) {
-    const guru = await this.prisma.user.findUnique({
+    const requestor = await this.prisma.user.findUnique({
       where: { id: guruId },
-      select: { sekolah_id: true },
+      select: { sekolah_id: true, role: true },
     });
 
-    if (!guru || !guru.sekolah_id) {
+    if (!requestor) {
       return [];
     }
 
+    const whereClause: any = { role: 'siswa' };
+    if (requestor.role !== 'admin') {
+      if (!requestor.sekolah_id) {
+        return [];
+      }
+      whereClause.sekolah_id = requestor.sekolah_id;
+    }
+
     const students = await this.prisma.user.findMany({
-      where: {
-        role: 'siswa',
-        sekolah_id: guru.sekolah_id,
-      },
+      where: whereClause,
       select: {
         id: true,
         nama: true,
         email: true,
         kelas: true,
+        sekolah_id: true,
+        sekolah: {
+          select: {
+            nama_sekolah: true,
+          },
+        },
         progres_teori: {
           include: { modul_teori: true },
         },
@@ -284,6 +295,8 @@ export class MateriService {
         nama: student.nama,
         email: student.email,
         kelas: student.kelas,
+        sekolah_id: student.sekolah_id,
+        sekolah_nama: student.sekolah?.nama_sekolah || "N-KGTS Pusat",
         modules: modulesProgress,
       };
     });

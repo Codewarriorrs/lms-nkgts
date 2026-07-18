@@ -48,21 +48,27 @@ export class ProjectKaizenService {
 
   // 3. Ambil seluruh data project siswa dari sekolah yang sama dengan guru
   async getAllProjects(guruId: string) {
-    const guru = await this.prisma.user.findUnique({
+    const requestor = await this.prisma.user.findUnique({
       where: { id: guruId },
-      select: { sekolah_id: true },
+      select: { sekolah_id: true, role: true },
     });
 
-    if (!guru || !guru.sekolah_id) {
+    if (!requestor) {
       return [];
     }
 
+    const whereClause: any = {};
+    if (requestor.role !== 'admin') {
+      if (!requestor.sekolah_id) {
+        return [];
+      }
+      whereClause.siswa = {
+        sekolah_id: requestor.sekolah_id,
+      };
+    }
+
     return this.prisma.fileProject.findMany({
-      where: {
-        siswa: {
-          sekolah_id: guru.sekolah_id,
-        },
-      },
+      where: whereClause,
       include: {
         siswa: {
           select: {
@@ -70,6 +76,12 @@ export class ProjectKaizenService {
             nama: true,
             email: true,
             kelas: true,
+            sekolah_id: true,
+            sekolah: {
+              select: {
+                nama_sekolah: true,
+              },
+            },
           },
         },
       },

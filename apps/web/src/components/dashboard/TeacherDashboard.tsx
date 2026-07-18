@@ -52,6 +52,27 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClass, setSelectedClass] = useState("Semua");
   const [statusFilter, setStatusFilter] = useState("Semua");
+  const [selectedSchool, setSelectedSchool] = useState("Semua");
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        setCurrentUser(JSON.parse(stored));
+      } catch (e) {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const sch = params.get("sekolah");
+      if (sch) {
+        setSelectedSchool(sch);
+      }
+    }
+  }, []);
 
   // Selected details
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
@@ -165,6 +186,40 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
     return { totalSiswa, tugasPending, projectPending };
   }, [studentsProgress, taskSubmissions, projectSubmissions]);
 
+  // Compute school-level progress overview
+  const schoolSummaries = useMemo(() => {
+    const map: Record<string, { totalSiswa: number; totalModulSelesai: number; totalModul: number; avgProgressPercent: number }> = {};
+    studentsProgress.forEach((student) => {
+      const sch = student.sekolah_nama || "N-KGTS Pusat";
+      if (!map[sch]) {
+        map[sch] = { totalSiswa: 0, totalModulSelesai: 0, totalModul: 0, avgProgressPercent: 0 };
+      }
+      map[sch].totalSiswa += 1;
+      const completedCount = student.modules.filter((m: any) => m.completed).length;
+      map[sch].totalModulSelesai += completedCount;
+      map[sch].totalModul += student.modules.length;
+
+      const totalPercent = student.modules.reduce((sum: number, m: any) => sum + m.persentase, 0);
+      map[sch].avgProgressPercent += (totalPercent / (student.modules.length || 1));
+    });
+
+    return Object.entries(map).map(([name, data]) => ({
+      nama_sekolah: name,
+      totalSiswa: data.totalSiswa,
+      avgProgressPercent: Math.round(data.avgProgressPercent / data.totalSiswa),
+      completedRatio: `${data.totalModulSelesai} / ${data.totalModul}`
+    }));
+  }, [studentsProgress]);
+
+  // Schools list
+  const schoolsList = useMemo(() => {
+    const schools = new Set<string>();
+    studentsProgress.forEach((s) => {
+      if (s.sekolah_nama) schools.add(s.sekolah_nama);
+    });
+    return ["Semua", ...Array.from(schools)];
+  }, [studentsProgress]);
+
   // Classes list
   const classesList = useMemo(() => {
     const classes = new Set<string>();
@@ -180,9 +235,10 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       const matchSearch = student.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           student.email.toLowerCase().includes(searchQuery.toLowerCase());
       const matchClass = selectedClass === "Semua" || student.kelas === selectedClass;
-      return matchSearch && matchClass;
+      const matchSchool = selectedSchool === "Semua" || student.sekolah_nama === selectedSchool;
+      return matchSearch && matchClass && matchSchool;
     });
-  }, [studentsProgress, searchQuery, selectedClass]);
+  }, [studentsProgress, searchQuery, selectedClass, selectedSchool]);
 
   // Filtered Task Submissions
   const filteredTasks = useMemo(() => {
@@ -191,9 +247,11 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       let matchStatus = true;
       if (statusFilter === "Belum Dinilai") matchStatus = task.nilai === null;
       if (statusFilter === "Sudah Dinilai") matchStatus = task.nilai !== null;
-      return matchSearch && matchStatus;
+      const studentSchool = task.siswa.sekolah?.nama_sekolah || task.siswa.sekolah_nama || "N-KGTS Pusat";
+      const matchSchool = selectedSchool === "Semua" || studentSchool === selectedSchool;
+      return matchSearch && matchStatus && matchSchool;
     });
-  }, [taskSubmissions, searchQuery, statusFilter]);
+  }, [taskSubmissions, searchQuery, statusFilter, selectedSchool]);
 
   // Filtered Project Submissions
   const filteredProjects = useMemo(() => {
@@ -202,9 +260,11 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       let matchStatus = true;
       if (statusFilter === "Belum Dinilai") matchStatus = proj.nilai === null;
       if (statusFilter === "Sudah Dinilai") matchStatus = proj.nilai !== null;
-      return matchSearch && matchStatus;
+      const studentSchool = proj.siswa.sekolah?.nama_sekolah || proj.siswa.sekolah_nama || "N-KGTS Pusat";
+      const matchSchool = selectedSchool === "Semua" || studentSchool === selectedSchool;
+      return matchSearch && matchStatus && matchSchool;
     });
-  }, [projectSubmissions, searchQuery, statusFilter]);
+  }, [projectSubmissions, searchQuery, statusFilter, selectedSchool]);
 
   // Handle grading Task
   const handleGradeTask = async () => {
@@ -530,6 +590,23 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
     setEditorSubTab("konten");
   };
 
+  const renderSchoolFilter = () => {
+    if (currentUser?.role !== "admin") return null;
+    return (
+      <select
+        value={selectedSchool}
+        onChange={(e) => setSelectedSchool(e.target.value)}
+        className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none font-bold text-neutral-700 cursor-pointer"
+      >
+        {schoolsList.map((sch) => (
+          <option key={sch} value={sch}>
+            {sch === "Semua" ? "Semua Sekolah" : sch}
+          </option>
+        ))}
+      </select>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
@@ -545,9 +622,13 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       {tab === "ringkasan" && (
         <div className="space-y-6">
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900 leading-tight">Dashboard Guru</h1>
+            <h1 className="text-2xl font-bold text-neutral-900 leading-tight">
+              {currentUser?.role === "admin" ? "Dashboard Administrator" : "Dashboard Guru"}
+            </h1>
             <p className="text-neutral-400 text-xs font-semibold mt-1">
-              Kelola aktivitas pembelajaran dan pantau perkembangan proyek Kaizen di sekolah Anda.
+              {currentUser?.role === "admin" 
+                ? "Pantau dan kelola progres seluruh sekolah ambassador NKGTS 2026 secara global."
+                : "Kelola aktivitas pembelajaran dan pantau perkembangan proyek Kaizen di sekolah Anda."}
             </p>
           </div>
 
@@ -607,6 +688,58 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
             </button>
           </div>
 
+          {/* Table of School Summaries for Admin */}
+          {currentUser?.role === "admin" && (
+            <div className="bg-white p-5 rounded-xl border border-neutral-100 space-y-3 shadow-xs">
+              <h3 className="font-bold text-sm text-neutral-900">Progres Sekolah Ambassador NKGTS</h3>
+              <p className="text-xs text-neutral-400">Ringkasan aktivitas belajar dan rata-rata pencapaian modul per sekolah.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-neutral-50/50 text-neutral-400 font-extrabold uppercase border-b border-neutral-100">
+                      <th className="px-4 py-3">Nama Sekolah</th>
+                      <th className="px-4 py-3 text-center">Jumlah Siswa</th>
+                      <th className="px-4 py-3 text-center">Rata-rata Progres Modul</th>
+                      <th className="px-4 py-3 text-right">Detail</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100 text-neutral-700">
+                    {schoolSummaries.map((sch) => (
+                      <tr key={sch.nama_sekolah} className="hover:bg-neutral-50/30 transition">
+                        <td className="px-4 py-3 font-bold text-neutral-850">{sch.nama_sekolah}</td>
+                        <td className="px-4 py-3 text-center font-semibold text-neutral-500">{sch.totalSiswa} Siswa</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="font-bold text-primary min-w-8 text-right">{sch.avgProgressPercent}%</span>
+                            <div className="w-24">
+                              <ProgressBar value={sch.avgProgressPercent} color="bg-primary" />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button 
+                            onClick={() => {
+                              setSelectedSchool(sch.nama_sekolah);
+                              router.push(`/dashboard/progres?sekolah=${encodeURIComponent(sch.nama_sekolah)}`);
+                            }}
+                            className="text-primary hover:underline font-bold text-xs"
+                          >
+                            Lihat Siswa →
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {schoolSummaries.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-6 text-center text-neutral-400 italic">Tidak ada data sekolah terdaftar.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="bg-white p-5 rounded-xl border border-neutral-100 space-y-3 shadow-xs">
               <h3 className="font-bold text-sm text-neutral-900">Butuh Penilaian Segera</h3>
@@ -658,6 +791,9 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
           </div>
         </div>
       )}
+      
+      {/* ── TAB 1: RINGKASAN ── */}
+      {/* (rest of tab 1 was modified previously, but keeping same code wrapper) */}
 
       {/* ── TAB 2: TUGAS PRAKTIKUM ── */}
       {tab === "tugas" && (
@@ -670,6 +806,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              {renderSchoolFilter()}
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400">
                   <Search size={14} />
@@ -718,6 +855,11 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                           <div>
                             <p className="font-bold text-neutral-900">{item.siswa.nama}</p>
                             <p className="text-[10px] text-neutral-400">{item.siswa.email}</p>
+                            {currentUser?.role === "admin" && (
+                              <p className="text-[9px] font-bold text-primary bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5 inline-block mt-1">
+                                {item.siswa.sekolah?.nama_sekolah || item.siswa.sekolah_nama || "N-KGTS Pusat"}
+                              </p>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 font-bold text-neutral-800">{item.tugas_praktek.judul}</td>
@@ -768,6 +910,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              {renderSchoolFilter()}
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400">
                   <Search size={14} />
@@ -816,6 +959,11 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                           <div>
                             <p className="font-bold text-neutral-900">{item.siswa.nama}</p>
                             <p className="text-[10px] text-neutral-400">{item.siswa.email}</p>
+                            {currentUser?.role === "admin" && (
+                              <p className="text-[9px] font-bold text-primary bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5 inline-block mt-1">
+                                {item.siswa.sekolah?.nama_sekolah || item.siswa.sekolah_nama || "N-KGTS Pusat"}
+                              </p>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -871,6 +1019,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              {renderSchoolFilter()}
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400">
                   <Search size={14} />
@@ -901,6 +1050,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                 <thead>
                   <tr className="bg-neutral-50/50 text-neutral-400 font-extrabold uppercase border-b border-neutral-100">
                     <th className="px-6 py-4">Nama Siswa</th>
+                    {currentUser?.role === "admin" && <th className="px-6 py-4">Sekolah</th>}
                     <th className="px-6 py-4">Kelas</th>
                     <th className="px-6 py-4">Status Modul Selesai</th>
                     <th className="px-6 py-4 text-right">Rincian Progres</th>
@@ -909,7 +1059,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                 <tbody className="divide-y divide-neutral-100 text-neutral-700">
                   {filteredStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-8 text-center text-neutral-400 italic">Siswa tidak ditemukan.</td>
+                      <td colSpan={currentUser?.role === "admin" ? 5 : 4} className="px-6 py-8 text-center text-neutral-400 italic">Siswa tidak ditemukan.</td>
                     </tr>
                   ) : (
                     filteredStudents.map((student) => {
@@ -918,6 +1068,9 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                       return (
                         <tr key={student.id} className="hover:bg-neutral-50/30 transition">
                           <td className="px-6 py-4 font-bold text-neutral-900">{student.nama}</td>
+                          {currentUser?.role === "admin" && (
+                            <td className="px-6 py-4 font-semibold text-neutral-600">{student.sekolah_nama || "-"}</td>
+                          )}
                           <td className="px-6 py-4 text-neutral-500 font-semibold">{student.kelas || "-"}</td>
                           <td className="px-6 py-4 font-semibold text-neutral-600">
                             {completedCount} dari {totalCount} modul teori
@@ -989,7 +1142,6 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                     >
                       <div className="space-y-0.5 min-w-0">
                         <p className="font-semibold truncate text-[13px]">{m.urutan}. {m.judul}</p>
-                        <p className="text-[10px] text-neutral-400">Slug: {m.slug}</p>
                       </div>
                       <button
                         onClick={(e) => {
