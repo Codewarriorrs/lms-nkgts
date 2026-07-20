@@ -21,7 +21,14 @@ import {
   Zap,
   Flame,
   Trash2,
-  Plus
+  Plus,
+  Activity,
+  Truck,
+  Clock,
+  Copy,
+  Archive,
+  Cpu,
+  RotateCcw
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import { uploadFileOrBase64 } from "@/utils/upload";
@@ -1448,53 +1455,53 @@ export default function TugasPage() {
                     };
 
                     return (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs text-left border-collapse min-w-[900px]">
+                        <div className="overflow-x-auto rounded-xl border border-neutral-100 shadow-2xs">
+                        <table className="w-full text-xs text-left border-collapse min-w-[1000px]">
                           <thead>
-                            <tr className="bg-neutral-50 text-neutral-500 font-bold uppercase text-[9px] border-b">
-                              <th className="py-2 px-1 w-8">No</th>
-                              <th className="py-2 px-1">Deskripsi Temuan (Esai)</th>
-                              <th className="py-2 px-1 w-28">Kategori</th>
-                              <th className="py-2 px-1 w-16 text-center">F</th>
-                              <th className="py-2 px-1 w-16 text-center">K</th>
-                              <th className="py-2 px-1 w-24 text-center">Skor (Risiko)</th>
-                              <th className="py-2 px-1">Penyebab</th>
+                            <tr className="bg-neutral-50/75 text-neutral-450 font-black uppercase text-[9px] border-b border-neutral-100">
+                              <th className="py-3 px-4 w-12 text-center">No</th>
+                              <th className="py-3 px-3">Deskripsi Temuan (Esai)</th>
+                              <th className="py-3 px-3 w-40">Kategori</th>
+                              <th className="py-3 px-2 w-20 text-center">F</th>
+                              <th className="py-3 px-2 w-20 text-center">K</th>
+                              <th className="py-3 px-3 w-32 text-center">Skor (Risiko)</th>
+                              <th className="py-3 px-3">Penyebab</th>
                             </tr>
                           </thead>
-                          <tbody>
+                          <tbody className="divide-y divide-neutral-50 bg-white">
                             {list.map((row, i) => {
                               const score = row.frekuensi * row.dampak;
                               let label = "Rendah";
-                              let color = "text-success";
-                              if (score >= 10) { label = "Tinggi"; color = "text-danger"; }
-                              else if (score >= 5) { label = "Sedang"; color = "text-warning"; }
+                              let color = "text-success bg-success/5 border-success/15";
+                              if (score >= 10) { label = "Tinggi"; color = "text-danger bg-danger/5 border-danger/15"; }
+                              else if (score >= 5) { label = "Sedang"; color = "text-warning bg-warning/5 border-warning/15"; }
 
                               return (
-                                <tr key={i} className="border-b">
-                                  <td className="py-2 px-1 font-bold">{i + 1}</td>
-                                  <td className="py-1 px-1">
+                                <tr key={i} className="hover:bg-neutral-50/30 transition-colors">
+                                  <td className="py-4 px-4 font-bold text-center text-neutral-400">{i + 1}</td>
+                                  <td className="py-3 px-3">
                                     <input 
                                       type="text" 
                                       value={row.temuan}
                                       onChange={(e) => updateRow(i, "temuan", e.target.value)}
-                                      className="border rounded px-2 py-1 w-full text-xs" 
+                                      className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition" 
                                       placeholder="Contoh: Kabel terkelupas di lantai"
                                     />
                                   </td>
-                                  <td className="py-1 px-1">
+                                  <td className="py-3 px-3">
                                     <select
                                       value={row.kategori}
                                       onChange={(e) => updateRow(i, "kategori", e.target.value)}
-                                      className="border rounded px-1.5 py-1 w-full text-xs"
+                                      className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition bg-white cursor-pointer"
                                     >
                                       {KATEGORI_BAHAYA.map((kb) => <option key={kb} value={kb}>{kb}</option>)}
                                     </select>
                                   </td>
-                                  <td className="py-1 px-1">
+                                  <td className="py-3 px-2">
                                     <select
                                       value={row.frekuensi}
                                       onChange={(e) => updateRow(i, "frekuensi", parseInt(e.target.value))}
-                                      className="border rounded px-1 py-1 w-full text-xs text-center font-bold"
+                                      className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-2 py-2 w-full text-xs text-center font-bold outline-none transition bg-white cursor-pointer"
                                     >
                                       <option value="5">5</option>
                                       <option value="4">4</option>
@@ -1503,26 +1510,28 @@ export default function TugasPage() {
                                       <option value="1">1</option>
                                     </select>
                                   </td>
-                                  <td className="py-1 px-1">
+                                  <td className="py-3 px-2">
                                     <select
                                       value={row.dampak}
                                       onChange={(e) => updateRow(i, "dampak", parseInt(e.target.value))}
-                                      className="border rounded px-1 py-1 w-full text-xs text-center font-bold"
+                                      className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-2 py-2 w-full text-xs text-center font-bold outline-none transition bg-white cursor-pointer"
                                     >
                                       <option value="3">3</option>
                                       <option value="2">2</option>
                                       <option value="1">1</option>
                                     </select>
                                   </td>
-                                  <td className={`py-1 px-1 text-center font-bold text-[11px] ${color}`}>
-                                    {score} ({label})
+                                  <td className="py-3 px-3 text-center">
+                                    <span className={`inline-block font-black px-2.5 py-1 rounded-full text-[10px] border ${color}`}>
+                                      {score} ({label})
+                                    </span>
                                   </td>
-                                  <td className="py-1 px-1">
+                                  <td className="py-3 px-3">
                                     <input 
                                       type="text" 
                                       value={row.penyebab}
                                       onChange={(e) => updateRow(i, "penyebab", e.target.value)}
-                                      className="border rounded px-2 py-1 w-full text-xs" 
+                                      className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition" 
                                       placeholder="Contoh: Gesekan pintu / umur kabel"
                                     />
                                   </td>
@@ -1629,22 +1638,28 @@ export default function TugasPage() {
                     <Info size={16} />
                     <h3 className="text-xs font-bold uppercase tracking-wider">Panduan 7 Jenis Waste (Pemborosan)</h3>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
                     {[
-                      { key: "MOTION", title: "Gerak Berlebihan", desc: "Gerakan fisik pekerja tidak perlu" },
-                      { key: "TRANSPORT", title: "Mengangkut", desc: "Pemindahan material tak efisien" },
-                      { key: "WAITING", title: "Menunggu", desc: "Waktu jeda antrian proses" },
-                      { key: "OVERPROD", title: "Produksi Lebih", desc: "Membuat melampaui kuantitas target" },
-                      { key: "INVENTORY", title: "Stok Berlebih", desc: "Stok menumpuk & menghabiskan ruang" },
-                      { key: "PROCESS", title: "Proses Berlebih", desc: "Langkah pengerjaan berulang/tidak perlu" },
-                      { key: "REWORK", title: "Perbaikan Ulang", desc: "Memperbaiki barang cacat / defect" }
-                    ].map((w) => (
-                      <div key={w.key} className="bg-white rounded-xl border p-2 text-center flex flex-col justify-between">
-                        <span className="text-[8px] font-black uppercase text-primary tracking-widest">{w.key}</span>
-                        <h4 className="text-[9px] font-bold text-neutral-800 mt-1">{w.title}</h4>
-                        <p className="text-[8px] text-neutral-400 mt-0.5 leading-snug">{w.desc}</p>
-                      </div>
-                    ))}
+                      { key: "MOTION", title: "Gerak Berlebihan", desc: "Gerakan fisik tidak perlu", icon: Activity, color: "bg-orange-50 text-orange-600 border-orange-100" },
+                      { key: "TRANSPORT", title: "Mengangkut", desc: "Pemindahan tidak efisien", icon: Truck, color: "bg-blue-50 text-blue-600 border-blue-100" },
+                      { key: "WAITING", title: "Menunggu", desc: "Waktu jeda antrian proses", icon: Clock, color: "bg-amber-50 text-amber-600 border-amber-100" },
+                      { key: "OVERPROD", title: "Produksi Lebih", desc: "Melampaui target kuantitas", icon: Copy, color: "bg-red-50 text-red-600 border-red-100" },
+                      { key: "INVENTORY", title: "Stok Berlebih", desc: "Menumpuk di gudang", icon: Archive, color: "bg-purple-50 text-purple-600 border-purple-100" },
+                      { key: "PROCESS", title: "Proses Berlebih", desc: "Pengerjaan berulang", icon: Cpu, color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
+                      { key: "REWORK", title: "Perbaikan Ulang", desc: "Memperbaiki barang cacat", icon: RotateCcw, color: "bg-rose-50 text-rose-600 border-rose-100" }
+                    ].map((w) => {
+                      const IconComp = w.icon;
+                      return (
+                        <div key={w.key} className="bg-white rounded-xl border border-neutral-100 p-3 text-center flex flex-col items-center justify-between shadow-xs hover:border-neutral-200 transition">
+                          <div className={`p-2 rounded-xl border mb-2 ${w.color}`}>
+                            <IconComp size={18} />
+                          </div>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-neutral-400">{w.key}</span>
+                          <h4 className="text-[10px] font-bold text-neutral-850 mt-1">{w.title}</h4>
+                          <p className="text-[8px] text-neutral-400 mt-1 leading-snug">{w.desc}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1739,33 +1754,33 @@ export default function TugasPage() {
                     };
 
                     return (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs text-left border-collapse min-w-[500px]">
+                      <div className="overflow-x-auto rounded-xl border border-neutral-100 shadow-2xs">
+                        <table className="w-full text-xs text-left border-collapse min-w-[700px]">
                           <thead>
-                            <tr className="bg-neutral-50 text-neutral-500 font-bold uppercase text-[9px] border-b">
-                              <th className="py-2 px-1 w-8">No</th>
-                              <th className="py-2 px-1">Deskripsi Aktivitas Pemborosan (Esai)</th>
-                              <th className="py-2 px-1 w-48">Kategori Waste</th>
+                            <tr className="bg-neutral-50/75 text-neutral-450 font-black uppercase text-[9px] border-b border-neutral-100">
+                              <th className="py-3 px-4 w-12 text-center">No</th>
+                              <th className="py-3 px-3">Deskripsi Aktivitas Pemborosan (Esai)</th>
+                              <th className="py-3 px-3 w-64">Kategori Waste</th>
                             </tr>
                           </thead>
-                          <tbody>
+                          <tbody className="divide-y divide-neutral-50 bg-white">
                             {list.map((row, i) => (
-                              <tr key={i} className="border-b">
-                                <td className="py-2 px-1 font-bold">{i + 1}</td>
-                                <td className="py-1 px-1">
+                              <tr key={i} className="hover:bg-neutral-50/30 transition-colors">
+                                <td className="py-4 px-4 font-bold text-center text-neutral-400">{i + 1}</td>
+                                <td className="py-3 px-3">
                                   <input 
                                     type="text" 
                                     value={row.temuan}
                                     onChange={(e) => updateRow(i, "temuan", e.target.value)}
-                                    className="border rounded px-2 py-1 w-full text-xs" 
+                                    className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition" 
                                     placeholder="Contoh: Antri lama saat mengumpulkan kertas"
                                   />
                                 </td>
-                                <td className="py-1 px-1">
+                                <td className="py-3 px-3">
                                   <select
                                     value={row.kategori}
                                     onChange={(e) => updateRow(i, "kategori", e.target.value)}
-                                    className="border rounded px-1.5 py-1 w-full text-xs"
+                                    className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition bg-white cursor-pointer"
                                   >
                                     {KATEGORI_WASTE.map((kw) => <option key={kw} value={kw}>{kw}</option>)}
                                   </select>
