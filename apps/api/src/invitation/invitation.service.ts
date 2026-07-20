@@ -517,4 +517,17 @@ export class InvitationService {
       data: { role },
     });
   }
+
+  // 12. Menghapus pengguna aktif
+  async deleteUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new NotFoundException('Pengguna tidak ditemukan!');
+    }
+    return this.prisma.user.delete({
+      where: { id: userId },
+    });
+  }
 }

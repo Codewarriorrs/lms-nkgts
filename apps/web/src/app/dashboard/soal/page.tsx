@@ -14,6 +14,7 @@ import {
   Image as ImageIcon
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
+import TeacherDashboard from "@/components/dashboard/TeacherDashboard";
 
 interface LatsolStatus {
   modul_id: number;
@@ -36,6 +37,7 @@ interface Question {
 }
 
 export default function SoalPage() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [statusList, setStatusList] = useState<LatsolStatus[]>([]);
   
@@ -43,6 +45,15 @@ export default function SoalPage() {
   const [activeModuleId, setActiveModuleId] = useState<number | null>(null);
   const [activeModuleJudul, setActiveModuleJudul] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        setCurrentUser(JSON.parse(stored));
+      } catch (e) {}
+    }
+  }, []);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -150,6 +161,10 @@ export default function SoalPage() {
     setQuestions([]);
     setAnswers({});
   };
+
+  if (currentUser?.role === "admin" || currentUser?.role === "guru") {
+    return <TeacherDashboard tab="progres" />;
+  }
 
   if (loading && statusList.length === 0) {
     return (

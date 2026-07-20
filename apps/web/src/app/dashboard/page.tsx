@@ -19,21 +19,6 @@ import materiModules from "@/lib/materi-data";
 import { API_URL } from "@/lib/api";
 import TeacherDashboard from "@/components/dashboard/TeacherDashboard";
 
-const tugasBelumDikumpulkan = [
-  {
-    id: 1,
-    judul: "Identifikasi Masalah Area Praktik",
-    deadline: "Besok, 23.59",
-    urgent: true,
-  },
-  {
-    id: 2,
-    judul: "Laporan Observasi Lingkungan",
-    deadline: "3 hari lagi",
-    urgent: false,
-  },
-];
-
 const statusProject = {
   judul: "Optimasi Alur Kerja Bengkel Otomotif",
   status: "Disetujui",
@@ -51,11 +36,53 @@ function getGreeting() {
   return "Selamat Malam";
 }
 
+const ProfileCard = ({ user }: { user: any }) => {
+  if (!user) return null;
+  const roleColors: Record<string, string> = {
+    admin: "bg-purple-100 text-purple-700",
+    guru: "bg-blue-100 text-blue-700",
+    siswa: "bg-green-100 text-green-700"
+  };
+  const displayName = user.nama || user.name || "Nama Pengguna";
+  const displayRole = user.role || "siswa";
+  const displaySchool = user.sekolah?.nama_sekolah || user.sekolah_nama || user.school || "N-KGTS Pusat";
+  const displayClass = user.kelas || "-";
+  const avatarUrl = user.foto_profil || user.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+
+  return (
+    <div className="bg-white border border-neutral-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm max-w-sm shrink-0">
+      <img
+        src={avatarUrl}
+        alt={displayName}
+        className="w-12 h-12 rounded-full object-cover border border-neutral-100 shrink-0"
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+        }}
+      />
+      <div className="min-w-0 flex-1">
+        <h4 className="font-bold text-neutral-900 text-sm truncate">{displayName}</h4>
+        <div className="flex items-center gap-2 mt-1">
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${roleColors[displayRole] || "bg-neutral-100 text-neutral-700"}`}>
+            {displayRole}
+          </span>
+          {displayRole === "siswa" && (
+            <span className="text-[10px] text-neutral-500 font-bold">
+              Kelas {displayClass}
+            </span>
+          )}
+        </div>
+        <p className="text-[10px] text-neutral-400 font-semibold mt-1 truncate">{displaySchool}</p>
+      </div>
+    </div>
+  );
+};
+
 export default function DashboardPage() {
   const [greeting, setGreeting] = useState("Selamat Pagi");
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [progressMap, setProgressMap] = useState<Record<string, any>>({});
+  const [tugasPending, setTugasPending] = useState<any[]>([]);
 
   useEffect(() => {
     setGreeting(getGreeting());
@@ -88,6 +115,28 @@ export default function DashboardPage() {
       }
     };
     fetchProgress();
+  }, []);
+
+  // Fetch real pending tasks from database
+  useEffect(() => {
+    const fetchPendingTasks = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch(`${API_URL}/tugas-praktek/status-siswa`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Filter tasks that do not have any submissions
+          const pending = data.filter((t: any) => !t.submisi || t.submisi.length === 0);
+          setTugasPending(pending);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil tugas pending:", err);
+      }
+    };
+    fetchPendingTasks();
   }, []);
 
   // Compute real-time stats count
@@ -168,73 +217,63 @@ export default function DashboardPage() {
     <div className="flex h-full min-h-0 w-full overflow-hidden">
       {/* Left scrollable content */}
       <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8">
-        {/* Greeting Banner */}
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 leading-tight">
-            {greeting}, <span className="text-primary">{currentUser.name.split(" ")[0]}</span>
-          </h1>
-          <p className="text-neutral-400 text-xs font-semibold mt-1">
-            Lanjutkan progres belajar Anda untuk menyelesaikan program Kaizen Goes To School.
-          </p>
-        </div>
-
-        {/* Banner Announcement */}
-        <div className="bg-neutral-900 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-neutral-800 shadow-sm">
-          <div className="space-y-2.5 max-w-xl">
-            <span className="bg-accent text-neutral-900 text-[10px] font-bold px-2.5 py-0.5 rounded uppercase tracking-wider">
-              N-KGTS 2026
-            </span>
-            <h3 className="text-white font-bold text-lg sm:text-xl leading-snug">
-              Program National Kaizen Goes To School
-            </h3>
-            <p className="text-neutral-400 text-xs sm:text-sm leading-relaxed">
-              Selesaikan seluruh modul teori, latihan soal, dan project Kaizen untuk mendapatkan sertifikasi resmi dari PT Toyota-Astra Motor.
+        {/* Top Banner and Profile Card */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900 leading-tight">
+              {greeting}, <span className="text-primary">{currentUser.nama || currentUser.name}</span>
+            </h1>
+            <p className="text-neutral-400 text-xs font-semibold mt-1">
+              Lanjutkan progres belajar Anda untuk menyelesaikan program Kaizen Goes To School.
             </p>
           </div>
-          
-          <button className="bg-white hover:bg-accent text-neutral-900 text-xs font-bold px-5 py-3 rounded-lg transition-colors duration-200 shrink-0">
-            Lihat Sertifikasi →
-          </button>
+          <ProfileCard user={currentUser} />
         </div>
 
-        {/* Stats Grid */}
-        <div className="space-y-3">
-          <h2 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-            Ringkasan Aktivitas
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {stats.map((s, i) => (
-              <StatCard key={s.label} {...s} delay={i * 100} />
-            ))}
-          </div>
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {stats.map((stat, i) => (
+            <StatCard
+              key={i}
+              label={stat.label}
+              value={stat.value}
+              total={stat.total}
+              icon={stat.icon}
+              color={stat.color}
+              delay={i * 100}
+            />
+          ))}
         </div>
 
-        {/* Lanjutkan Belajar Grid */}
-        <div className="space-y-3">
+        {/* Lanjutkan Belajar Section */}
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+            <h2 className="text-sm font-extrabold text-neutral-950 uppercase tracking-wider">
               Lanjutkan Belajar
             </h2>
-            <a
+            <Link
               href="/dashboard/materi"
-              className="text-xs font-bold text-primary hover:text-primary-light flex items-center gap-1 transition-colors duration-200"
+              className="text-xs font-bold text-primary hover:underline flex items-center gap-0.5"
             >
-              Lihat Semua <ChevronRight size={14} />
-            </a>
+              Semua Materi <ChevronRight size={14} />
+            </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {materiLanjutkan.map((item, i) => (
-              <Link key={item.id} href={`/dashboard/materi/${(item as any).slug}`}>
-                <MateriCard item={item} index={i} />
-              </Link>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {materiLanjutkan.map((m, idx) => (
+              <MateriCard
+                key={m.id}
+                item={m}
+                index={idx}
+              />
             ))}
           </div>
         </div>
       </div>
 
-      {/* Right Sidebar Panel */}
-      <aside className="hidden xl:flex flex-col w-80 flex-shrink-0 border-l border-neutral-100 bg-white px-6 py-8 space-y-8 overflow-y-auto">
-        {/* Recent Materi */}
+      {/* Right Sidebar Widgets */}
+      <aside className="w-80 border-l border-neutral-100 bg-white p-6 space-y-8 overflow-y-auto hidden xl:block flex-shrink-0">
+        {/* Recent Materials */}
         <div className="space-y-4">
           <h3 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
             <BookMarked size={14} className="text-neutral-400" />
@@ -277,14 +316,11 @@ export default function DashboardPage() {
             Tugas Pending
           </h3>
           <div className="space-y-3">
-            {tugasBelumDikumpulkan.map((t) => (
-              <div
+            {tugasPending.map((t) => (
+              <Link
                 key={t.id}
-                className={`p-4 rounded-xl border transition-colors duration-200 cursor-pointer ${
-                  t.urgent
-                    ? "bg-danger/5 border-danger/20 hover:border-danger/30"
-                    : "bg-neutral-50 border-neutral-100 hover:border-neutral-200"
-                }`}
+                href="/dashboard/tugas"
+                className="block p-4 rounded-xl border transition-colors duration-200 cursor-pointer bg-neutral-50 border-neutral-100 hover:border-neutral-200"
               >
                 <p className="text-neutral-900 text-xs font-bold leading-snug line-clamp-2">
                   {t.judul}
@@ -292,18 +328,17 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-1.5 mt-3">
                   <Clock
                     size={13}
-                    className={t.urgent ? "text-danger" : "text-neutral-400"}
+                    className="text-neutral-400"
                   />
-                  <span
-                    className={`text-xs font-semibold ${
-                      t.urgent ? "text-danger" : "text-neutral-400"
-                    }`}
-                  >
-                    Deadline: {t.deadline}
+                  <span className="text-xs font-semibold text-neutral-400">
+                    Belum dikerjakan
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
+            {tugasPending.length === 0 && (
+              <p className="text-xs text-neutral-400 italic text-center py-4">Tidak ada tugas pending.</p>
+            )}
           </div>
         </div>
 

@@ -137,7 +137,6 @@ export default function MateriDetailPage() {
         setAnswers({});
       }
     }
-
     // Ambil progres ter-update dari database
     const fetchDbProgress = async () => {
       try {
@@ -149,13 +148,23 @@ export default function MateriDetailPage() {
         if (res.ok) {
           const data = await res.json();
           const dbProgress = data[dbModule.id.toString()];
+          const initial = getInitialProgress(dbModule.id);
+          
+          let nextProgress = initial.scrollProgress;
+          let nextCompleted = initial.completed;
+          let nextScore = initial.score;
+
           if (dbProgress) {
+            nextProgress = Math.max(initial.scrollProgress, dbProgress.scrollProgress);
+            nextCompleted = dbProgress.completed || initial.completed;
+            nextScore = dbProgress.score ?? initial.score;
+            
             setProgress((current) => {
               const updated = {
                 ...current,
-                completed: dbProgress.completed || current.completed,
-                scrollProgress: Math.max(current.scrollProgress, dbProgress.scrollProgress),
-                score: dbProgress.score ?? current.score,
+                completed: nextCompleted,
+                scrollProgress: nextProgress,
+                score: nextScore,
               };
               lastSavedProgressRef.current = updated.scrollProgress;
               return updated;
@@ -163,6 +172,11 @@ export default function MateriDetailPage() {
             if (dbProgress.score !== null) {
               setSubmitted(true);
             }
+          }
+          
+          // SINKRONISASI KE DB: Jika progres lokal lebih tinggi atau sudah selesai dibanding DB
+          if (!dbProgress || initial.scrollProgress > dbProgress.scrollProgress || (initial.completed && !dbProgress.completed)) {
+            await saveProgressToDb(nextProgress, nextCompleted);
           }
         }
       } catch (err) {
@@ -176,7 +190,7 @@ export default function MateriDetailPage() {
   useEffect(() => {
     if (!dbModule || isEditing) return;
 
-    if (dbModule.urutan && dbModule.urutan > 1) {
+    if (currentUser?.role === "siswa" && dbModule.urutan && dbModule.urutan > 1) {
       try {
         const saved = window.localStorage.getItem(STORAGE_KEY);
         const parsed = saved ? JSON.parse(saved) : {};
@@ -188,7 +202,7 @@ export default function MateriDetailPage() {
     } else {
       setLockedByPrev(false);
     }
-  }, [dbModule, isEditing]);
+  }, [dbModule, isEditing, currentUser]);
 
   useEffect(() => {
     const container = document.getElementById("module-content");

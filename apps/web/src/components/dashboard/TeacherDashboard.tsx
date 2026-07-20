@@ -32,6 +32,7 @@ import {
 import { API_URL } from "@/lib/api";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { uploadFileOrBase64 } from "@/utils/upload";
+import { CircularProgressCard } from "@/components/ui/circular-progress-card";
 
 interface TeacherDashboardProps {
   tab?: "ringkasan" | "tugas" | "project" | "progres" | "materi";
@@ -191,6 +192,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
     const map: Record<string, { totalSiswa: number; totalModulSelesai: number; totalModul: number; avgProgressPercent: number }> = {};
     studentsProgress.forEach((student) => {
       const sch = student.sekolah_nama || "N-KGTS Pusat";
+      if (sch === "N-KGTS Pusat") return;
       if (!map[sch]) {
         map[sch] = { totalSiswa: 0, totalModulSelesai: 0, totalModul: 0, avgProgressPercent: 0 };
       }
@@ -215,7 +217,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
   const schoolsList = useMemo(() => {
     const schools = new Set<string>();
     studentsProgress.forEach((s) => {
-      if (s.sekolah_nama) schools.add(s.sekolah_nama);
+      if (s.sekolah_nama && s.sekolah_nama !== "N-KGTS Pusat") schools.add(s.sekolah_nama);
     });
     return ["Semua", ...Array.from(schools)];
   }, [studentsProgress]);
@@ -621,15 +623,45 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       {/* ── TAB 1: RINGKASAN ── */}
       {tab === "ringkasan" && (
         <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-neutral-900 leading-tight">
-              {currentUser?.role === "admin" ? "Dashboard Administrator" : "Dashboard Guru"}
-            </h1>
-            <p className="text-neutral-400 text-xs font-semibold mt-1">
-              {currentUser?.role === "admin" 
-                ? "Pantau dan kelola progres seluruh sekolah ambassador NKGTS 2026 secara global."
-                : "Kelola aktivitas pembelajaran dan pantau perkembangan proyek Kaizen di sekolah Anda."}
-            </p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-5">
+            <div>
+              <h1 className="text-2xl font-bold text-neutral-900 leading-tight">
+                {currentUser?.role === "admin" ? "Dashboard Administrator" : "Dashboard Guru"}
+              </h1>
+              <p className="text-neutral-400 text-xs font-semibold mt-1">
+                {currentUser?.role === "admin" 
+                  ? "Pantau dan kelola progres seluruh sekolah ambassador NKGTS 2026 secara global."
+                  : "Kelola aktivitas pembelajaran dan pantau perkembangan proyek Kaizen di sekolah Anda."}
+              </p>
+            </div>
+            {/* Small Profile Card Component */}
+            <div className="bg-white border border-neutral-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm max-w-sm shrink-0">
+              <img
+                src={currentUser?.foto_profil || currentUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop"}
+                alt={currentUser?.nama || currentUser?.name}
+                className="w-12 h-12 rounded-full object-cover border border-neutral-100 shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+                }}
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="font-bold text-neutral-900 text-sm truncate">{currentUser?.nama || currentUser?.name || "Nama Pengguna"}</h4>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    currentUser?.role === "admin" 
+                      ? "bg-purple-100 text-purple-700" 
+                      : currentUser?.role === "guru"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-green-100 text-green-700"
+                  }`}>
+                    {currentUser?.role}
+                  </span>
+                </div>
+                <p className="text-[10px] text-neutral-400 font-semibold mt-1 truncate">
+                  {currentUser?.sekolah?.nama_sekolah || currentUser?.sekolah_nama || currentUser?.school || "N-KGTS Pusat"}
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -687,55 +719,37 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
               Kelola Materi Teori →
             </button>
           </div>
-
-          {/* Table of School Summaries for Admin */}
+          {/* Circular Progress Cards of School Summaries for Admin */}
           {currentUser?.role === "admin" && (
-            <div className="bg-white p-5 rounded-xl border border-neutral-100 space-y-3 shadow-xs">
-              <h3 className="font-bold text-sm text-neutral-900">Progres Sekolah Ambassador NKGTS</h3>
-              <p className="text-xs text-neutral-400">Ringkasan aktivitas belajar dan rata-rata pencapaian modul per sekolah.</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-neutral-50/50 text-neutral-400 font-extrabold uppercase border-b border-neutral-100">
-                      <th className="px-4 py-3">Nama Sekolah</th>
-                      <th className="px-4 py-3 text-center">Jumlah Siswa</th>
-                      <th className="px-4 py-3 text-center">Rata-rata Progres Modul</th>
-                      <th className="px-4 py-3 text-right">Detail</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100 text-neutral-700">
-                    {schoolSummaries.map((sch) => (
-                      <tr key={sch.nama_sekolah} className="hover:bg-neutral-50/30 transition">
-                        <td className="px-4 py-3 font-bold text-neutral-850">{sch.nama_sekolah}</td>
-                        <td className="px-4 py-3 text-center font-semibold text-neutral-500">{sch.totalSiswa} Siswa</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="font-bold text-primary min-w-8 text-right">{sch.avgProgressPercent}%</span>
-                            <div className="w-24">
-                              <ProgressBar value={sch.avgProgressPercent} color="bg-primary" />
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button 
-                            onClick={() => {
-                              setSelectedSchool(sch.nama_sekolah);
-                              router.push(`/dashboard/progres?sekolah=${encodeURIComponent(sch.nama_sekolah)}`);
-                            }}
-                            className="text-primary hover:underline font-bold text-xs"
-                          >
-                            Lihat Siswa →
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {schoolSummaries.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-4 py-6 text-center text-neutral-400 italic">Tidak ada data sekolah terdaftar.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-bold text-sm text-neutral-900">Progres Sekolah Ambassador NKGTS</h3>
+                <p className="text-xs text-neutral-400">Ringkasan aktivitas belajar dan rata-rata pencapaian modul per sekolah.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {schoolSummaries.map((sch) => (
+                  <div
+                    key={sch.nama_sekolah}
+                    onClick={() => {
+                      setSelectedSchool(sch.nama_sekolah);
+                      router.push(`/dashboard/progres?sekolah=${encodeURIComponent(sch.nama_sekolah)}`);
+                    }}
+                    className="cursor-pointer transition hover:scale-[1.02] flex"
+                  >
+                    <CircularProgressCard
+                      title={sch.nama_sekolah}
+                      description={`${sch.totalSiswa} Siswa terdaftar`}
+                      currentValue={sch.avgProgressPercent}
+                      goalValue={100}
+                      currency=""
+                      progressColor="hsl(var(--primary))"
+                      className="w-full text-left"
+                    />
+                  </div>
+                ))}
+                {schoolSummaries.length === 0 && (
+                  <p className="text-neutral-400 italic text-xs py-4 col-span-3">Tidak ada data sekolah terdaftar.</p>
+                )}
               </div>
             </div>
           )}
@@ -819,6 +833,17 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   className="pl-8 pr-4 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none"
                 />
               </div>
+              {currentUser?.role === "admin" && (
+                <select 
+                  value={selectedSchool}
+                  onChange={(e) => setSelectedSchool(e.target.value)}
+                  className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold"
+                >
+                  {schoolsList.map((s) => (
+                    <option key={s} value={s}>{s === "Semua" ? "Semua Sekolah" : s}</option>
+                  ))}
+                </select>
+              )}
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -923,6 +948,17 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   className="pl-8 pr-4 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none"
                 />
               </div>
+              {currentUser?.role === "admin" && (
+                <select 
+                  value={selectedSchool}
+                  onChange={(e) => setSelectedSchool(e.target.value)}
+                  className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold"
+                >
+                  {schoolsList.map((s) => (
+                    <option key={s} value={s}>{s === "Semua" ? "Semua Sekolah" : s}</option>
+                  ))}
+                </select>
+              )}
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -1720,6 +1756,14 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                 ))}
               </div>
             </div>
+            <div className="border-t border-neutral-100 pt-4 flex justify-end">
+              <button
+                onClick={() => setSelectedStudent(null)}
+                className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl transition"
+              >
+                Kembali
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2018,36 +2062,63 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       )}
 
       {/* ── DETAIL MODAL: PENILAIAN & REVIEW PROJECT KAIZEN ── */}
-      {selectedProjectSubmisi && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-neutral-100 flex flex-col space-y-4">
-            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
-              <div>
-                <h3 className="font-bold text-neutral-900 text-sm">Review & Revisi Proyek Kaizen</h3>
-                <p className="text-[10px] text-neutral-450 font-bold uppercase mt-0.5">Siswa: {selectedProjectSubmisi.siswa.nama}</p>
-              </div>
-              <button 
-                onClick={() => setSelectedProjectSubmisi(null)}
-                className="p-1 hover:bg-neutral-50 rounded text-neutral-400"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 bg-neutral-50 rounded-xl flex items-center justify-between gap-3 border border-neutral-100">
-                <div className="min-w-0">
-                  <p className="font-bold text-neutral-400 text-[10px] uppercase">Tipe Pengumpulan</p>
-                  <p className="font-semibold text-neutral-900 capitalize text-sm">{selectedProjectSubmisi.tipe}</p>
+      {selectedProjectSubmisi && (() => {
+        const fileUrl = selectedProjectSubmisi.file_url || "";
+        const isImage = /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(fileUrl) || fileUrl.startsWith("data:image/");
+        const isPdf = /\.pdf$/i.test(fileUrl);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl border border-neutral-100 flex flex-col space-y-4 max-h-[95vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+                <div>
+                  <h3 className="font-bold text-neutral-900 text-sm">Review & Revisi Proyek Kaizen</h3>
+                  <p className="text-[10px] text-neutral-450 font-bold uppercase mt-0.5">Siswa: {selectedProjectSubmisi.siswa.nama}</p>
                 </div>
-                <a 
-                  href={selectedProjectSubmisi.file_url} 
-                  download={selectedProjectSubmisi.file_name}
-                  className="inline-flex items-center gap-1 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-3 py-1.5 rounded-lg font-bold shadow-2xs"
+                <button 
+                  onClick={() => setSelectedProjectSubmisi(null)}
+                  className="p-1 hover:bg-neutral-50 rounded text-neutral-400"
                 >
-                  <Download size={13} /> Unduh Berkas
-                </a>
+                  <X size={18} />
+                </button>
               </div>
+
+              <div className="space-y-3 text-xs">
+                {/* Pratinjau Berkas Inline */}
+                <div className="border border-neutral-200 rounded-xl overflow-hidden bg-neutral-100 h-80 flex items-center justify-center relative">
+                  {isImage ? (
+                    <img
+                      src={fileUrl}
+                      alt={selectedProjectSubmisi.file_name}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : isPdf ? (
+                    <iframe
+                      src={fileUrl}
+                      className="w-full h-full border-none"
+                      title={selectedProjectSubmisi.file_name}
+                    />
+                  ) : (
+                    <iframe
+                      src={`https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+                      className="w-full h-full border-none"
+                      title={selectedProjectSubmisi.file_name}
+                    />
+                  )}
+                </div>
+
+                <div className="p-3 bg-neutral-50 rounded-xl flex items-center justify-between gap-3 border border-neutral-100">
+                  <div className="min-w-0">
+                    <p className="font-bold text-neutral-400 text-[10px] uppercase">Tipe Pengumpulan</p>
+                    <p className="font-semibold text-neutral-900 capitalize text-sm">{selectedProjectSubmisi.tipe}</p>
+                  </div>
+                  <a 
+                    href={selectedProjectSubmisi.file_url} 
+                    download={selectedProjectSubmisi.file_name}
+                    className="inline-flex items-center gap-1 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-3 py-1.5 rounded-lg font-bold shadow-2xs"
+                  >
+                    <Download size={13} /> Unduh Berkas
+                  </a>
+                </div>
 
               {selectedProjectSubmisi.catatan_siswa && (
                 <div className="space-y-1">
@@ -2115,7 +2186,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
             </div>
           </div>
         </div>
-      )}
+      )})}
     </div>
   );
 }

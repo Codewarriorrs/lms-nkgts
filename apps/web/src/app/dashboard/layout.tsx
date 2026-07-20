@@ -21,6 +21,19 @@ export default function DashboardLayout({
   });
 
   useEffect(() => {
+    // Intercept global fetch to handle 401 Unauthorized errors
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      if (response.status === 401) {
+        console.warn("Sesi berakhir (401 Unauthorized), mengarahkan ke halaman login...");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        router.replace("/login");
+      }
+      return response;
+    };
+
     const token = localStorage.getItem("token");
     if (!token) {
       router.replace("/login");
@@ -36,6 +49,10 @@ export default function DashboardLayout({
       }
     }
     setIsVerifying(false);
+
+    return () => {
+      window.fetch = originalFetch;
+    };
   }, [router]);
 
   const handleMenuClick = () => {

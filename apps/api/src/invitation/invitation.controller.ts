@@ -148,4 +148,12 @@ export class InvitationController {
     }
     return this.invitationService.updateUserRole(id, roleEnum);
   }
+
+  // 12. Hapus pengguna (Admin only)
+  @Delete('admin/users/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async deleteUser(@Param('id') id: string) {
+    return this.invitationService.deleteUser(id);
+  }
 }

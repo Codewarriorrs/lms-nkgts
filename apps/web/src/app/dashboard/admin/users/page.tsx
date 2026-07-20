@@ -88,6 +88,7 @@ export default function AdminUsersPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Authenticate Admin
   useEffect(() => {
@@ -103,6 +104,7 @@ export default function AdminUsersPage() {
         return;
       }
       setIsAdmin(true);
+      setCurrentUser(u);
     } catch (e) {
       router.push("/login");
     }
@@ -247,6 +249,30 @@ export default function AdminUsersPage() {
       setErrorMsg(err.message);
     } finally {
       setUpdatingRole(false);
+    }
+  };
+
+  // 4c. Handle delete user
+  const handleDeleteUser = async (id: string, name: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus pengguna "${name}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/users/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal menghapus pengguna");
+      setSuccessMsg(`Pengguna "${name}" berhasil dihapus.`);
+      fetchActiveUsers();
+    } catch (err: any) {
+      setErrorMsg(err.message);
     }
   };
 
@@ -550,16 +576,24 @@ export default function AdminUsersPage() {
                             day: "numeric"
                           })}
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => {
-                              setSelectedEditUser(user);
-                              setEditRoleValue(user.role);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-100 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer"
-                          >
-                            Ubah Role
-                          </button>
+                        <td className="px-6 py-4 text-right space-x-2">
+                           <button
+                             onClick={() => {
+                               setSelectedEditUser(user);
+                               setEditRoleValue(user.role);
+                             }}
+                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-100 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer"
+                           >
+                             Ubah Role
+                           </button>
+                           {user.email !== "admin@nkgts.com" && user.id !== currentUser?.id && (
+                             <button
+                               onClick={() => handleDeleteUser(user.id, user.nama)}
+                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-50 text-red-650 text-xs font-bold transition cursor-pointer"
+                             >
+                               Hapus
+                             </button>
+                           )}
                         </td>
                       </tr>
                     ))
