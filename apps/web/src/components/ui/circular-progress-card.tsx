@@ -19,6 +19,7 @@ interface CircularProgressCardProps {
   currency?: string;
   progressColor?: string; // Prop to customize the progress bar color
   className?: string;
+  subtext?: string; // Optional custom subtext below percentage
 }
 
 /**
@@ -33,6 +34,7 @@ export const CircularProgressCard = ({
   currency = "$",
   progressColor,
   className,
+  subtext,
 }: CircularProgressCardProps) => {
   const cardRef = React.useRef<HTMLDivElement>(null);
   // Animate the progress bar when it enters the viewport
@@ -106,8 +108,8 @@ export const CircularProgressCard = ({
             <span className="text-2xl font-black text-neutral-900">
               {progressPercentage}%
             </span>
-            <span className="text-[10px] text-neutral-400 font-bold mt-0.5">
-              {currentValue} / {goalValue} {currency ? currency : "Modul"}
+            <span className="text-[10px] text-neutral-450 font-bold mt-0.5 px-2 text-center">
+              {subtext ? subtext : `${currentValue} / ${goalValue} ${currency ? currency : "Modul"}`}
             </span>
           </div>
         </div>

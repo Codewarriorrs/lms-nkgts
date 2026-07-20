@@ -742,7 +742,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                       currentValue={sch.avgProgressPercent}
                       goalValue={100}
                       currency=""
-                      progressColor="hsl(var(--primary))"
+                      subtext="Rata-rata Progres"
                       className="w-full text-left"
                     />
                   </div>
