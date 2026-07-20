@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
 
 // Props interface for type safety and component reusability
@@ -55,16 +56,16 @@ export const CircularProgressCard = ({
   }, [currentValue, goalValue]);
 
   // Determine the stroke color, defaulting to the primary theme color
-  const color = progressColor || "hsl(var(--primary))";
+  const color = progressColor || "var(--color-primary, #1A3F8F)";
 
   return (
-    <Card ref={cardRef} className={cn("w-full max-w-sm text-center", className)}>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+    <Card ref={cardRef} className={cn("w-full max-w-sm text-center flex flex-col justify-between hover:border-neutral-200 transition-colors shadow-2xs bg-white", className)}>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-extrabold text-neutral-900 line-clamp-1">{title}</CardTitle>
+        <CardDescription className="text-xs text-neutral-400 line-clamp-1">{description}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="relative mx-auto h-52 w-52">
+      <CardContent className="pb-4">
+        <div className="relative mx-auto h-36 w-36">
           {/* SVG container for the circular progress bar */}
           <svg
             width="100%"
@@ -81,7 +82,7 @@ export const CircularProgressCard = ({
                 cy="100"
                 r="80"
                 fill="transparent"
-                stroke="hsl(var(--muted))"
+                stroke="var(--color-neutral-100, #E8ECF4)"
                 strokeWidth="16"
               />
               {/* Animated foreground progress bar */}
@@ -102,17 +103,20 @@ export const CircularProgressCard = ({
           </svg>
           {/* Text content centered inside the circle */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-4xl font-bold text-foreground">
+            <span className="text-2xl font-black text-neutral-900">
               {progressPercentage}%
             </span>
-            <span className="text-sm text-muted-foreground">
-              {currency}
-              {currentValue.toLocaleString()} / {currency}
-              {goalValue.toLocaleString()}
+            <span className="text-[10px] text-neutral-400 font-bold mt-0.5">
+              {currentValue} / {goalValue} {currency ? currency : "Modul"}
             </span>
           </div>
         </div>
       </CardContent>
+      <CardFooter className="pt-2 pb-4 border-t border-neutral-50 justify-center">
+        <span className="text-[11px] text-primary hover:text-primary-light font-black tracking-wider uppercase transition-colors">
+          Lihat Detail →
+        </span>
+      </CardFooter>
     </Card>
   );
 };
