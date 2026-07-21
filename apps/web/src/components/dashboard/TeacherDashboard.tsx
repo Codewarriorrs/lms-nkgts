@@ -27,7 +27,10 @@ import {
   Undo,
   Redo,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  ExternalLink,
+  Edit3
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -370,6 +373,38 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       console.error("Gagal mengunggah file revisi:", err);
     } finally {
       setSubmittingGrade(false);
+    }
+  };
+  // Direct document opening (Base64 to Blob URL or HTTP link)
+  const handleDirectOpenDocument = (fileUrl: string, fileName: string) => {
+    if (!fileUrl) {
+      alert("URL berkas dokumen tidak tersedia.");
+      return;
+    }
+    if (fileUrl.startsWith("data:")) {
+      try {
+        const arr = fileUrl.split(",");
+        const mime = arr[0].match(/:(.*?);/)?.[1] || "application/pdf";
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.target = "_blank";
+        a.click();
+      } catch (e) {
+        const win = window.open();
+        if (win) {
+          win.document.write(`<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0; left:0; width:100%; height:100%; position:fixed;"></iframe>`);
+        }
+      }
+    } else {
+      window.open(fileUrl, "_blank");
     }
   };
 
@@ -1014,7 +1049,20 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                             {item.tipe}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-bold text-neutral-800 truncate max-w-[200px]">{item.file_name}</td>
+                        <td className="px-6 py-4">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDirectOpenDocument(item.file_url, item.file_name);
+                            }}
+                            className="text-primary hover:underline font-bold inline-flex items-center gap-1.5 truncate max-w-[220px] text-left cursor-pointer"
+                            title="Klik untuk langsung membuka & pratinjau berkas dokumen"
+                          >
+                            <FileText size={14} className="shrink-0 text-primary" />
+                            <span className="truncate">{item.file_name}</span>
+                          </button>
+                        </td>
                         <td className="px-6 py-4">
                           {item.nilai !== null ? (
                             <span className="px-2.5 py-0.5 rounded-full font-bold bg-success/10 text-success text-[10px]">
@@ -1027,18 +1075,32 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedProjectSubmisi(item);
-                              setGradingScore(item.nilai ?? "");
-                              setGradingFeedback(item.catatan_guru ?? "");
-                              setGradingRevisiFile(item.file_revisi_name ? { name: item.file_revisi_name, url: item.file_revisi_url || "" } : null);
-                            }}
-                            className="inline-flex items-center gap-1 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shadow-2xs"
-                          >
-                            Review Dokumen
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDirectOpenDocument(item.file_url, item.file_name);
+                              }}
+                              className="inline-flex items-center gap-1 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shadow-2xs"
+                              title="Buka & Pratinjau Dokumen PDF/Word di Tab Baru"
+                            >
+                              <Eye size={13} className="text-primary" /> Preview
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedProjectSubmisi(item);
+                                setGradingScore(item.nilai ?? "");
+                                setGradingFeedback(item.catatan_guru ?? "");
+                                setGradingRevisiFile(item.file_revisi_name ? { name: item.file_revisi_name, url: item.file_revisi_url || "" } : null);
+                              }}
+                              className="inline-flex items-center gap-1 bg-primary text-white hover:bg-primary-light px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shadow-2xs"
+                            >
+                              <Edit3 size={13} /> Review & Nilai
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
