@@ -179,8 +179,9 @@ export default function DashboardPage() {
 
   // Compute real-time stats count
   const stats = useMemo(() => {
-    const accessedCount = Object.values(progressMap).filter(
-      (p: any) => p.scrollProgress > 0 || (p.score !== null && p.score > 0)
+    const validIds = new Set(materiModules.map(m => m.id.toString()));
+    const accessedCount = Object.entries(progressMap).filter(
+      ([key, p]: [string, any]) => validIds.has(key) && (p.scrollProgress > 0 || (p.score !== null && p.score > 0))
     ).length;
 
     return [

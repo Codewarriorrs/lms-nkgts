@@ -176,6 +176,7 @@ export default function TugasPage() {
   const [S1_tidakPerlu, setS1_tidakPerlu] = useState<string[]>([""]);
   const [activePill, setActivePill] = useState<string | null>(null);
   const [pillAssignments, setPillAssignments] = useState<Record<string, "recycle" | "relocation" | "dispose">>({});
+  const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
 
   const handleAddRow = () => {
     setS1_tidakPerlu((prev) => [...prev, ""]);
@@ -283,6 +284,31 @@ export default function TugasPage() {
     }
     return S1_tidakPerlu;
   }, [tasks, S1_tidakPerlu]);
+
+  // Automatically synchronize item actions & notes to S2_recycle, S2_relocation, and S2_dispose
+  useEffect(() => {
+    const recycleLines: string[] = [];
+    const relocationLines: string[] = [];
+    const disposeLines: string[] = [];
+
+    const cleanItems = S1_tidakPerluRefValue.filter(item => item && item.trim() !== "");
+
+    cleanItems.forEach(item => {
+      const assignment = pillAssignments[item];
+      const note = itemNotes[item]?.trim() || "";
+      if (assignment === "recycle") {
+        recycleLines.push(`- ${item}${note ? `: ${note}` : ""}`);
+      } else if (assignment === "relocation") {
+        relocationLines.push(`- ${item}${note ? `: ${note}` : ""}`);
+      } else if (assignment === "dispose") {
+        disposeLines.push(`- ${item}${note ? `: ${note}` : ""}`);
+      }
+    });
+
+    setS2_recycle(recycleLines.length > 0 ? recycleLines.join("\n") : "Tidak ada");
+    setS2_relocation(relocationLines.length > 0 ? relocationLines.join("\n") : "Tidak ada");
+    setS2_dispose(disposeLines.length > 0 ? disposeLines.join("\n") : "Tidak ada");
+  }, [pillAssignments, itemNotes, S1_tidakPerluRefValue]);
 
   // Check if Checklist 5R has any "ADA" (NOT OK) items
   const s3HasNotOk = useMemo(() => {
@@ -895,166 +921,126 @@ export default function TugasPage() {
                     );
                   }
 
+                  const cleanItems = S1_tidakPerluRefValue.filter(item => item && item.trim() !== "");
+
                   return (
-                    <div className="space-y-4">
-                      {/* Read-only reference from S1 */}
-                      <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-100 space-y-2">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase block">
-                          Daftar Barang Tidak Diperlukan (Dari Tahap 1) - Klik Barang untuk Memilah Otomatis
-                        </span>
-                        
-                        <div className="flex flex-wrap gap-2">
-                          {S1_tidakPerluRefValue.length > 0 ? (
-                            S1_tidakPerluRefValue.map((item, idx) => {
-                              const assignment = pillAssignments[item];
-                              const isSelected = activePill === item;
+                    <div className="space-y-6">
+                      {/* Interactive Sorting section */}
+                      <div className="bg-white rounded-2xl border border-neutral-100 p-5 space-y-4 shadow-sm">
+                        <div className="flex items-center gap-2 border-b pb-3">
+                          <Activity size={18} className="text-primary" />
+                          <h3 className="text-sm font-bold text-neutral-800">Pemilahan Barang Tidak Diperlukan</h3>
+                        </div>
+                        <p className="text-xs text-neutral-500 leading-relaxed">
+                          Tentukan tindakan pemilahan untuk setiap barang tidak diperlukan yang telah Anda daftarkan pada Tahap 1. Pilih kategori tindakan dan berikan catatan singkat rencana aksinya.
+                        </p>
+
+                        {cleanItems.length > 0 ? (
+                          <div className="space-y-4 mt-4">
+                            {cleanItems.map((item, idx) => {
+                              const assignment = pillAssignments[item] || null;
+                              const note = itemNotes[item] || "";
                               
                               return (
-                                <div key={idx} className="relative">
-                                  <button
-                                    type="button"
-                                    onClick={() => setActivePill(isSelected ? null : item)}
-                                    className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition cursor-pointer ${
-                                      assignment === "recycle"
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                        : assignment === "relocation"
-                                          ? "bg-blue-50 text-blue-700 border-blue-200"
-                                          : assignment === "dispose"
-                                            ? "bg-orange-50 text-orange-700 border-orange-200"
-                                            : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
-                                    }`}
-                                  >
-                                    {assignment && (
-                                      <CheckCircle size={12} className="shrink-0" />
-                                    )}
-                                    <span>{item}</span>
-                                    {assignment && (
-                                      <span className="text-[9px] opacity-75 uppercase">
-                                        ({assignment === "recycle" ? "Recycle" : assignment === "relocation" ? "Relocate" : "Dispose"})
+                                <div key={idx} className="border border-neutral-100 rounded-xl p-4 space-y-3 bg-neutral-50/20 hover:border-neutral-200 transition shadow-sm">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-black">
+                                        {idx + 1}
                                       </span>
-                                    )}
-                                  </button>
+                                      <span className="font-bold text-neutral-800 text-sm">{item}</span>
+                                    </div>
 
-                                  {/* Popover Action Menu */}
-                                  {isSelected && (
-                                    <div className="absolute left-0 mt-2 z-30 bg-white border border-neutral-100 rounded-xl shadow-xl p-2.5 flex items-center gap-1.5 whitespace-nowrap min-w-[280px]">
-                                      <span className="text-[10px] font-bold text-neutral-400 mr-1">Aksi:</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setS2_recycle((prev) => {
-                                            const line = `- ${item}: `;
-                                            if (prev.includes(line)) return prev;
-                                            return prev ? `${prev}\n${line}` : line;
-                                          });
-                                          setPillAssignments((prev) => ({ ...prev, [item]: "recycle" }));
-                                          setActivePill(null);
+                                    {/* Action Button Group */}
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {[
+                                        { type: "recycle", label: "Daur Ulang", activeClass: "bg-emerald-500 text-white shadow-emerald-100", inactiveClass: "bg-neutral-100 text-neutral-600 hover:bg-emerald-50 hover:text-emerald-700" },
+                                        { type: "relocation", label: "Pindah Area", activeClass: "bg-blue-500 text-white shadow-blue-100", inactiveClass: "bg-neutral-100 text-neutral-600 hover:bg-blue-50 hover:text-blue-700" },
+                                        { type: "dispose", label: "Buang", activeClass: "bg-orange-500 text-white shadow-orange-100", inactiveClass: "bg-neutral-100 text-neutral-600 hover:bg-orange-50 hover:text-orange-700" }
+                                      ].map((btn) => {
+                                        const isActive = assignment === btn.type;
+                                        return (
+                                          <button
+                                            key={btn.type}
+                                            type="button"
+                                            onClick={() => {
+                                              setPillAssignments(prev => ({
+                                                ...prev,
+                                                [item]: (isActive ? null : btn.type) as any
+                                              }));
+                                            }}
+                                            className={`text-[10px] sm:text-xs font-extrabold px-3 py-1.5 rounded-lg border-0 transition-all cursor-pointer shadow-sm ${
+                                              isActive ? btn.activeClass : btn.inactiveClass
+                                            }`}
+                                          >
+                                            {btn.label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  {/* Note Input field based on selected action */}
+                                  {assignment && (
+                                    <div className="mt-2 pl-8">
+                                      <input
+                                        type="text"
+                                        value={note}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setItemNotes(prev => ({
+                                            ...prev,
+                                            [item]: val
+                                          }));
                                         }}
-                                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-1 rounded-lg border border-emerald-100 transition"
-                                      >
-                                        Recycle
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setS2_relocation((prev) => {
-                                            const line = `- ${item}: `;
-                                            if (prev.includes(line)) return prev;
-                                            return prev ? `${prev}\n${line}` : line;
-                                          });
-                                          setPillAssignments((prev) => ({ ...prev, [item]: "relocation" }));
-                                          setActivePill(null);
-                                        }}
-                                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-extrabold px-2 py-1 rounded-lg border border-blue-100 transition"
-                                      >
-                                        Relocate
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setS2_dispose((prev) => {
-                                            const line = `- ${item}: `;
-                                            if (prev.includes(line)) return prev;
-                                            return prev ? `${prev}\n${line}` : line;
-                                          });
-                                          setPillAssignments((prev) => ({ ...prev, [item]: "dispose" }));
-                                          setActivePill(null);
-                                        }}
-                                        className="bg-orange-50 hover:bg-orange-100 text-orange-700 text-[10px] font-extrabold px-2 py-1 rounded-lg border border-orange-100 transition"
-                                      >
-                                        Dispose
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setActivePill(null)}
-                                        className="text-neutral-400 hover:text-neutral-600 font-bold text-xs px-1"
-                                      >
-                                        &times;
-                                      </button>
+                                        placeholder={
+                                          assignment === "recycle"
+                                            ? "Contoh: Didaur ulang menjadi media tanaman..."
+                                            : assignment === "relocation"
+                                              ? "Contoh: Dipindahkan ke area penyimpanan khusus alat..."
+                                              : "Contoh: Dibuang langsung ke tempat pembuangan akhir..."
+                                        }
+                                        className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
+                                      />
                                     </div>
                                   )}
                                 </div>
                               );
-                            })
-                          ) : (
-                            <p className="text-xs text-neutral-400 italic">Tidak ada barang yang perlu dipilah (selesaikan Tahap 1 terlebih dahulu)</p>
-                          )}
-                        </div>
+                            })}
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 border border-dashed rounded-xl bg-neutral-50/50">
+                            <p className="text-xs text-neutral-400 italic">
+                              Tidak ada barang yang perlu dipilah. Silakan isi "Barang yang tidak diperlukan" pada Tahap 1 terlebih dahulu.
+                            </p>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-4">
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-neutral-600">Recycle (Daur Ulang)</label>
-                            <textarea 
-                              value={S2_recycle}
-                              onChange={(e) => setS2_recycle(e.target.value)}
-                              rows={3}
-                              maxLength={1000}
-                              className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              placeholder="Jelaskan barang apa yang didaur ulang & bagaimana..."
-                            />
-                            <div className="flex justify-between items-center px-1">
-                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
-                              <span className={`text-[10px] font-bold ${S2_recycle.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
-                                {S2_recycle.length} / 1000 karakter
-                              </span>
+                      {/* Photo upload and Compiled Preview section */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {/* Compiled Preview */}
+                        <div className="border border-neutral-100 rounded-2xl p-5 bg-neutral-50/40 space-y-3">
+                          <h4 className="text-xs font-black uppercase text-neutral-500 tracking-wider">Ringkasan Hasil Tindakan</h4>
+                          
+                          <div className="space-y-3 divide-y divide-neutral-100 text-xs">
+                            <div className="pt-1">
+                              <span className="font-bold text-emerald-600 block">Recycle (Daur Ulang):</span>
+                              <p className="text-neutral-700 mt-1 whitespace-pre-wrap font-semibold bg-white p-2.5 rounded-lg border border-neutral-100 leading-relaxed min-h-[50px]">
+                                {S2_recycle !== "Tidak ada" ? S2_recycle : "Belum ada tindakan daur ulang."}
+                              </p>
                             </div>
-                          </div>
-
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-neutral-600">Relocation (Memindahkan ke area khusus)</label>
-                            <textarea 
-                              value={S2_relocation}
-                              onChange={(e) => setS2_relocation(e.target.value)}
-                              rows={3}
-                              maxLength={1000}
-                              className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              placeholder="Jelaskan barang apa saja yang dipindahkan dan ke mana lokasi pemindahannya..."
-                            />
-                            <div className="flex justify-between items-center px-1">
-                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
-                              <span className={`text-[10px] font-bold ${S2_relocation.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
-                                {S2_relocation.length} / 1000 karakter
-                              </span>
+                            <div className="pt-3">
+                              <span className="font-bold text-blue-600 block">Relocation (Pindah):</span>
+                              <p className="text-neutral-700 mt-1 whitespace-pre-wrap font-semibold bg-white p-2.5 rounded-lg border border-neutral-100 leading-relaxed min-h-[50px]">
+                                {S2_relocation !== "Tidak ada" ? S2_relocation : "Belum ada tindakan pemindahan."}
+                              </p>
                             </div>
-                          </div>
-
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-neutral-600">Dispose (Buang)</label>
-                            <textarea 
-                              value={S2_dispose}
-                              onChange={(e) => setS2_dispose(e.target.value)}
-                              rows={3}
-                              maxLength={1000}
-                              className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              placeholder="Tuliskan barang yang langsung dibuang ke tempat sampah..."
-                            />
-                            <div className="flex justify-between items-center px-1">
-                              <span className="text-[10px] text-neutral-400">Maksimal 1.000 karakter</span>
-                              <span className={`text-[10px] font-bold ${S2_dispose.length >= 900 ? "text-red-500 font-extrabold" : "text-neutral-400"}`}>
-                                {S2_dispose.length} / 1000 karakter
-                              </span>
+                            <div className="pt-3">
+                              <span className="font-bold text-orange-600 block">Dispose (Buang):</span>
+                              <p className="text-neutral-700 mt-1 whitespace-pre-wrap font-semibold bg-white p-2.5 rounded-lg border border-neutral-100 leading-relaxed min-h-[50px]">
+                                {S2_dispose !== "Tidak ada" ? S2_dispose : "Belum ada tindakan pembuangan."}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -1063,7 +1049,7 @@ export default function TugasPage() {
                         <div className="flex flex-col items-center justify-center border-2 border-dashed border-neutral-200 rounded-2xl p-6 bg-neutral-50/50 text-center min-h-[300px]">
                           {fotoS2 ? (
                             <div className="space-y-3 w-full">
-                              <img src={fotoS2} alt="Bukti Pembersihan" className="rounded-2xl max-h-52 object-cover border mx-auto" />
+                              <img src={fotoS2} alt="Bukti Pembersihan" className="rounded-2xl max-h-52 object-cover border mx-auto shadow-sm" />
                               <button 
                                 onClick={() => setFotoS2("")}
                                 className="text-xs font-bold text-danger hover:underline"
