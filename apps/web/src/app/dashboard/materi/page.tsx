@@ -61,8 +61,42 @@ export default function MateriPage() {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
-          const data = await res.json();
-          setProgressMap(data);
+          const dbData = await res.json();
+          const localData = getAllProgress();
+          const merged: Record<string, ModuleProgressState> = { ...dbData };
+
+          for (const [key, localVal] of Object.entries(localData)) {
+            const dbVal = merged[key];
+            if (!dbVal) {
+              merged[key] = localVal;
+            } else {
+              const maxProgress = Math.max(dbVal.scrollProgress || 0, localVal.scrollProgress || 0);
+              const isComp = Boolean(dbVal.completed || localVal.completed || (localVal.score !== null && localVal.score >= 70));
+              merged[key] = {
+                completed: isComp,
+                scrollProgress: maxProgress,
+                score: dbVal.score ?? localVal.score ?? null,
+              };
+
+              // Jika progres lokal lebih tinggi dari DB, sinkronkan ke DB
+              if (localVal.scrollProgress > (dbVal.scrollProgress || 0) || (localVal.completed && !dbVal.completed)) {
+                fetch(`${API_URL}/materi/progress`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    modul_teori_id: parseInt(key, 10),
+                    scroll_progress: maxProgress,
+                    status: isComp ? "selesai" : "sedang_dibaca"
+                  })
+                }).catch((err) => console.error("Gagal sinkronkan progres ke DB dari materi page:", err));
+              }
+            }
+          }
+
+          setProgressMap(merged);
         } else {
           setProgressMap(getAllProgress());
         }

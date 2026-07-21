@@ -36,11 +36,11 @@ interface ModuleProgressState {
 const STORAGE_KEY = "kaizen-module-progress";
 
 const pdfMap: Record<string, string> = {
-  "pengenalan-kaizen": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf-test.pdf",
-  "5r": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf-test.pdf",
-  "6-potensi-bahaya": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf-test.pdf",
-  "7-pemborosan": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf-test.pdf",
-  "8-langkah-penyelesaian-masalah": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf-test.pdf"
+  "pengenalan-kaizen": "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%201%20(PENGENALAN%20BUDAYA%20KAIZEN)%20(1).pptx",
+  "5r": "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%202%20(5R).pptx",
+  "6-potensi-bahaya": "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%203%20(6%20POTENSI%20BAHAYA).pptx",
+  "7-pemborosan": "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%204%20(7%20PEMBOROSAN).pptx",
+  "8-langkah-penyelesaian-masalah": "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%205%20(8%20LANGKAH%20PENYELESAIAN%20MASALAH).pptx"
 };
 
 function getInitialProgress(moduleId: number): ModuleProgressState {
@@ -267,11 +267,13 @@ export default function MateriDetailPage() {
     parsed[dbModule.id] = progress;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
 
-    // Kirim ke database hanya jika ada kenaikan progres >= 20% atau selesai 100%
+    // Kirim ke database jika ada kenaikan progres >= 20%, atau selesai 100%
     const diff = progress.scrollProgress - lastSavedProgressRef.current;
-    if (diff >= 20 || (progress.scrollProgress === 100 && lastSavedProgressRef.current < 100)) {
-      lastSavedProgressRef.current = progress.scrollProgress;
-      saveProgressToDb(progress.scrollProgress, progress.completed);
+    if (diff >= 20 || progress.scrollProgress === 100 || progress.completed) {
+      if (lastSavedProgressRef.current !== progress.scrollProgress) {
+        lastSavedProgressRef.current = progress.scrollProgress;
+        saveProgressToDb(progress.scrollProgress, progress.completed);
+      }
     }
   }, [dbModule, progress]);
 
@@ -395,7 +397,7 @@ export default function MateriDetailPage() {
   }
 
   const completionLabel = progress.completed ? "Selesai" : "Belum selesai";
-  const pdfUrl = (slug && typeof slug === "string" ? pdfMap[slug] : null) || "#";
+  const pdfUrl = dbModule?.file_url || (slug && typeof slug === "string" ? pdfMap[slug] : null) || "#";
   const quizList = dbModule.soal_latihan || [];
 
   return (
@@ -406,16 +408,6 @@ export default function MateriDetailPage() {
           <ArrowLeft size={16} /> Kembali
         </Link>
         <div className="flex items-center gap-3">
-          {/* Tombol Lihat PPT/PDF Asli */}
-          <a
-            href={pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 text-xs font-bold transition-all shadow-sm"
-          >
-            <FileText size={16} /> Download PPT/PDF Asli
-          </a>
-
           {/* Tombol Edit khusus Admin */}
           {currentUser?.role === "admin" && (
             <button
