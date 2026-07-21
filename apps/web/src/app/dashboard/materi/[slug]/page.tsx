@@ -149,35 +149,43 @@ export default function MateriDetailPage() {
         if (res.ok) {
           const data = await res.json();
           const dbProgress = data[dbModule.id.toString()];
-          const initial = getInitialProgress(dbModule.id);
           
-          let nextProgress = initial.scrollProgress;
-          let nextCompleted = initial.completed;
-          let nextScore = initial.score;
+          let nextProgress = 0;
+          let nextCompleted = false;
+          let nextScore: number | null = null;
 
           if (dbProgress) {
-            nextProgress = Math.max(initial.scrollProgress, dbProgress.scrollProgress);
-            nextCompleted = dbProgress.completed || initial.completed;
-            nextScore = dbProgress.score ?? initial.score;
-            
-            setProgress((current) => {
-              const updated = {
-                ...current,
-                completed: nextCompleted,
-                scrollProgress: nextProgress,
-                score: nextScore,
-              };
-              lastSavedProgressRef.current = updated.scrollProgress;
-              return updated;
-            });
-            if (dbProgress.score !== null) {
-              setSubmitted(true);
-            }
+            nextProgress = dbProgress.scrollProgress || 0;
+            nextCompleted = Boolean(dbProgress.completed);
+            nextScore = dbProgress.score ?? null;
           }
-          
-          // SINKRONISASI KE DB: Jika progres lokal lebih tinggi atau sudah selesai dibanding DB
-          if (!dbProgress || initial.scrollProgress > dbProgress.scrollProgress || (initial.completed && !dbProgress.completed)) {
-            await saveProgressToDb(nextProgress, nextCompleted);
+
+          setProgress((current) => {
+            const updated = {
+              ...current,
+              completed: nextCompleted,
+              scrollProgress: nextProgress,
+              score: nextScore,
+            };
+            lastSavedProgressRef.current = updated.scrollProgress;
+            
+            // Sync local storage with DB truth
+            if (typeof window !== "undefined") {
+              try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                const parsed = stored ? JSON.parse(stored) : {};
+                parsed[dbModule.id] = updated;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+              } catch (e) {}
+            }
+
+            return updated;
+          });
+
+          if (dbProgress && dbProgress.score !== null) {
+            setSubmitted(true);
+          } else {
+            setSubmitted(false);
           }
         }
       } catch (err) {

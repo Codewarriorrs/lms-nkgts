@@ -125,40 +125,25 @@ export default function DashboardPage() {
         });
         if (res.ok) {
           const dbData = await res.json();
-          const merged: Record<string, any> = { ...dbData };
+          // Database is the absolute Source of Truth
+          const updatedMap: Record<string, any> = {};
 
-          for (const [key, localVal] of Object.entries(localData)) {
-            const dbVal = merged[key];
-            if (!dbVal) {
-              merged[key] = localVal;
-            } else {
-              const maxProgress = Math.max(dbVal.scrollProgress || 0, localVal?.scrollProgress || 0);
-              const isComp = Boolean(dbVal.completed || localVal?.completed || (localVal?.score !== null && localVal?.score >= 70));
-              merged[key] = {
-                completed: isComp,
-                scrollProgress: maxProgress,
-                score: dbVal.score ?? localVal?.score ?? null,
-              };
-
-              // Jika progres lokal lebih tinggi dari DB, sinkronkan ke DB
-              if (localVal?.scrollProgress > (dbVal.scrollProgress || 0) || (localVal?.completed && !dbVal.completed)) {
-                fetch(`${API_URL}/materi/progress`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                  },
-                  body: JSON.stringify({
-                    modul_teori_id: parseInt(key, 10),
-                    scroll_progress: maxProgress,
-                    status: isComp ? "selesai" : "sedang_dibaca"
-                  })
-                }).catch((err) => console.error("Gagal sinkronkan progres ke DB dari dashboard page:", err));
-              }
-            }
+          for (const [key, dbVal] of Object.entries(dbData as Record<string, any>)) {
+            updatedMap[key] = {
+              completed: Boolean(dbVal.completed),
+              scrollProgress: dbVal.scrollProgress || 0,
+              score: dbVal.score ?? null,
+            };
           }
 
-          setProgressMap(merged);
+          // Update localstorage to match Database state exactly
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("kaizen-module-progress", JSON.stringify(updatedMap));
+            } catch (e) {}
+          }
+
+          setProgressMap(updatedMap);
         } else {
           setProgressMap(localData);
         }
