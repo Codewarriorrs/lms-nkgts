@@ -2117,127 +2117,58 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       )}
 
       {/* ── DETAIL MODAL: PENILAIAN & REVIEW PROJECT KAIZEN ── */}
-      {selectedProjectSubmisi && (() => {
-        const fileUrl = selectedProjectSubmisi.file_url || "";
-        const fileName = selectedProjectSubmisi.file_name || "";
-        const isImage = /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(fileUrl) || /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(fileName) || fileUrl.startsWith("data:image/");
-        const isPdf = /\.pdf$/i.test(fileUrl) || /\.pdf$/i.test(fileName) || fileUrl.startsWith("data:application/pdf");
-        const isHttpUrl = fileUrl.startsWith("http://") || fileUrl.startsWith("https://");
-
-        let safePreviewUrl = fileUrl;
-        if (fileUrl.startsWith("data:")) {
-          try {
-            const arr = fileUrl.split(",");
-            const mime = arr[0].match(/:(.*?);/)?.[1] || (isPdf ? "application/pdf" : "application/octet-stream");
-            const bstr = atob(arr[1]);
-            let n = bstr.length;
-            const u8arr = new Uint8Array(n);
-            while (n--) {
-              u8arr[n] = bstr.charCodeAt(n);
-            }
-            const blob = new Blob([u8arr], { type: mime });
-            safePreviewUrl = URL.createObjectURL(blob);
-          } catch (e) {
-            safePreviewUrl = fileUrl;
-          }
-        }
-
-        const handleOpenPreview = () => {
-          window.open(safePreviewUrl, "_blank");
-        };
-
-        return (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl border border-neutral-100 flex flex-col space-y-4 max-h-[95vh] overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
-                <div>
-                  <h3 className="font-bold text-neutral-900 text-sm">Review & Revisi Proyek Kaizen</h3>
-                  <p className="text-[10px] text-neutral-450 font-bold uppercase mt-0.5">Siswa: {selectedProjectSubmisi.siswa?.nama || "Siswa"}</p>
-                </div>
-                <button 
-                  onClick={() => setSelectedProjectSubmisi(null)}
-                  className="p-1 hover:bg-neutral-50 rounded text-neutral-400"
-                >
-                  <X size={18} />
-                </button>
+      {selectedProjectSubmisi && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-neutral-100 flex flex-col space-y-4 max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+              <div>
+                <h3 className="font-bold text-neutral-900 text-sm">Review & Nilai Proyek Kaizen</h3>
+                <p className="text-[10px] text-neutral-450 font-bold uppercase mt-0.5">Siswa: {selectedProjectSubmisi.siswa?.nama || "Siswa"}</p>
               </div>
+              <button 
+                onClick={() => setSelectedProjectSubmisi(null)}
+                className="p-1 hover:bg-neutral-50 rounded text-neutral-400"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-              <div className="space-y-3 text-xs">
-                {/* Pratinjau Berkas Inline */}
-                <div className="border border-neutral-200 rounded-xl overflow-hidden bg-neutral-100 min-h-[320px] max-h-[450px] flex items-center justify-center relative shadow-inner">
-                  {isImage ? (
-                    <img
-                      src={safePreviewUrl}
-                      alt={fileName}
-                      className="max-h-[420px] max-w-full object-contain p-2"
-                    />
-                  ) : isPdf ? (
-                    <object
-                      data={safePreviewUrl}
-                      type="application/pdf"
-                      className="w-full h-[420px]"
+            <div className="space-y-3 text-xs">
+              {/* File Info Card */}
+              <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-100 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shrink-0">
+                    <FileText size={22} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-neutral-900 text-sm truncate">{selectedProjectSubmisi.file_name || "Dokumen"}</p>
+                    <p className="text-neutral-400 text-[10px] mt-0.5">
+                      Tipe: <span className="font-bold uppercase">{selectedProjectSubmisi.tipe}</span> · Dikirim: {new Date(selectedProjectSubmisi.submitted_at).toLocaleString("id-ID")}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedProjectSubmisi.file_url && (
+                    <a
+                      href={selectedProjectSubmisi.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-lg text-xs font-bold transition"
                     >
-                      <iframe
-                        src={safePreviewUrl}
-                        className="w-full h-[420px] border-none"
-                        title={fileName}
-                      />
-                    </object>
-                  ) : isHttpUrl ? (
-                    <iframe
-                      src={`https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`}
-                      className="w-full h-[420px] border-none"
-                      title={fileName}
-                    />
-                  ) : (
-                    <div className="text-center p-6 space-y-3">
-                      <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100 shadow-xs">
-                        <FileText size={32} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-neutral-900 text-sm truncate max-w-md">{fileName || "Dokumen Proyek"}</p>
-                        <p className="text-xs text-neutral-400 mt-1">Berkas Proyek ({selectedProjectSubmisi.tipe.toUpperCase()})</p>
-                      </div>
-                      <div className="flex items-center justify-center gap-2 pt-1">
-                        <button
-                          onClick={handleOpenPreview}
-                          className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm"
-                        >
-                          <BookOpen size={14} /> Buka Preview / Tab Baru
-                        </button>
-                        <a
-                          href={selectedProjectSubmisi.file_url}
-                          download={fileName}
-                          className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 rounded-xl text-xs font-bold transition"
-                        >
-                          <Download size={14} /> Unduh Berkas
-                        </a>
-                      </div>
-                    </div>
+                      <Eye size={14} /> Buka & Preview Dokumen
+                    </a>
+                  )}
+                  {selectedProjectSubmisi.file_url && (
+                    <a
+                      href={selectedProjectSubmisi.file_url}
+                      download={selectedProjectSubmisi.file_name}
+                      className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 rounded-lg text-xs font-bold transition"
+                    >
+                      <Download size={14} /> Unduh
+                    </a>
                   )}
                 </div>
-
-                <div className="p-3 bg-neutral-50 rounded-xl flex items-center justify-between gap-3 border border-neutral-100">
-                  <div className="min-w-0">
-                    <p className="font-bold text-neutral-400 text-[10px] uppercase">Tipe Pengumpulan</p>
-                    <p className="font-semibold text-neutral-900 capitalize text-sm">{selectedProjectSubmisi.tipe} ({fileName})</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleOpenPreview}
-                      className="inline-flex items-center gap-1 bg-white hover:bg-neutral-100 text-primary border border-primary/20 px-3 py-1.5 rounded-lg font-bold text-xs shadow-2xs"
-                    >
-                      <BookOpen size={13} /> Pratinjau Tab Baru
-                    </button>
-                    <a 
-                      href={selectedProjectSubmisi.file_url} 
-                      download={selectedProjectSubmisi.file_name}
-                      className="inline-flex items-center gap-1 bg-primary hover:bg-primary-light text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-2xs"
-                    >
-                      <Download size={13} /> Unduh Berkas
-                    </a>
-                  </div>
-                </div>
+              </div>
 
               {selectedProjectSubmisi.catatan_siswa && (
                 <div className="space-y-1">
@@ -2305,7 +2236,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
             </div>
           </div>
         </div>
-      )})}
+      )}
     </div>
   );
 }
