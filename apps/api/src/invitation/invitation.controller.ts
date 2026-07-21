@@ -18,6 +18,7 @@ import { InvitationService } from './invitation.service';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { ActivateAccountDto } from './dto/activate-account.dto';
+import { ResetProgressDto } from './dto/reset-progress.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -155,5 +156,16 @@ export class InvitationController {
   @Roles(RoleEnum.admin)
   async deleteUser(@Param('id') id: string) {
     return this.invitationService.deleteUser(id);
+  }
+
+  // 13. Reset progres belajar (Admin only)
+  @Patch('admin/users/:id/reset-progress')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async resetProgress(
+    @Param('id') id: string,
+    @Body() resetProgressDto: ResetProgressDto
+  ) {
+    return this.invitationService.resetProgress(id, resetProgressDto.startFromModule);
   }
 }
