@@ -13,11 +13,13 @@ export class MateriService {
     // 1. Ambil data progres membaca
     const progressRecords = await this.prisma.progresTeori.findMany({
       where: { siswa_id: userId },
+      include: { modul_teori: true },
     });
 
     // 2. Ambil data nilai kuis tertinggi per modul
     const quizRecords = await this.prisma.nilaiLatihan.findMany({
       where: { siswa_id: userId },
+      include: { modul_teori: true },
     });
 
     // Petakan nilai kuis tertinggi per modul
@@ -30,37 +32,51 @@ export class MateriService {
     // 3. Susun data hasil gabungan untuk frontend
     const result: Record<string, { completed: boolean; scrollProgress: number; score: number | null }> = {};
 
-    // Inisialisasi default untuk modul yang sudah terdaftar di DB
+    // Inisialisasi default untuk modul yang sudah terdaftar di DB (mapping ID & urutan)
     const allModules = await this.prisma.modulTeori.findMany({
-      select: { id: true }
+      select: { id: true, urutan: true, slug: true }
     });
 
     for (const m of allModules) {
-      result[m.id.toString()] = {
-        completed: false,
-        scrollProgress: 0,
-        score: null,
-      };
+      const defaultVal = { completed: false, scrollProgress: 0, score: null };
+      result[m.id.toString()] = defaultVal;
+      result[m.urutan.toString()] = defaultVal;
+      result[m.slug] = defaultVal;
     }
 
     // Isi dengan data progres riil dari DB
     for (const record of progressRecords) {
       const bestScore = quizMap[record.modul_teori_id] ?? null;
-      const isCompleted = record.status === ProgresEnum.selesai || (bestScore !== null && bestScore >= 70);
+      const isCompleted = record.status === ProgresEnum.selesai || (bestScore !== null && bestScore >= 70) || record.persentase >= 92;
 
-      result[record.modul_teori_id.toString()] = {
+      const stateVal = {
         completed: isCompleted,
-        scrollProgress: record.persentase,
+        scrollProgress: isCompleted ? 100 : record.persentase,
         score: bestScore,
       };
+
+      result[record.modul_teori_id.toString()] = stateVal;
+      if (record.modul_teori) {
+        result[record.modul_teori.urutan.toString()] = stateVal;
+        result[record.modul_teori.slug] = stateVal;
+      }
     }
 
     // Lengkapi data modul yang kuisnya sudah dikerjakan tapi progres bacanya belum ada catatan di DB
-    for (const [modulIdStr, bestScore] of Object.entries(quizMap)) {
-      if (result[modulIdStr] && result[modulIdStr].score === null) {
-        result[modulIdStr].score = bestScore;
-        if (bestScore >= 70) {
-          result[modulIdStr].completed = true;
+    for (const record of quizRecords) {
+      const bestScore = quizMap[record.modul_teori_id] ?? null;
+      if (bestScore !== null) {
+        const modulIdStr = record.modul_teori_id.toString();
+        const urutanStr = record.modul_teori?.urutan.toString();
+        const isCompleted = bestScore >= 70;
+
+        if (result[modulIdStr]) {
+          result[modulIdStr].score = bestScore;
+          if (isCompleted) result[modulIdStr].completed = true;
+        }
+        if (urutanStr && result[urutanStr]) {
+          result[urutanStr].score = bestScore;
+          if (isCompleted) result[urutanStr].completed = true;
         }
       }
     }

@@ -222,14 +222,25 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
     return ["Semua", ...Array.from(schools)];
   }, [studentsProgress]);
 
-  // Classes list
+  // Classes list (Dynamically filtered based on selected school)
   const classesList = useMemo(() => {
     const classes = new Set<string>();
     studentsProgress.forEach((s) => {
-      if (s.kelas) classes.add(s.kelas);
+      const studentSchool = s.sekolah_nama || "N-KGTS Pusat";
+      const matchSchool = selectedSchool === "Semua" || studentSchool === selectedSchool;
+      if (matchSchool && s.kelas) {
+        classes.add(s.kelas);
+      }
     });
     return ["Semua", ...Array.from(classes)];
-  }, [studentsProgress]);
+  }, [studentsProgress, selectedSchool]);
+
+  // Auto-reset selectedClass if it doesn't exist in the newly selected school's classes
+  useEffect(() => {
+    if (selectedClass !== "Semua" && !classesList.includes(selectedClass)) {
+      setSelectedClass("Semua");
+    }
+  }, [selectedSchool, classesList, selectedClass]);
 
   // Filtered Students
   const filteredStudents = useMemo(() => {
@@ -833,17 +844,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   className="pl-8 pr-4 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none"
                 />
               </div>
-              {currentUser?.role === "admin" && (
-                <select 
-                  value={selectedSchool}
-                  onChange={(e) => setSelectedSchool(e.target.value)}
-                  className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold"
-                >
-                  {schoolsList.map((s) => (
-                    <option key={s} value={s}>{s === "Semua" ? "Semua Sekolah" : s}</option>
-                  ))}
-                </select>
-              )}
+
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -948,17 +949,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   className="pl-8 pr-4 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none"
                 />
               </div>
-              {currentUser?.role === "admin" && (
-                <select 
-                  value={selectedSchool}
-                  onChange={(e) => setSelectedSchool(e.target.value)}
-                  className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold"
-                >
-                  {schoolsList.map((s) => (
-                    <option key={s} value={s}>{s === "Semua" ? "Semua Sekolah" : s}</option>
-                  ))}
-                </select>
-              )}
+
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -2064,8 +2055,36 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       {/* ── DETAIL MODAL: PENILAIAN & REVIEW PROJECT KAIZEN ── */}
       {selectedProjectSubmisi && (() => {
         const fileUrl = selectedProjectSubmisi.file_url || "";
-        const isImage = /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(fileUrl) || fileUrl.startsWith("data:image/");
-        const isPdf = /\.pdf$/i.test(fileUrl);
+        const fileName = selectedProjectSubmisi.file_name || "";
+        const isImage = /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(fileUrl) || /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(fileName) || fileUrl.startsWith("data:image/");
+        const isPdf = /\.pdf$/i.test(fileUrl) || /\.pdf$/i.test(fileName) || fileUrl.startsWith("data:application/pdf");
+        const isHttpUrl = fileUrl.startsWith("http://") || fileUrl.startsWith("https://");
+
+        const handleOpenPreview = () => {
+          if (fileUrl.startsWith("data:")) {
+            try {
+              const arr = fileUrl.split(",");
+              const mime = arr[0].match(/:(.*?);/)?.[1] || "application/pdf";
+              const bstr = atob(arr[1]);
+              let n = bstr.length;
+              const u8arr = new Uint8Array(n);
+              while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+              }
+              const blob = new Blob([u8arr], { type: mime });
+              const blobUrl = URL.createObjectURL(blob);
+              window.open(blobUrl, "_blank");
+            } catch (e) {
+              const win = window.open();
+              if (win) {
+                win.document.write(`<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+              }
+            }
+          } else {
+            window.open(fileUrl, "_blank");
+          }
+        };
+
         return (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl border border-neutral-100 flex flex-col space-y-4 max-h-[95vh] overflow-y-auto">
@@ -2084,40 +2103,70 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
 
               <div className="space-y-3 text-xs">
                 {/* Pratinjau Berkas Inline */}
-                <div className="border border-neutral-200 rounded-xl overflow-hidden bg-neutral-100 h-80 flex items-center justify-center relative">
+                <div className="border border-neutral-200 rounded-xl overflow-hidden bg-neutral-100 min-h-[320px] max-h-[450px] flex items-center justify-center relative shadow-inner">
                   {isImage ? (
                     <img
                       src={fileUrl}
-                      alt={selectedProjectSubmisi.file_name}
-                      className="max-h-full max-w-full object-contain"
+                      alt={fileName}
+                      className="max-h-[420px] max-w-full object-contain p-2"
                     />
                   ) : isPdf ? (
-                    <iframe
-                      src={fileUrl}
-                      className="w-full h-full border-none"
-                      title={selectedProjectSubmisi.file_name}
-                    />
-                  ) : (
+                    <object
+                      data={fileUrl}
+                      type="application/pdf"
+                      className="w-full h-[420px]"
+                    >
+                      <iframe
+                        src={fileUrl}
+                        className="w-full h-[420px] border-none"
+                        title={fileName}
+                      />
+                    </object>
+                  ) : isHttpUrl ? (
                     <iframe
                       src={`https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`}
-                      className="w-full h-full border-none"
-                      title={selectedProjectSubmisi.file_name}
+                      className="w-full h-[420px] border-none"
+                      title={fileName}
                     />
+                  ) : (
+                    <div className="text-center p-6 space-y-3">
+                      <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                        <FileText size={24} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-neutral-900 text-sm truncate max-w-md">{fileName}</p>
+                        <p className="text-xs text-neutral-400 mt-1">Dokumen proyek ({selectedProjectSubmisi.tipe})</p>
+                      </div>
+                      <button
+                        onClick={handleOpenPreview}
+                        className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm"
+                      >
+                        <BookOpen size={14} /> Buka & Pratinjau Dokumen
+                      </button>
+                    </div>
                   )}
                 </div>
 
                 <div className="p-3 bg-neutral-50 rounded-xl flex items-center justify-between gap-3 border border-neutral-100">
                   <div className="min-w-0">
                     <p className="font-bold text-neutral-400 text-[10px] uppercase">Tipe Pengumpulan</p>
-                    <p className="font-semibold text-neutral-900 capitalize text-sm">{selectedProjectSubmisi.tipe}</p>
+                    <p className="font-semibold text-neutral-900 capitalize text-sm">{selectedProjectSubmisi.tipe} ({fileName})</p>
                   </div>
-                  <a 
-                    href={selectedProjectSubmisi.file_url} 
-                    download={selectedProjectSubmisi.file_name}
-                    className="inline-flex items-center gap-1 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-3 py-1.5 rounded-lg font-bold shadow-2xs"
-                  >
-                    <Download size={13} /> Unduh Berkas
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleOpenPreview}
+                      className="inline-flex items-center gap-1 bg-white hover:bg-neutral-100 text-primary border border-primary/20 px-3 py-1.5 rounded-lg font-bold text-xs shadow-2xs"
+                    >
+                      <BookOpen size={13} /> Pratinjau Tab Baru
+                    </button>
+                    <a 
+                      href={selectedProjectSubmisi.file_url} 
+                      download={selectedProjectSubmisi.file_name}
+                      className="inline-flex items-center gap-1 bg-primary hover:bg-primary-light text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-2xs"
+                    >
+                      <Download size={13} /> Unduh Berkas
+                    </a>
+                  </div>
                 </div>
 
               {selectedProjectSubmisi.catatan_siswa && (
