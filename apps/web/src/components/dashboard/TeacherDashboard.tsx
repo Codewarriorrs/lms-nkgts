@@ -83,6 +83,10 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
   const [selectedTaskSubmisi, setSelectedTaskSubmisi] = useState<any | null>(null);
   const [selectedProjectSubmisi, setSelectedProjectSubmisi] = useState<any | null>(null);
 
+  // Document preview modal state
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+
   // Review & Grading form state
   const [gradingScore, setGradingScore] = useState<number | "">("");
   const [gradingFeedback, setGradingFeedback] = useState("");
@@ -375,15 +379,27 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       setSubmittingGrade(false);
     }
   };
-  // Direct document opening (Base64 to Blob URL or HTTP link)
-  const handleDirectOpenDocument = (fileUrl: string, fileName: string) => {
+  // Open inline document preview modal
+  const handleOpenPreviewModal = (fileUrl: string, fileName: string) => {
     if (!fileUrl) {
       alert("URL berkas dokumen tidak tersedia.");
       return;
     }
-    if (fileUrl.startsWith("data:")) {
+    setPreviewDoc({ url: fileUrl, name: fileName });
+  };
+
+  // Convert base64 data URI to blob URL when preview modal opens
+  useEffect(() => {
+    if (!previewDoc) {
+      if (previewBlobUrl) {
+        URL.revokeObjectURL(previewBlobUrl);
+        setPreviewBlobUrl(null);
+      }
+      return;
+    }
+    if (previewDoc.url.startsWith("data:")) {
       try {
-        const arr = fileUrl.split(",");
+        const arr = previewDoc.url.split(",");
         const mime = arr[0].match(/:(.*?);/)?.[1] || "application/pdf";
         const bstr = atob(arr[1]);
         let n = bstr.length;
@@ -392,21 +408,14 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
           u8arr[n] = bstr.charCodeAt(n);
         }
         const blob = new Blob([u8arr], { type: mime });
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.target = "_blank";
-        a.click();
-      } catch (e) {
-        const win = window.open();
-        if (win) {
-          win.document.write(`<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0; left:0; width:100%; height:100%; position:fixed;"></iframe>`);
-        }
+        setPreviewBlobUrl(URL.createObjectURL(blob));
+      } catch {
+        setPreviewBlobUrl(null);
       }
     } else {
-      window.open(fileUrl, "_blank");
+      setPreviewBlobUrl(null);
     }
-  };
+  }, [previewDoc]);
 
   // Executive commands for rich contentEditable WYSIWYG
   const execEditorCommand = (command: string, value: string = "") => {
@@ -1066,14 +1075,13 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             {item.file_url && (
-                              <a
-                                href={item.file_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPreviewModal(item.file_url, item.file_name)}
                                 className="inline-flex items-center gap-1 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer"
                               >
                                 <Eye size={13} className="text-primary" /> Preview
-                              </a>
+                              </button>
                             )}
                             <button
                               type="button"
@@ -2149,14 +2157,13 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                 </div>
                 <div className="flex items-center gap-2">
                   {selectedProjectSubmisi.file_url && (
-                    <a
-                      href={selectedProjectSubmisi.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-lg text-xs font-bold transition"
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPreviewModal(selectedProjectSubmisi.file_url, selectedProjectSubmisi.file_name)}
+                      className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer"
                     >
-                      <Eye size={14} /> Buka & Preview Dokumen
-                    </a>
+                      <Eye size={14} /> Preview Dokumen
+                    </button>
                   )}
                   {selectedProjectSubmisi.file_url && (
                     <a
@@ -2237,6 +2244,106 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
           </div>
         </div>
       )}
+
+      {/* ── DOCUMENT PREVIEW MODAL (INLINE VIEWER) ── */}
+      {previewDoc && (() => {
+        const fileUrl = previewDoc.url;
+        const fileName = previewDoc.name;
+        const isHttpUrl = fileUrl.startsWith("http://") || fileUrl.startsWith("https://");
+        const isPdf = /\.pdf$/i.test(fileName) || fileUrl.startsWith("data:application/pdf");
+        const isImage = /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(fileName) || fileUrl.startsWith("data:image/");
+
+        // Determine the source URL for iframe
+        let viewerSrc = "";
+        if (previewBlobUrl) {
+          viewerSrc = previewBlobUrl;
+        } else if (isHttpUrl) {
+          if (isPdf) {
+            viewerSrc = fileUrl;
+          } else {
+            // Use Google Docs Viewer for DOC/DOCX via HTTP
+            viewerSrc = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+          }
+        }
+
+        return (
+          <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex flex-col">
+            {/* Header Bar */}
+            <div className="flex items-center justify-between bg-white/95 backdrop-blur border-b border-neutral-200 px-4 sm:px-6 py-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shrink-0">
+                  <FileText size={18} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-neutral-900 text-sm truncate max-w-[250px] sm:max-w-[400px]">{fileName || "Dokumen"}</p>
+                  <p className="text-[10px] text-neutral-400 font-semibold">Preview Dokumen</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {isHttpUrl && (
+                  <a
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-3 py-2 rounded-lg text-xs font-bold transition"
+                  >
+                    <ExternalLink size={13} /> Tab Baru
+                  </a>
+                )}
+                <a
+                  href={previewBlobUrl || fileUrl}
+                  download={fileName}
+                  className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-3 py-2 rounded-lg text-xs font-bold transition"
+                >
+                  <Download size={13} /> Unduh
+                </a>
+                <button
+                  onClick={() => setPreviewDoc(null)}
+                  className="p-2 hover:bg-neutral-100 rounded-lg text-neutral-500 transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Document Viewer Area */}
+            <div className="flex-1 overflow-hidden bg-neutral-100">
+              {isImage ? (
+                <div className="w-full h-full flex items-center justify-center p-4 overflow-auto">
+                  <img
+                    src={previewBlobUrl || fileUrl}
+                    alt={fileName}
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                  />
+                </div>
+              ) : viewerSrc ? (
+                <iframe
+                  src={viewerSrc}
+                  className="w-full h-full border-none"
+                  title={`Preview: ${fileName}`}
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-6">
+                  <div className="w-20 h-20 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center border border-blue-100">
+                    <FileText size={40} />
+                  </div>
+                  <div className="text-center">
+                    <p className="font-bold text-neutral-700 text-lg">{fileName}</p>
+                    <p className="text-neutral-400 text-sm mt-1">Pratinjau tidak tersedia untuk format ini.</p>
+                  </div>
+                  <a
+                    href={previewBlobUrl || fileUrl}
+                    download={fileName}
+                    className="inline-flex items-center gap-2 bg-primary hover:bg-primary-light text-white px-5 py-2.5 rounded-xl text-sm font-bold transition"
+                  >
+                    <Download size={16} /> Unduh Berkas
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
