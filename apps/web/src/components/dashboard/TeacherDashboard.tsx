@@ -2075,29 +2075,26 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
         const isPdf = /\.pdf$/i.test(fileUrl) || /\.pdf$/i.test(fileName) || fileUrl.startsWith("data:application/pdf");
         const isHttpUrl = fileUrl.startsWith("http://") || fileUrl.startsWith("https://");
 
-        const handleOpenPreview = () => {
-          if (fileUrl.startsWith("data:")) {
-            try {
-              const arr = fileUrl.split(",");
-              const mime = arr[0].match(/:(.*?);/)?.[1] || "application/pdf";
-              const bstr = atob(arr[1]);
-              let n = bstr.length;
-              const u8arr = new Uint8Array(n);
-              while (n--) {
-                u8arr[n] = bstr.charCodeAt(n);
-              }
-              const blob = new Blob([u8arr], { type: mime });
-              const blobUrl = URL.createObjectURL(blob);
-              window.open(blobUrl, "_blank");
-            } catch (e) {
-              const win = window.open();
-              if (win) {
-                win.document.write(`<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-              }
+        let safePreviewUrl = fileUrl;
+        if (fileUrl.startsWith("data:")) {
+          try {
+            const arr = fileUrl.split(",");
+            const mime = arr[0].match(/:(.*?);/)?.[1] || (isPdf ? "application/pdf" : "application/octet-stream");
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+              u8arr[n] = bstr.charCodeAt(n);
             }
-          } else {
-            window.open(fileUrl, "_blank");
+            const blob = new Blob([u8arr], { type: mime });
+            safePreviewUrl = URL.createObjectURL(blob);
+          } catch (e) {
+            safePreviewUrl = fileUrl;
           }
+        }
+
+        const handleOpenPreview = () => {
+          window.open(safePreviewUrl, "_blank");
         };
 
         return (
@@ -2121,18 +2118,18 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                 <div className="border border-neutral-200 rounded-xl overflow-hidden bg-neutral-100 min-h-[320px] max-h-[450px] flex items-center justify-center relative shadow-inner">
                   {isImage ? (
                     <img
-                      src={fileUrl}
+                      src={safePreviewUrl}
                       alt={fileName}
                       className="max-h-[420px] max-w-full object-contain p-2"
                     />
                   ) : isPdf ? (
                     <object
-                      data={fileUrl}
+                      data={safePreviewUrl}
                       type="application/pdf"
                       className="w-full h-[420px]"
                     >
                       <iframe
-                        src={fileUrl}
+                        src={safePreviewUrl}
                         className="w-full h-[420px] border-none"
                         title={fileName}
                       />
@@ -2145,19 +2142,28 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                     />
                   ) : (
                     <div className="text-center p-6 space-y-3">
-                      <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
-                        <FileText size={24} />
+                      <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100 shadow-xs">
+                        <FileText size={32} />
                       </div>
                       <div>
-                        <p className="font-bold text-neutral-900 text-sm truncate max-w-md">{fileName}</p>
-                        <p className="text-xs text-neutral-400 mt-1">Dokumen proyek ({selectedProjectSubmisi.tipe})</p>
+                        <p className="font-bold text-neutral-900 text-sm truncate max-w-md">{fileName || "Dokumen Proyek"}</p>
+                        <p className="text-xs text-neutral-400 mt-1">Berkas Proyek ({selectedProjectSubmisi.tipe.toUpperCase()})</p>
                       </div>
-                      <button
-                        onClick={handleOpenPreview}
-                        className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm"
-                      >
-                        <BookOpen size={14} /> Buka & Pratinjau Dokumen
-                      </button>
+                      <div className="flex items-center justify-center gap-2 pt-1">
+                        <button
+                          onClick={handleOpenPreview}
+                          className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm"
+                        >
+                          <BookOpen size={14} /> Buka Preview / Tab Baru
+                        </button>
+                        <a
+                          href={selectedProjectSubmisi.file_url}
+                          download={fileName}
+                          className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 rounded-xl text-xs font-bold transition"
+                        >
+                          <Download size={14} /> Unduh Berkas
+                        </a>
+                      </div>
                     </div>
                   )}
                 </div>
