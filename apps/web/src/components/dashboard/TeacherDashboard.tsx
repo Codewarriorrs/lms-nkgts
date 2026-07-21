@@ -2250,20 +2250,17 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
         const fileUrl = previewDoc.url;
         const fileName = previewDoc.name;
         const isHttpUrl = fileUrl.startsWith("http://") || fileUrl.startsWith("https://");
-        const isPdf = /\.pdf$/i.test(fileName) || fileUrl.startsWith("data:application/pdf");
         const isImage = /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(fileName) || fileUrl.startsWith("data:image/");
 
         // Determine the source URL for iframe
         let viewerSrc = "";
         if (previewBlobUrl) {
+          // For base64 converted to blob URL (desktop only, mobile may not render)
           viewerSrc = previewBlobUrl;
         } else if (isHttpUrl) {
-          if (isPdf) {
-            viewerSrc = fileUrl;
-          } else {
-            // Use Google Docs Viewer for DOC/DOCX via HTTP
-            viewerSrc = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-          }
+          // Always use Google Docs Viewer for HTTP URLs
+          // This renders PDF/DOC/DOCX as HTML — works on ALL mobile browsers
+          viewerSrc = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
         }
 
         return (
