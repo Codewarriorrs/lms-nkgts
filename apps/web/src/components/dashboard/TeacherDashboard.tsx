@@ -833,17 +833,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   className="pl-8 pr-4 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none"
                 />
               </div>
-              {currentUser?.role === "admin" && (
-                <select 
-                  value={selectedSchool}
-                  onChange={(e) => setSelectedSchool(e.target.value)}
-                  className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold"
-                >
-                  {schoolsList.map((s) => (
-                    <option key={s} value={s}>{s === "Semua" ? "Semua Sekolah" : s}</option>
-                  ))}
-                </select>
-              )}
+
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -948,17 +938,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   className="pl-8 pr-4 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none"
                 />
               </div>
-              {currentUser?.role === "admin" && (
-                <select 
-                  value={selectedSchool}
-                  onChange={(e) => setSelectedSchool(e.target.value)}
-                  className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold"
-                >
-                  {schoolsList.map((s) => (
-                    <option key={s} value={s}>{s === "Semua" ? "Semua Sekolah" : s}</option>
-                  ))}
-                </select>
-              )}
+
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
