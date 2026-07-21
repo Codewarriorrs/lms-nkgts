@@ -222,14 +222,25 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
     return ["Semua", ...Array.from(schools)];
   }, [studentsProgress]);
 
-  // Classes list
+  // Classes list (Dynamically filtered based on selected school)
   const classesList = useMemo(() => {
     const classes = new Set<string>();
     studentsProgress.forEach((s) => {
-      if (s.kelas) classes.add(s.kelas);
+      const studentSchool = s.sekolah_nama || "N-KGTS Pusat";
+      const matchSchool = selectedSchool === "Semua" || studentSchool === selectedSchool;
+      if (matchSchool && s.kelas) {
+        classes.add(s.kelas);
+      }
     });
     return ["Semua", ...Array.from(classes)];
-  }, [studentsProgress]);
+  }, [studentsProgress, selectedSchool]);
+
+  // Auto-reset selectedClass if it doesn't exist in the newly selected school's classes
+  useEffect(() => {
+    if (selectedClass !== "Semua" && !classesList.includes(selectedClass)) {
+      setSelectedClass("Semua");
+    }
+  }, [selectedSchool, classesList, selectedClass]);
 
   // Filtered Students
   const filteredStudents = useMemo(() => {
