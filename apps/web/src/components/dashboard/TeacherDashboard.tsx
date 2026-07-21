@@ -281,12 +281,16 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
 
   // Handle grading Task
   const handleGradeTask = async () => {
-    if (!selectedTaskSubmisi || gradingScore === "" || !token) return;
+    const activeToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+    if (!selectedTaskSubmisi || gradingScore === "" || !activeToken) return;
     try {
       setSubmittingGrade(true);
       const res = await fetch(`${API_URL}/tugas-praktek/submisi/${selectedTaskSubmisi.id}/grade`, {
         method: "PATCH",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${activeToken}`
+        },
         body: JSON.stringify({
           nilai: Number(gradingScore),
           catatan_guru: gradingFeedback
@@ -298,7 +302,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
         setGradingFeedback("");
         loadData();
       } else {
-        alert("Gagal menyimpan nilai kuis/tugas.");
+        alert("Gagal menyimpan nilai tugas.");
       }
     } catch (err) {
       console.error(err);
@@ -309,7 +313,12 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
 
   // Handle grading/reviewing Project Kaizen
   const handleGradeProject = async () => {
-    if (!selectedProjectSubmisi || gradingScore === "" || !token) return;
+    const activeToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+    if (!selectedProjectSubmisi || gradingScore === "" || !activeToken) {
+      if (!activeToken) alert("Sesi login Anda tidak ditemukan. Harap login kembali.");
+      else if (gradingScore === "") alert("Harap berikan nilai skor (0-100) terlebih dahulu.");
+      return;
+    }
     try {
       setSubmittingGrade(true);
       const body: any = {
@@ -322,7 +331,10 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       }
       const res = await fetch(`${API_URL}/project-kaizen/review/${selectedProjectSubmisi.id}`, {
         method: "PATCH",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${activeToken}`
+        },
         body: JSON.stringify(body)
       });
       if (res.ok) {
@@ -332,10 +344,12 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
         setGradingRevisiFile(null);
         loadData();
       } else {
-        alert("Gagal mereview proyek.");
+        const errJson = await res.json().catch(() => ({}));
+        alert("Gagal mereview proyek: " + (errJson.message || res.statusText));
       }
     } catch (err) {
       console.error(err);
+      alert("Terjadi kesalahan jaringan saat mengirim review.");
     } finally {
       setSubmittingGrade(false);
     }
