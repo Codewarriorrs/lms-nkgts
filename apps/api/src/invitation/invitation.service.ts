@@ -530,4 +530,68 @@ export class InvitationService {
       where: { id: userId },
     });
   }
+
+  // 13. Reset progres belajar parsial/sekuensial
+  async resetProgress(userId: string, startFromModule: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new NotFoundException('Pengguna tidak ditemukan!');
+    }
+
+    await Promise.all([
+      // 1. progres_teori >= startFromModule
+      this.prisma.progresTeori.deleteMany({
+        where: {
+          siswa_id: userId,
+          modul_teori: {
+            urutan: {
+              gte: startFromModule,
+            },
+          },
+        },
+      }),
+
+      // 2. nilai_latsol >= startFromModule
+      this.prisma.nilaiLatsol.deleteMany({
+        where: {
+          siswa_id: userId,
+          modul_teori: {
+            urutan: {
+              gte: startFromModule,
+            },
+          },
+        },
+      }),
+
+      // 3. submisi_praktek >= startFromModule
+      this.prisma.submisiPraktek.deleteMany({
+        where: {
+          siswa_id: userId,
+          tugas_praktek: {
+            urutan: {
+              gte: startFromModule,
+            },
+          },
+        },
+      }),
+
+      // 4. nilai_latihan >= startFromModule
+      this.prisma.nilaiLatihan.deleteMany({
+        where: {
+          siswa_id: userId,
+          modul_teori: {
+            urutan: {
+              gte: startFromModule,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      message: `Progres belajar siswa dari Modul ${startFromModule} s/d Modul 5 berhasil direset!`,
+    };
+  }
 }

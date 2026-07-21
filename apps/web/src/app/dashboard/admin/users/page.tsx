@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/lib/api";
+import { ResetProgressModal } from "@/components/dashboard/ResetProgressModal";
 import { 
   Users, 
   Mail, 
@@ -71,6 +72,7 @@ export default function AdminUsersPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [selectedEditUser, setSelectedEditUser] = useState<UserType | null>(null);
+  const [resetTargetUser, setResetTargetUser] = useState<{ id: string; nama: string } | null>(null);
   const [editRoleValue, setEditRoleValue] = useState("");
   const [updatingRole, setUpdatingRole] = useState(false);
   const [inviteForm, setInviteForm] = useState({
@@ -586,6 +588,17 @@ export default function AdminUsersPage() {
                            >
                              Ubah Role
                            </button>
+                           {user.role === "siswa" && (
+                             <button
+                               onClick={() => {
+                                 setResetTargetUser({ id: user.id, nama: user.nama });
+                               }}
+                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/20 hover:bg-warning/10 text-warning text-xs font-bold transition cursor-pointer"
+                               title="Reset progres belajar siswa"
+                             >
+                               Reset
+                             </button>
+                           )}
                            {user.email !== "admin@nkgts.com" && user.id !== currentUser?.id && (
                              <button
                                onClick={() => handleDeleteUser(user.id, user.nama)}
@@ -1019,6 +1032,20 @@ export default function AdminUsersPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {resetTargetUser && (
+        <ResetProgressModal
+          isOpen={true}
+          userId={resetTargetUser.id}
+          userName={resetTargetUser.nama}
+          onClose={() => setResetTargetUser(null)}
+          onSuccess={(msg) => {
+            setSuccessMsg(msg);
+            setErrorMsg(null);
+            fetchActiveUsers();
+          }}
+        />
       )}
     </div>
   );
