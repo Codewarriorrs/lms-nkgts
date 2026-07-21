@@ -1050,18 +1050,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDirectOpenDocument(item.file_url, item.file_name);
-                            }}
-                            className="text-primary hover:underline font-bold inline-flex items-center gap-1.5 truncate max-w-[220px] text-left cursor-pointer"
-                            title="Klik untuk langsung membuka & pratinjau berkas dokumen"
-                          >
-                            <FileText size={14} className="shrink-0 text-primary" />
-                            <span className="truncate">{item.file_name}</span>
-                          </button>
+                          <p className="font-bold text-neutral-800 truncate max-w-[200px]">{item.file_name}</p>
                         </td>
                         <td className="px-6 py-4">
                           {item.nilai !== null ? (
@@ -1076,27 +1065,25 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {item.file_url && (
+                              <a
+                                href={item.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer"
+                              >
+                                <Eye size={13} className="text-primary" /> Preview
+                              </a>
+                            )}
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDirectOpenDocument(item.file_url, item.file_name);
-                              }}
-                              className="inline-flex items-center gap-1 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shadow-2xs"
-                              title="Buka & Pratinjau Dokumen PDF/Word di Tab Baru"
-                            >
-                              <Eye size={13} className="text-primary" /> Preview
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={() => {
                                 setSelectedProjectSubmisi(item);
                                 setGradingScore(item.nilai ?? "");
                                 setGradingFeedback(item.catatan_guru ?? "");
                                 setGradingRevisiFile(item.file_revisi_name ? { name: item.file_revisi_name, url: item.file_revisi_url || "" } : null);
                               }}
-                              className="inline-flex items-center gap-1 bg-primary text-white hover:bg-primary-light px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shadow-2xs"
+                              className="inline-flex items-center gap-1 bg-primary text-white hover:bg-primary-light px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer"
                             >
                               <Edit3 size={13} /> Review & Nilai
                             </button>
