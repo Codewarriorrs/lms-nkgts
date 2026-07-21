@@ -50,13 +50,31 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
     fetchStatus();
   }, [tipe, token]);
 
+  const ALLOWED_EXTENSIONS = ["pdf", "doc", "docx"];
+
+  const validateFile = (file: File): boolean => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      alert("Hanya berkas format PDF (.pdf) atau Word (.doc, .docx) yang diizinkan untuk diunggah!");
+      return false;
+    }
+    return true;
+  };
+
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files && e.target.files[0];
-    if (f) setSelected(f);
+    if (f) {
+      if (validateFile(f)) {
+        setSelected(f);
+      } else {
+        e.target.value = "";
+      }
+    }
   };
 
   const handleSubmit = async () => {
     if (!selected || !token) return;
+    if (!validateFile(selected)) return;
     try {
       setSubmitting(true);
       const fileUrl = await uploadFileOrBase64(selected, "project");
@@ -133,7 +151,12 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
           {/* Form input */}
           <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4 flex flex-col gap-3">
             <label className="flex items-center gap-3">
-              <input type="file" onChange={handleFile} className="hidden" />
+              <input 
+                type="file" 
+                onChange={handleFile} 
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
+                className="hidden" 
+              />
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-neutral-200 text-xs font-bold cursor-pointer select-none">
                 <FilePlus size={14} /> {dbSubmission ? "Ganti Berkas" : "Pilih Berkas"}
               </div>

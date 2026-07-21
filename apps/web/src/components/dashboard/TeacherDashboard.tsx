@@ -1028,13 +1028,14 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                         </td>
                         <td className="px-6 py-4 text-right">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedProjectSubmisi(item);
                               setGradingScore(item.nilai ?? "");
                               setGradingFeedback(item.catatan_guru ?? "");
                               setGradingRevisiFile(item.file_revisi_name ? { name: item.file_revisi_name, url: item.file_revisi_url || "" } : null);
                             }}
-                            className="text-primary hover:underline font-bold"
+                            className="inline-flex items-center gap-1 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shadow-2xs"
                           >
                             Review Dokumen
                           </button>
@@ -2105,7 +2106,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
               <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
                 <div>
                   <h3 className="font-bold text-neutral-900 text-sm">Review & Revisi Proyek Kaizen</h3>
-                  <p className="text-[10px] text-neutral-450 font-bold uppercase mt-0.5">Siswa: {selectedProjectSubmisi.siswa.nama}</p>
+                  <p className="text-[10px] text-neutral-450 font-bold uppercase mt-0.5">Siswa: {selectedProjectSubmisi.siswa?.nama || "Siswa"}</p>
                 </div>
                 <button 
                   onClick={() => setSelectedProjectSubmisi(null)}
