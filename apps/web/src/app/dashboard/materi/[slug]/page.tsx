@@ -74,6 +74,7 @@ export default function MateriDetailPage() {
   const [progress, setProgress] = useState<ModuleProgressState>({ completed: false, scrollProgress: 0, scrollTop: 0, score: null });
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [showPembahasan, setShowPembahasan] = useState(false);
   const [lockedByPrev, setLockedByPrev] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -210,7 +211,11 @@ export default function MateriDetailPage() {
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
-      const scrollPercent = Math.min(100, Math.max(0, Math.round(((scrollTop + clientHeight) / scrollHeight) * 100)));
+      const remaining = scrollHeight - (scrollTop + clientHeight);
+      let scrollPercent = Math.min(100, Math.max(0, Math.round(((scrollTop + clientHeight) / scrollHeight) * 100)));
+      if (scrollPercent >= 92 || remaining <= 35) {
+        scrollPercent = 100;
+      }
       setProgress((current) => {
         const nextScrollTop = Math.max(current.scrollTop, scrollTop);
         const nextScrollProgress = Math.max(current.scrollProgress, scrollPercent);
@@ -353,8 +358,9 @@ export default function MateriDetailPage() {
     const score = Math.round((correctAnswers / quizList.length) * 100);
     const completed = score >= 70;
 
-    setProgress((current) => ({ ...current, completed, score }));
+    setProgress((current) => ({ ...current, completed: current.completed || completed, score }));
     setSubmitted(true);
+    setShowPembahasan(false);
 
     // Kirim nilai kuis ke database
     const token = localStorage.getItem("token");
@@ -373,6 +379,16 @@ export default function MateriDetailPage() {
       });
     } catch (err) {
       console.error("Gagal mengirimkan nilai kuis ke database:", err);
+    }
+  };
+
+  // 9. Reset/Kerjakan Ulang Kuis
+  const handleResetQuiz = () => {
+    setAnswers({});
+    setSubmitted(false);
+    setShowPembahasan(false);
+    if (dbModule && typeof window !== "undefined") {
+      window.localStorage.removeItem(`${STORAGE_KEY}-answers-${dbModule.id}`);
     }
   };
 
@@ -635,86 +651,133 @@ export default function MateriDetailPage() {
                     Selesaikan kuis pemahaman berikut ini untuk menguji pemahaman Anda. Anda dianggap lulus jika skor mencapai minimal 70.
                   </p>
                   
-                  <div className="space-y-5 mt-4">
-                    {quizList.map((quiz: any, quizIndex: number) => {
-                      const options = [quiz.pilihan_a, quiz.pilihan_b, quiz.pilihan_c, quiz.pilihan_d];
-                      return (
-                        <div key={`${quiz.id}-${quizIndex}`} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-                          <p className="text-sm font-bold text-neutral-800">{quizIndex + 1}. {quiz.pertanyaan}</p>
-                          <div className="mt-4 space-y-2.5">
-                            {options.map((option, optionIndex) => {
-                              const selected = answers[quizIndex] === optionIndex;
-                              const isCorrectAnswer = optionIndex === quiz.jawaban_benar;
-
-                              let itemStyle = "border-neutral-200 text-neutral-700 bg-neutral-50/10";
-                              if (selected) {
-                                itemStyle = "border-primary bg-primary/5 text-primary";
-                              }
-
-                              if (submitted) {
-                                if (isCorrectAnswer) {
-                                  itemStyle = "border-success bg-success/5 text-success font-bold";
-                                } else if (selected) {
-                                  itemStyle = "border-danger bg-danger/5 text-danger";
-                                } else {
-                                  itemStyle = "border-neutral-200 text-neutral-400 opacity-60";
-                                }
-                              }
-
-                              return (
-                                <label
-                                  key={`${quiz.id}-${optionIndex}`}
-                                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 ${
-                                    !submitted ? "cursor-pointer hover:border-primary/45" : "cursor-default"
-                                  } ${itemStyle}`}
-                                >
-                                  <input
-                                    type="radio"
-                                    name={`quiz-${quizIndex}`}
-                                    checked={selected}
-                                    disabled={submitted}
-                                    onChange={() => setAnswers((current) => ({ ...current, [quizIndex]: optionIndex }))}
-                                    className="h-4 w-4 accent-primary"
-                                  />
-                                  <span className="flex-1">{option}</span>
-                                  {submitted && isCorrectAnswer && (
-                                    <span className="text-success text-xs font-bold bg-success/10 px-2 py-0.5 rounded flex-shrink-0">Benar</span>
-                                  )}
-                                  {submitted && selected && !isCorrectAnswer && (
-                                    <span className="text-danger text-xs font-bold bg-danger/10 px-2 py-0.5 rounded flex-shrink-0">Salah</span>
-                                  )}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    onClick={handleSubmit}
-                    className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-3 text-sm font-bold transition-all shadow-md"
-                  >
-                    Kirim Jawaban Kuis
-                  </button>
-
+                  {/* Banner Hasil jika Kuis Sudah Disubmit */}
                   {submitted && progress.score !== null && (
-                    <div className={`mt-5 rounded-xl border p-4 text-sm font-semibold ${
-                      progress.score >= 70
-                        ? "border-success/20 bg-success/10 text-success"
-                        : "border-warning/20 bg-warning/10 text-warning"
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        <Trophy size={18} />
-                        <span>Skor Kuis Anda: {progress.score}%</span>
+                    <div className="space-y-4">
+                      <div className={`rounded-xl border p-5 text-sm font-semibold shadow-sm ${
+                        progress.score >= 70
+                          ? "border-success/30 bg-success/10 text-success"
+                          : "border-warning/30 bg-warning/10 text-warning"
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-base font-bold">
+                            <Trophy size={20} />
+                            <span>Hasil Skor Kuis Anda: {progress.score}%</span>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            progress.score >= 70 ? "bg-success text-white" : "bg-warning text-white"
+                          }`}>
+                            {progress.score >= 70 ? "LULUS" : "BELUM LULUS"}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs opacity-90 font-normal leading-relaxed">
+                          {progress.score >= 70
+                            ? "Selamat! Anda telah mencapai target nilai kelulusan kuis untuk modul ini."
+                            : "Skor kuis Anda belum mencapai KKM (70%). Anda dapat membaca kembali materi dan mencoba mengerjakan ulang kuis ini."}
+                        </p>
+
+                        {/* Tombol Aksi: Kerjakan Ulang & Lihat Pembahasan */}
+                        <div className="mt-4 flex flex-wrap items-center gap-3 pt-2 border-t border-black/5">
+                          <button
+                            onClick={handleResetQuiz}
+                            className="inline-flex items-center gap-2 rounded-xl bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 px-4 py-2 text-xs font-bold transition-all shadow-sm"
+                          >
+                            <BrainCircuit size={15} /> Kerjakan Ulang Kuis
+                          </button>
+                          <button
+                            onClick={() => setShowPembahasan(!showPembahasan)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2 text-xs font-bold transition-all shadow-sm"
+                          >
+                            <FileText size={15} /> {showPembahasan ? "Sembunyikan Pembahasan" : "Lihat Pembahasan Soal"}
+                          </button>
+                        </div>
                       </div>
-                      <p className="mt-1 text-xs opacity-80 font-normal">
-                        {progress.score >= 70
-                          ? "Selamat! Anda dinyatakan lulus pada kuis modul ini."
-                          : "Skor belum mencapai target kelulusan 70%. Silakan coba lagi."}
-                      </p>
                     </div>
+                  )}
+
+                  {/* Daftar Soal (Tampil jika Belum Submit ATAU Jika Siswa Membuka Pembahasan) */}
+                  {(!submitted || showPembahasan) && (
+                    <div className="space-y-5 mt-4">
+                      {quizList.map((quiz: any, quizIndex: number) => {
+                        const options = [quiz.pilihan_a, quiz.pilihan_b, quiz.pilihan_c, quiz.pilihan_d];
+                        return (
+                          <div key={`${quiz.id}-${quizIndex}`} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-bold text-neutral-800">{quizIndex + 1}. {quiz.pertanyaan}</p>
+                              {submitted && showPembahasan && (
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                  answers[quizIndex] === quiz.jawaban_benar
+                                    ? "bg-success/10 text-success"
+                                    : "bg-danger/10 text-danger"
+                                }`}>
+                                  {answers[quizIndex] === quiz.jawaban_benar ? "Benar" : "Salah"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-4 space-y-2.5">
+                              {options.map((option, optionIndex) => {
+                                const selected = answers[quizIndex] === optionIndex;
+                                const isCorrectAnswer = optionIndex === quiz.jawaban_benar;
+
+                                let itemStyle = "border-neutral-200 text-neutral-700 bg-neutral-50/10";
+                                if (selected) {
+                                  itemStyle = "border-primary bg-primary/5 text-primary font-semibold";
+                                }
+
+                                if (submitted && showPembahasan) {
+                                  if (isCorrectAnswer) {
+                                    itemStyle = "border-success bg-success/10 text-success font-bold ring-1 ring-success/30";
+                                  } else if (selected) {
+                                    itemStyle = "border-danger bg-danger/10 text-danger font-semibold";
+                                  } else {
+                                    itemStyle = "border-neutral-200 text-neutral-400 opacity-60";
+                                  }
+                                }
+
+                                return (
+                                  <label
+                                    key={`${quiz.id}-${optionIndex}`}
+                                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-all duration-200 ${
+                                      !submitted ? "cursor-pointer hover:border-primary/45" : "cursor-default"
+                                    } ${itemStyle}`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={`quiz-${quizIndex}`}
+                                      checked={selected}
+                                      disabled={submitted}
+                                      onChange={() => setAnswers((current) => ({ ...current, [quizIndex]: optionIndex }))}
+                                      className="h-4 w-4 accent-primary"
+                                    />
+                                    <span className="flex-1">{option}</span>
+                                    {submitted && showPembahasan && isCorrectAnswer && (
+                                      <span className="text-success text-xs font-bold bg-success/20 px-2.5 py-0.5 rounded flex-shrink-0">
+                                        ✓ Jawaban Benar
+                                      </span>
+                                    )}
+                                    {submitted && showPembahasan && selected && !isCorrectAnswer && (
+                                      <span className="text-danger text-xs font-bold bg-danger/20 px-2.5 py-0.5 rounded flex-shrink-0">
+                                        ✗ Pilihan Anda
+                                      </span>
+                                    )}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Tombol Kirim Jawaban (Hanya Tampil Jika Belum Submit) */}
+                  {!submitted && (
+                    <button
+                      onClick={handleSubmit}
+                      className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-5 py-3 text-sm font-bold transition-all shadow-md"
+                    >
+                      Kirim Jawaban Kuis
+                    </button>
                   )}
                 </section>
               )}

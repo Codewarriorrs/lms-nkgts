@@ -113,7 +113,9 @@ export default function MateriPage() {
   const modules = useMemo(() => {
     return materiModules.map((module) => {
       const progress = progressMap[module.id.toString()] ?? { completed: false, scrollProgress: 0, score: null };
-      const percent = Math.max(progress.scrollProgress, progress.score ?? 0);
+      const isCompleted = Boolean(progress.completed || (progress.score !== null && progress.score >= 70) || (progress.scrollProgress && progress.scrollProgress >= 92));
+      const rawPercent = Math.max(progress.scrollProgress || 0, progress.score ?? 0);
+      const percent = isCompleted ? 100 : rawPercent;
       return {
         ...module,
         progress,
