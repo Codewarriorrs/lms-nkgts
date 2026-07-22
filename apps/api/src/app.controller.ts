@@ -355,51 +355,54 @@ export class AppController implements OnModuleInit {
   }
 
   private async seedTugasIfEmpty() {
-    const hitungTugas = await this.prisma.tugasPraktek.count();
-    
-    // Jika di database cloud sudah ada datanya, batalkan proses (agar tidak duplikat)
-    if (hitungTugas > 0) return;
-
-    console.log('*** Menyuntikkan 5 Master Tugas Praktek N-KGTS ke Cloud Neon... ***');
+    console.log('*** Menyuntikkan & memperbarui 5 Master Tugas Praktek N-KGTS ke Cloud Neon... ***');
 
     const masterTugas = [
       {
         id: 1,
-        judul: 'Pengenalan Budaya Kaizen',
-        deskripsi: 'Lakukan observasi dan catat contoh penerapan budaya Kaizen di lingkungan Anda.',
+        judul: 'Ringkas 1 - Memilah',
+        deskripsi: 'Identifikasi barang-barang di sekitar area terpilih dan klasifikasikan kegunaannya.',
         urutan: 1,
       },
       {
         id: 2,
-        judul: '5R (Ringkas, Rapi, Resik, Rawat, Rajin)',
-        deskripsi: 'Terapkan dan dokumentasikan langkah 5R pada area kerja yang Anda pilih.',
+        judul: 'Ringkas 2 - Tindakan Pemilahan',
+        deskripsi: 'Lakukan aksi nyata pembersihan terhadap barang-barang yang tidak diperlukan.',
         urutan: 2,
       },
       {
         id: 3,
-        judul: '6 Potensi Bahaya',
-        deskripsi: 'Identifikasi acronym 6 potensi bahaya di lokasi kerja dan usulkan mitigasinya.',
+        judul: 'Checklist Evaluasi 5R',
+        deskripsi: 'Lakukan audit mandiri kondisi 5R pada ruangan sekolah.',
         urutan: 3,
       },
       {
         id: 4,
-        judul: '7 Pemborosan',
-        deskripsi: 'Amati contoh pemborosan (muda-mudahan) dan catat cara menguranginya.',
+        judul: 'Potensi Bahaya',
+        deskripsi: 'Identifikasi potensi bahaya keselamatan di rumah, sekolah, dan perjalanan.',
         urutan: 4,
       },
       {
         id: 5,
-        judul: '8 Langkah Penyelesaian Masalah',
-        deskripsi: 'Praktikkan 8 langkah penyelesaian masalah pada studi kasus sederhana.',
+        judul: 'Mencari Pemborosan',
+        deskripsi: 'Mendeteksi pemborosan yang tidak memberikan nilai tambah di lingkungan sekitar.',
         urutan: 5,
       },
     ];
 
     for (const tugas of masterTugas) {
-      await this.prisma.tugasPraktek.create({ data: tugas });
+      await this.prisma.tugasPraktek.upsert({
+        where: { id: tugas.id },
+        update: {
+          judul: tugas.judul,
+          deskripsi: tugas.deskripsi,
+          urutan: tugas.urutan,
+        },
+        create: tugas,
+      });
     }
 
-    console.log('✅ 5 Master Tugas Praktek Berhasil Di-seed!');
+    console.log('✅ 5 Master Tugas Praktek Berhasil Di-seed / Di-update!');
   }
 
   @Get()
