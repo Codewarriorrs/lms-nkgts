@@ -40,14 +40,15 @@ const stats = [
   },
   {
     icon: Users,
-    value: 420,
+    value: 250,
+    suffix: "+",
     animate: true,
     label: "Siswa Peserta 2026",
     color: "bg-accent/70 text-primary",
   },
   {
     icon: GraduationCap,
-    value: 30,
+    value: 50,
     suffix: "+",
     animate: true,
     label: "Guru Praktisi Bersertifikat",
@@ -920,7 +921,7 @@ function Footer() {
             <div className="bg-white/10 rounded-xl p-4 inline-block">
               <p className="text-white font-bold text-sm">PT Toyota-Astra Motor</p>
               <p className="text-white/50 text-xs mt-0.5">Toyota Berbagi · Bersama Membangun Indonesia</p>
-              <img src="https://pbs.twimg.com/media/CIP5tRJW8AA7045.png" alt="Logo Toyota Berbagi" className="block mx-auto h-28 w-auto object-contain mt-2 rounded p-0.5" />
+              <img src="/logo-toyota-berbagi.png" alt="Logo Toyota Berbagi" className="block mx-auto h-28 w-auto object-contain mt-2 rounded p-0.5" />
             </div>
           </div>
         </div>
