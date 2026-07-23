@@ -62,4 +62,27 @@ export class LatsolController {
     const userId = req.user.id;
     return this.latsolService.submitStudentLatsol(userId, submitLatsolDto);
   }
+
+  // 6. Toggle izin mengulang Latsol untuk siswa tertentu (Admin saja)
+  @Post('toggle-repeat')
+  @UseGuards(RolesGuard)
+  @Roles(RoleEnum.admin)
+  async toggleRepeat(
+    @Body('siswa_id') siswaId: string,
+    @Body('modul_teori_id', ParseIntPipe) modulTeoriId: number,
+    @Body('bisa_ulang') bisaUlang: boolean
+  ) {
+    return this.latsolService.toggleStudentRepeat(siswaId, modulTeoriId, bisaUlang);
+  }
+
+  // 7. Toggle izin mengulang Latsol untuk semua siswa / global (Admin saja)
+  @Post('toggle-global-repeat')
+  @UseGuards(RolesGuard)
+  @Roles(RoleEnum.admin)
+  async toggleGlobalRepeat(
+    @Body('modul_teori_id', ParseIntPipe) modulTeoriId: number,
+    @Body('bisa_ulang') bisaUlang: boolean
+  ) {
+    return this.latsolService.toggleGlobalRepeat(modulTeoriId, bisaUlang);
+  }
 }

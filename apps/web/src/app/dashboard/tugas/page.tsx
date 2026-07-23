@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import { uploadFileOrBase64 } from "@/utils/upload";
+import { compressImage } from "@/utils/image";
 import TeacherDashboard from "@/components/dashboard/TeacherDashboard";
 
 interface Submisi {
@@ -122,52 +123,7 @@ export default function TugasPage() {
 
   const uploadPromises = useRef<Record<number, Promise<string> | null>>({});
 
-  const compressImage = (file: File): Promise<File> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let width = img.width;
-          let height = img.height;
-          
-          const MAX_WIDTH = 1200;
-          if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
-            width = MAX_WIDTH;
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            canvas.toBlob(
-              (blob) => {
-                if (blob) {
-                  const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
-                    type: "image/jpeg",
-                    lastModified: Date.now(),
-                  });
-                  resolve(compressedFile);
-                } else {
-                  resolve(file);
-                }
-              },
-              "image/jpeg",
-              0.7
-            );
-          } else {
-            resolve(file);
-          }
-        };
-        img.src = event.target?.result as string;
-      };
-      reader.readAsDataURL(file);
-    });
-  };
+
 
   // Form states per Submenu
   const [ruangS1, setRuangS1] = useState("Ruang Kelas");

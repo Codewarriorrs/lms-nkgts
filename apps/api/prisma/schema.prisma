@@ -58,6 +58,7 @@ model User {
   submisi_praktek SubmisiPraktek[]
   file_project    FileProject[]
   nilai_latsol    NilaiLatsol[]
+  galeri          Galeri[]
 
   @@map("users") // Mengubah nama tabel di database menjadi huruf kecil 'users'
 }
@@ -125,6 +126,7 @@ model ModulTeori {
   soal_latihan   SoalLatihan[]
   latihan_soal   LatihanSoal[]
   nilai_latsol   NilaiLatsol[]
+  latsol_bisa_ulang Boolean    @default(false)
 
   @@map("modul_teori")
 }
@@ -168,6 +170,7 @@ model SoalLatihan {
   pilihan_c      String     @db.Text
   pilihan_d      String     @db.Text
   jawaban_benar  Int        // Menyimpan index jawaban benar (0, 1, 2, atau 3)
+  pembahasan     String?    @db.Text
   created_at     DateTime   @default(now())
 
   @@map("soal_latihan")
@@ -238,6 +241,7 @@ model LatihanSoal {
   jawaban_benar  Int        // Index pada array pilihan (0, 1, 2, dst)
   poin           Int        @default(10)
   image_url      String?    @db.Text
+  pembahasan     String?    @db.Text
   created_at     DateTime   @default(now())
 
   @@map("latihan_soal")
@@ -252,8 +256,24 @@ model NilaiLatsol {
   modul_teori    ModulTeori @relation(fields: [modul_teori_id], references: [id], onDelete: Cascade)
   skor           Int        // Skor persen (0-100)
   total_poin     Int        // Akumulasi poin yang didapatkan
+  bisa_ulang     Boolean    @default(false)
   disubmit_at    DateTime   @default(now())
 
   @@unique([siswa_id, modul_teori_id])
   @@map("nilai_latsol")
+}
+
+// === DATA GALERI DOKUMENTASI NKGTS ===
+model Galeri {
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @db.Uuid
+  uploader     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  judul        String   @db.VarChar(255)
+  deskripsi    String?  @db.Text
+  foto_url     String   @db.Text // URL Supabase Storage
+  sekolah_id   Int?     // ID Sekolah uploader (jika ada)
+  sekolah_nama String?  @db.VarChar(150) // Nama Sekolah uploader (jika ada)
+  created_at   DateTime @default(now())
+
+  @@map("galeri")
 }

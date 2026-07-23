@@ -18,14 +18,19 @@ import {
   School,
   GraduationCap,
   ArrowRight,
+  Calendar,
+  MapPin,
+  Image as ImageIcon
 } from "lucide-react";
 import CardSwap, { Card } from "@/components/ui/CardSwap";
+import { API_URL } from "@/lib/api";
 
 // ── DATA ─────────────────────────────────────────────────────
 
 const navLinks = [
   { label: "Tentang Program", href: "#tentang" },
   { label: "Modul", href: "#modul" },
+  { label: "Galeri", href: "#galeri" },
   { label: "FAQ", href: "#faq" },
 ];
 
@@ -818,6 +823,92 @@ function CTABanner() {
   );
 }
 
+// ── GALERI DOKUMENTASI SEKOLAH ──────────────────────────────────
+
+function GaleriSection() {
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useMotionInView(ref); // useMotionInView fits with the motion/react import
+
+  useEffect(() => {
+    const fetchLandingPosts = async () => {
+      try {
+        const res = await fetch(`${API_URL}/galeri/landing`);
+        if (res.ok) {
+          setPosts(await res.json());
+        }
+      } catch (err) {
+        console.error("Gagal mengambil galeri landing page:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLandingPosts();
+  }, []);
+
+  if (loading || posts.length === 0) return null;
+
+  return (
+    <section id="galeri" className="bg-white py-20 border-t border-neutral-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <span className="inline-block bg-accent text-neutral-900 text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-wide uppercase">
+            Dokumentasi Sekolah
+          </span>
+          <h2 className="text-3xl font-extrabold text-neutral-900">
+            Galeri Dokumentasi NKGTS
+          </h2>
+          <p className="text-neutral-500 text-sm max-w-xl mx-auto mt-2 font-semibold">
+            Foto implementasi budaya Kaizen dan kolaborasi aktif dari sekolah-sekolah duta NKGTS.
+          </p>
+        </div>
+
+        <div 
+          ref={ref} 
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"
+        >
+          {posts.map((post, idx) => (
+            <div
+              key={post.id}
+              className={`bg-neutral-50 border border-neutral-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-500 ${
+                inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+              }`}
+              style={{ transitionDelay: `${idx * 50}ms` }}
+            >
+              <div className="relative aspect-[4/3] w-full bg-neutral-200 overflow-hidden">
+                <img
+                  src={post.foto_url}
+                  alt={post.judul}
+                  className="w-full h-full object-cover hover:scale-[1.02] transition duration-300"
+                  loading="lazy"
+                />
+              </div>
+              <div className="p-4 space-y-2">
+                <div>
+                  <h3 className="font-extrabold text-neutral-900 text-sm line-clamp-1">{post.judul}</h3>
+                  {post.deskripsi && (
+                    <p className="text-neutral-500 text-xs line-clamp-2 mt-1 leading-relaxed break-words">{post.deskripsi}</p>
+                  )}
+                </div>
+                
+                <div className="flex items-center justify-between text-[10px] text-neutral-400 font-bold border-t border-neutral-200/50 pt-2.5 mt-2">
+                  <span className="flex items-center gap-0.5 truncate max-w-[150px] text-neutral-500">
+                    <MapPin size={10} className="text-primary" /> {post.sekolah_nama || "N-KGTS Pusat"}
+                  </span>
+                  <span className="flex items-center gap-0.5">
+                    <Calendar size={10} /> {new Date(post.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── FAQ ───────────────────────────────────────────────────────
 
 function FAQSection() {
@@ -949,6 +1040,7 @@ export default function LandingPage() {
       <TentangSection />
       <ModulSection />
       <CTABanner />
+      <GaleriSection />
       <FAQSection />
       <Footer />
     </main>

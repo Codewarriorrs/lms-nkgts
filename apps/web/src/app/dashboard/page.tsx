@@ -95,7 +95,8 @@ export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [progressMap, setProgressMap] = useState<Record<string, any>>({});
-  const [tugasPending, setTugasPending] = useState<any[]>([]);
+  const [tasksList, setTasksList] = useState<any[]>([]);
+  const [projectFiles, setProjectFiles] = useState<any[]>([]);
 
   useEffect(() => {
     setGreeting(getGreeting());
@@ -155,26 +156,33 @@ export default function DashboardPage() {
     fetchProgress();
   }, []);
 
-  // Fetch real pending tasks from database
+  // Fetch real tasks status and project files from database
   useEffect(() => {
-    const fetchPendingTasks = async () => {
+    const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
-        const res = await fetch(`${API_URL}/tugas-praktek/status-siswa`, {
+        
+        // Fetch tasks
+        const tasksRes = await fetch(`${API_URL}/tugas-praktek/status-siswa`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (res.ok) {
-          const data = await res.json();
-          // Filter tasks that do not have any submissions
-          const pending = data.filter((t: any) => !t.submisi || t.submisi.length === 0);
-          setTugasPending(pending);
+        if (tasksRes.ok) {
+          setTasksList(await tasksRes.json());
+        }
+
+        // Fetch projects
+        const projRes = await fetch(`${API_URL}/project-kaizen/status-siswa`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (projRes.ok) {
+          setProjectFiles(await projRes.json());
         }
       } catch (err) {
-        console.error("Gagal mengambil tugas pending:", err);
+        console.error("Gagal mengambil data dashboard:", err);
       }
     };
-    fetchPendingTasks();
+    fetchDashboardData();
   }, []);
 
   // Compute real-time stats count
@@ -239,6 +247,84 @@ export default function DashboardPage() {
       lastAccessed: "Belum diakses",
     }));
   }, [progressMap]);
+
+  // Hitung status Project Kaizen secara dinamis dari API
+  const statusProject = useMemo(() => {
+    const proposal = projectFiles.find((p) => p.tipe === "proposal");
+    const laporan = projectFiles.find((p) => p.tipe === "laporan");
+
+    if (laporan) {
+      const isGraded = laporan.nilai !== null;
+      return {
+        judul: laporan.file_name || "Laporan Akhir Proyek Kaizen",
+        status: isGraded ? `Selesai (${laporan.nilai}/100)` : "Menunggu Review",
+        statusColor: isGraded 
+          ? "bg-success/10 text-success border border-success/30" 
+          : "bg-warning/10 text-warning border border-warning/30",
+        lastUpdate: new Date(laporan.submitted_at).toLocaleDateString("id-ID"),
+        progress: isGraded ? 100 : 85,
+      };
+    } else if (proposal) {
+      const isGraded = proposal.nilai !== null;
+      return {
+        judul: proposal.file_name || "Proposal Proyek Kaizen",
+        status: isGraded ? `Proposal Disetujui (${proposal.nilai}/100)` : "Menunggu Review",
+        statusColor: isGraded 
+          ? "bg-success/10 text-success border border-success/30" 
+          : "bg-warning/10 text-warning border border-warning/30",
+        lastUpdate: new Date(proposal.submitted_at).toLocaleDateString("id-ID"),
+        progress: isGraded ? 50 : 35,
+      };
+    }
+
+    return {
+      judul: "Belum ada Project Kaizen yang diunggah",
+      status: "Belum Dikirim",
+      statusColor: "bg-neutral-100 text-neutral-450 border border-neutral-200",
+      lastUpdate: "-",
+      progress: 0,
+    };
+  }, [projectFiles]);
+
+  // Hitung progress tugas praktik yang belum diselesaikan
+  const unfinishedTasks = useMemo(() => {
+    return tasksList.map((t, idx) => {
+      const hasSubmisi = t.submisi && t.submisi.length > 0;
+      const grading = hasSubmisi ? t.submisi[0].nilai : null;
+      const isLocked = idx > 0 && !(tasksList[idx - 1]?.submisi && tasksList[idx - 1].submisi.length > 0);
+      
+      let statusLabel = "Belum dikerjakan";
+      let progressVal = 0;
+      let statusColor = "text-neutral-400";
+      let isFinished = false;
+
+      if (isLocked) {
+        statusLabel = "Terkunci";
+        progressVal = 0;
+        statusColor = "text-neutral-400 opacity-60";
+      } else if (hasSubmisi) {
+        if (grading !== null) {
+          statusLabel = `Selesai (${grading}/100)`;
+          progressVal = 100;
+          statusColor = "text-success";
+          isFinished = true;
+        } else {
+          statusLabel = "Menunggu Penilaian";
+          progressVal = 50;
+          statusColor = "text-warning font-semibold";
+        }
+      }
+
+      return {
+        id: t.id,
+        judul: t.judul,
+        statusLabel,
+        progressVal,
+        statusColor,
+        isFinished,
+      };
+    }).filter(t => !t.isFinished);
+  }, [tasksList]);
 
   if (!isLoaded) {
     return (
@@ -348,35 +434,41 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Tasks Pending */}
+        {/* Progress Tugas */}
         <div className="space-y-4">
           <h3 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
             <AlertCircle size={14} className="text-neutral-400" />
-            Tugas Pending
+            Progress Tugas
           </h3>
           <div className="space-y-3">
-            {tugasPending.map((t) => (
+            {unfinishedTasks.map((t) => (
               <Link
                 key={t.id}
                 href="/dashboard/tugas"
-                className="block p-4 rounded-xl border transition-colors duration-200 cursor-pointer bg-neutral-50 border-neutral-100 hover:border-neutral-200"
+                className="block p-4 rounded-xl border transition-all duration-200 cursor-pointer bg-neutral-50 border-neutral-100 hover:border-neutral-200"
               >
                 <p className="text-neutral-900 text-xs font-bold leading-snug line-clamp-2">
                   {t.judul}
                 </p>
-                <div className="flex items-center gap-1.5 mt-3">
-                  <Clock
-                    size={13}
-                    className="text-neutral-400"
+                <div className="mt-3 space-y-1.5">
+                  <ProgressBar
+                    value={t.progressVal}
+                    color={t.progressVal === 50 ? "bg-warning" : "bg-primary"}
                   />
-                  <span className="text-xs font-semibold text-neutral-400">
-                    Belum dikerjakan
-                  </span>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <Clock
+                      size={12}
+                      className="text-neutral-400"
+                    />
+                    <span className={`text-[10px] font-bold ${t.statusColor}`}>
+                      {t.statusLabel}
+                    </span>
+                  </div>
                 </div>
               </Link>
             ))}
-            {tugasPending.length === 0 && (
-              <p className="text-xs text-neutral-400 italic text-center py-4">Tidak ada tugas pending.</p>
+            {unfinishedTasks.length === 0 && (
+              <p className="text-xs text-neutral-400 italic text-center py-4">Semua tugas praktik selesai.</p>
             )}
           </div>
         </div>

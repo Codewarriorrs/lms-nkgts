@@ -58,12 +58,22 @@ export class LatsolService {
       orderBy: { id: 'asc' },
     });
 
-    // Jika siswa, hilangkan field kunci 'jawaban_benar' agar tidak bisa dicheat di inspect element
-    if (!isGuru) {
-      return questions.map((q) => {
-        const { jawaban_benar, ...rest } = q;
-        return rest;
+    // Jika siswa, hilangkan field kunci 'jawaban_benar' dan 'pembahasan' agar tidak bisa dicheat di inspect element sebelum submit
+    if (!isGuru && userId) {
+      const hasCompleted = await this.prisma.nilaiLatsol.findUnique({
+        where: {
+          siswa_id_modul_teori_id: {
+            siswa_id: userId,
+            modul_teori_id: moduleId,
+          },
+        },
       });
+      if (!hasCompleted) {
+        return questions.map((q) => {
+          const { jawaban_benar, pembahasan, ...rest } = q;
+          return rest;
+        });
+      }
     }
 
     return questions;
@@ -118,10 +128,12 @@ export class LatsolService {
         modul_teori_id,
         skor: skorPersen,
         total_poin: totalPoinDiperoleh,
+        bisa_ulang: false,
       },
       update: {
         skor: skorPersen,
         total_poin: totalPoinDiperoleh,
+        bisa_ulang: false,
       },
     });
 
@@ -151,6 +163,8 @@ export class LatsolService {
       completed: boolean;
       nilai?: number;
       poin?: number;
+      bisa_ulang: boolean;
+      latsol_bisa_ulang: boolean;
     }> = [];
 
     for (let i = 0; i < modules.length; i++) {
@@ -226,9 +240,43 @@ export class LatsolService {
         completed: !!existingLatsolVal,
         nilai: existingLatsolVal?.skor,
         poin: existingLatsolVal?.total_poin,
+        bisa_ulang: existingLatsolVal?.bisa_ulang ?? false,
+        latsol_bisa_ulang: mod.latsol_bisa_ulang,
       });
     }
 
     return statusList;
+  }
+
+  // 6. Toggle izin pengerjaan ulang (Siswa tertentu)
+  async toggleStudentRepeat(siswaId: string, modulTeoriId: number, bisaUlang: boolean) {
+    return this.prisma.nilaiLatsol.upsert({
+      where: {
+        siswa_id_modul_teori_id: {
+          siswa_id: siswaId,
+          modul_teori_id: modulTeoriId,
+        },
+      },
+      create: {
+        siswa_id: siswaId,
+        modul_teori_id: modulTeoriId,
+        skor: 0,
+        total_poin: 0,
+        bisa_ulang: bisaUlang,
+      },
+      update: {
+        bisa_ulang: bisaUlang,
+      },
+    });
+  }
+
+  // 7. Toggle izin pengerjaan ulang (Semua siswa / Global)
+  async toggleGlobalRepeat(modulTeoriId: number, bisaUlang: boolean) {
+    return this.prisma.modulTeori.update({
+      where: { id: modulTeoriId },
+      data: {
+        latsol_bisa_ulang: bisaUlang,
+      },
+    });
   }
 }

@@ -681,30 +681,14 @@ export default function MateriDetailPage() {
                         <p className="mt-2 text-xs opacity-90 font-normal leading-relaxed">
                           {progress.score >= 70
                             ? "Selamat! Anda telah mencapai target nilai kelulusan kuis untuk modul ini."
-                            : "Skor kuis Anda belum mencapai KKM (70%). Anda dapat membaca kembali materi dan mencoba mengerjakan ulang kuis ini."}
+                            : "Skor kuis Anda belum mencapai KKM (70%). Hubungi admin/guru untuk info lebih lanjut."}
                         </p>
-
-                        {/* Tombol Aksi: Kerjakan Ulang & Lihat Pembahasan */}
-                        <div className="mt-4 flex flex-wrap items-center gap-3 pt-2 border-t border-black/5">
-                          <button
-                            onClick={handleResetQuiz}
-                            className="inline-flex items-center gap-2 rounded-xl bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 px-4 py-2 text-xs font-bold transition-all shadow-sm"
-                          >
-                            <BrainCircuit size={15} /> Kerjakan Ulang Kuis
-                          </button>
-                          <button
-                            onClick={() => setShowPembahasan(!showPembahasan)}
-                            className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2 text-xs font-bold transition-all shadow-sm"
-                          >
-                            <FileText size={15} /> {showPembahasan ? "Sembunyikan Pembahasan" : "Lihat Pembahasan Soal"}
-                          </button>
-                        </div>
                       </div>
                     </div>
                   )}
 
                   {/* Daftar Soal (Tampil jika Belum Submit ATAU Jika Siswa Membuka Pembahasan) */}
-                  {(!submitted || showPembahasan) && (
+                  {true && (
                     <div className="space-y-5 mt-4">
                       {quizList.map((quiz: any, quizIndex: number) => {
                         const options = [quiz.pilihan_a, quiz.pilihan_b, quiz.pilihan_c, quiz.pilihan_d];
@@ -712,7 +696,7 @@ export default function MateriDetailPage() {
                           <div key={`${quiz.id}-${quizIndex}`} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
                             <div className="flex items-start justify-between gap-2">
                               <p className="text-sm font-bold text-neutral-800">{quizIndex + 1}. {quiz.pertanyaan}</p>
-                              {submitted && showPembahasan && (
+                              {submitted && (
                                 <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                                   answers[quizIndex] === quiz.jawaban_benar
                                     ? "bg-success/10 text-success"
@@ -732,7 +716,7 @@ export default function MateriDetailPage() {
                                   itemStyle = "border-primary bg-primary/5 text-primary font-semibold";
                                 }
 
-                                if (submitted && showPembahasan) {
+                                if (submitted) {
                                   if (isCorrectAnswer) {
                                     itemStyle = "border-success bg-success/10 text-success font-bold ring-1 ring-success/30";
                                   } else if (selected) {
@@ -758,12 +742,12 @@ export default function MateriDetailPage() {
                                       className="h-4 w-4 accent-primary"
                                     />
                                     <span className="flex-1">{option}</span>
-                                    {submitted && showPembahasan && isCorrectAnswer && (
+                                    {submitted && isCorrectAnswer && (
                                       <span className="text-success text-xs font-bold bg-success/20 px-2.5 py-0.5 rounded flex-shrink-0">
                                         ✓ Jawaban Benar
                                       </span>
                                     )}
-                                    {submitted && showPembahasan && selected && !isCorrectAnswer && (
+                                    {submitted && selected && !isCorrectAnswer && (
                                       <span className="text-danger text-xs font-bold bg-danger/20 px-2.5 py-0.5 rounded flex-shrink-0">
                                         ✗ Pilihan Anda
                                       </span>
@@ -772,6 +756,12 @@ export default function MateriDetailPage() {
                                 );
                               })}
                             </div>
+                            {submitted && quiz.pembahasan && (
+                              <div className="mt-4 p-3.5 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-600">
+                                <p className="font-bold text-neutral-800 mb-1">Pembahasan:</p>
+                                <p className="leading-relaxed">{quiz.pembahasan}</p>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
