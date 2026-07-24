@@ -14,7 +14,11 @@ import {
   AlertCircle,
   Calendar,
   MapPin,
-  Camera
+  Camera,
+  Bookmark,
+  Send,
+  Sparkles,
+  School
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import { uploadFileOrBase64 } from "@/utils/upload";
@@ -54,6 +58,9 @@ export default function GaleriPage() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Interactive local likes state
+  const [likesState, setLikesState] = useState<Record<string, { liked: boolean; count: number }>>({});
+
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const headers = useMemo(() => ({
     "Content-Type": "application/json",
@@ -92,6 +99,38 @@ export default function GaleriPage() {
     loadPosts();
   }, [token]);
 
+  // Load and generate likes state
+  useEffect(() => {
+    if (posts.length === 0) return;
+    
+    const saved = localStorage.getItem("galeri_likes");
+    const parsed = saved ? JSON.parse(saved) : {};
+    
+    const initialLikes: Record<string, { liked: boolean; count: number }> = {};
+    posts.forEach(post => {
+      if (parsed[post.id]) {
+        initialLikes[post.id] = parsed[post.id];
+      } else {
+        const charSum = post.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const count = (charSum % 38) + 4; // 4 to 41 likes
+        initialLikes[post.id] = { liked: false, count };
+      }
+    });
+    setLikesState(initialLikes);
+  }, [posts]);
+
+  const toggleLike = (postId: string) => {
+    const currentState = likesState[postId] || { liked: false, count: 8 };
+    const updated = {
+      liked: !currentState.liked,
+      count: currentState.liked ? currentState.count - 1 : currentState.count + 1
+    };
+    
+    const newLikes = { ...likesState, [postId]: updated };
+    setLikesState(newLikes);
+    localStorage.setItem("galeri_likes", JSON.stringify(newLikes));
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -129,14 +168,9 @@ export default function GaleriPage() {
 
     try {
       setSubmitting(true);
-      
-      // 1. Kompresi gambar client-side
       const compressed = await compressImage(selectedFile);
-
-      // 2. Upload file terkompresi ke Supabase Bucket lms-files
       const fotoUrl = await uploadFileOrBase64(compressed, "galeri");
 
-      // 3. Simpan data postingan ke Database via API
       const res = await fetch(`${API_URL}/galeri`, {
         method: "POST",
         headers,
@@ -149,7 +183,7 @@ export default function GaleriPage() {
 
       if (res.ok) {
         setIsModalOpen(false);
-        loadPosts(); // Reload feed
+        loadPosts();
       } else {
         alert("Gagal memposting ke galeri.");
       }
@@ -184,7 +218,6 @@ export default function GaleriPage() {
     }
   };
 
-  // Helper untuk format tanggal indonesia
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString("id-ID", {
@@ -194,148 +227,258 @@ export default function GaleriPage() {
     });
   };
 
+  // Mock list of schools for Stories bar
+  const schoolsForStories = [
+    { name: "N-KGTS Pusat", avatar: "🏫", color: "from-amber-400 via-red-500 to-pink-500" },
+    { name: "SMK 1 Toyota", avatar: "🔧", color: "from-blue-400 via-indigo-500 to-purple-500" },
+    { name: "SMK 2 Kaizen", avatar: "✏️", color: "from-green-400 via-emerald-500 to-teal-500" },
+    { name: "SMK 3 Duta", avatar: "🛡️", color: "from-purple-400 via-pink-500 to-red-500" },
+    { name: "SMK 4 Astra", avatar: "🚗", color: "from-yellow-400 to-orange-500" }
+  ];
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-      
-      {/* Header Halaman */}
-      <div className="flex items-center justify-between border-b border-neutral-100 pb-5">
-        <div>
-          <h1 className="text-2xl font-black text-neutral-900 tracking-tight flex items-center gap-2">
-            <Globe className="text-primary" size={24} /> Galeri Dokumentasi NKGTS
-          </h1>
-          <p className="text-neutral-500 text-xs font-semibold mt-1">
-            Unggah dan bagikan dokumentasi proyek Kaizen serta keseruan aktivitas NKGTS sekolahmu!
-          </p>
-        </div>
-        <button
-          onClick={handleOpenModal}
-          className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary-light text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md shadow-primary/10 transition cursor-pointer"
-        >
-          <Plus size={16} /> Unggah Foto
-        </button>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-150 rounded-xl p-4 flex items-center gap-3 text-red-700 text-xs font-semibold">
-          <AlertCircle size={18} />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Feed Container */}
-      {loading ? (
-        <div className="flex h-[40vh] items-center justify-center">
-          <Loader2 className="animate-spin text-primary" size={32} />
-        </div>
-      ) : posts.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-neutral-100 p-12 text-center text-neutral-400 space-y-3">
-          <ImageIcon size={48} className="mx-auto text-neutral-300" />
-          <p className="font-bold text-sm">Belum ada dokumentasi</p>
-          <p className="text-xs">Jadilah yang pertama untuk membagikan dokumentasi NKGTS Anda!</p>
-          <button
-            onClick={handleOpenModal}
-            className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold px-4 py-2 rounded-xl transition"
-          >
-            Mulai Unggah
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {posts.map((post) => {
-            // Cek hak hapus
-            const isOwner = post.user_id === currentUser?.id;
-            const isAdmin = currentUser?.role === "admin";
-            const isGuruSameSchool = 
-              currentUser?.role === "guru" && 
-              currentUser?.sekolah_id !== null && 
-              currentUser?.sekolah_id === post.sekolah_id;
-
-            const canDelete = isOwner || isAdmin || isGuruSameSchool;
-
-            const avatarUrl = post.uploader?.foto_profil || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
-
-            return (
-              <div key={post.id} className="bg-white rounded-2xl border border-neutral-100 overflow-hidden shadow-xs hover:shadow-md transition duration-200 flex flex-col">
-                
-                {/* Uploader Info */}
-                <div className="p-4 flex items-center justify-between gap-3 border-b border-neutral-50">
-                  <div className="flex items-center gap-3">
-                    <img 
-                      src={avatarUrl} 
-                      alt={post.uploader?.nama} 
-                      className="w-9 h-9 rounded-full object-cover border border-neutral-100"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
-                      }}
-                    />
-                    <div>
-                      <h4 className="font-bold text-neutral-800 text-xs leading-tight">{post.uploader?.nama}</h4>
-                      <p className="text-[10px] text-neutral-400 font-bold capitalize flex items-center gap-1 mt-0.5">
-                        <span className={`px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider font-extrabold ${
-                          post.uploader?.role === "admin" ? "bg-purple-100 text-purple-700" :
-                          post.uploader?.role === "guru" ? "bg-blue-100 text-blue-700" :
-                          "bg-green-100 text-green-700"
-                        }`}>
-                          {post.uploader?.role}
-                        </span>
-                        {post.sekolah_nama && (
-                          <span className="flex items-center gap-0.5 text-neutral-500 text-[9px] font-semibold truncate max-w-[150px]">
-                            • <MapPin size={9} /> {post.sekolah_nama}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-
-                  {canDelete && (
-                    <button
-                      onClick={() => handleDelete(post.id)}
-                      className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg text-neutral-400 transition"
-                      title="Hapus dokumentasi"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  )}
-                </div>
-
-                {/* Post Image */}
-                <div className="relative aspect-[4/3] bg-neutral-100 overflow-hidden border-b border-neutral-50">
-                  <img
-                    src={post.foto_url}
-                    alt={post.judul}
-                    className="w-full h-full object-cover hover:scale-[1.02] transition duration-300"
-                    loading="lazy"
-                  />
-                </div>
-
-                {/* Content */}
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
-                  <div className="space-y-1">
-                    <h3 className="font-extrabold text-neutral-900 text-sm leading-snug">{post.judul}</h3>
-                    {post.deskripsi && (
-                      <p className="text-neutral-600 text-xs leading-relaxed break-words">{post.deskripsi}</p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between text-[10px] text-neutral-400 font-semibold pt-2 border-t border-neutral-50">
-                    <span className="flex items-center gap-1">
-                      <Calendar size={11} /> {formatDate(post.created_at)}
-                    </span>
-                  </div>
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      {/* Layout Grid: Feed di kiri, Sidebar Info di kanan (hanya desktop) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* KOLOM KIRI (Feed) */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Stories Bar (Instagram Style) */}
+          <div className="bg-white border border-neutral-200 rounded-2xl p-4 flex items-center gap-4 overflow-x-auto scrollbar-none">
+            {/* Tombol Tambah Story Anda */}
+            <div className="flex flex-col items-center shrink-0 cursor-pointer group" onClick={handleOpenModal}>
+              <div className="relative w-14 h-14 rounded-full bg-neutral-100 flex items-center justify-center border border-neutral-200 group-hover:border-primary transition">
+                <Plus className="text-neutral-500 group-hover:text-primary transition" size={20} />
+                <div className="absolute bottom-0 right-0 bg-primary text-white p-0.5 rounded-full border border-white">
+                  <Camera size={10} />
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+              <span className="text-[10px] font-semibold text-neutral-500 mt-1.5">Posting Foto</span>
+            </div>
 
-      {/* Modal Upload */}
+            {/* Mock Stories dari Sekolah */}
+            {schoolsForStories.map((school, i) => (
+              <div key={i} className="flex flex-col items-center shrink-0 cursor-pointer group">
+                <div className={`p-[2.5px] rounded-full bg-gradient-to-tr ${school.color} transition transform group-hover:scale-105`}>
+                  <div className="w-13 h-13 rounded-full bg-white flex items-center justify-center border border-white text-lg">
+                    {school.avatar}
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-neutral-700 mt-1.5 truncate max-w-[70px]">{school.name}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-150 rounded-xl p-4 flex items-center gap-3 text-red-700 text-xs font-semibold">
+              <AlertCircle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Post Feed Container */}
+          {loading ? (
+            <div className="flex h-[35vh] items-center justify-center">
+              <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+          ) : posts.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-neutral-200 p-12 text-center text-neutral-400 space-y-3">
+              <ImageIcon size={48} className="mx-auto text-neutral-300" />
+              <p className="font-bold text-sm">Belum ada dokumentasi</p>
+              <p className="text-xs">Jadilah yang pertama untuk membagikan dokumentasi proyek Kaizen sekolah Anda!</p>
+              <button
+                onClick={handleOpenModal}
+                className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold px-4 py-2 rounded-xl transition"
+              >
+                Mulai Unggah
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-6 max-w-[550px] mx-auto">
+              {posts.map((post) => {
+                const isOwner = post.user_id === currentUser?.id;
+                const isAdmin = currentUser?.role === "admin";
+                const isGuruSameSchool = 
+                  currentUser?.role === "guru" && 
+                  currentUser?.sekolah_id !== null && 
+                  currentUser?.sekolah_id === post.sekolah_id;
+
+                const canDelete = isOwner || isAdmin || isGuruSameSchool;
+                const avatarUrl = post.uploader?.foto_profil || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+
+                const isLiked = likesState[post.id]?.liked || false;
+                const likeCount = likesState[post.id]?.count || 0;
+
+                return (
+                  <div key={post.id} className="bg-white rounded-2xl border border-neutral-200 overflow-hidden shadow-xs">
+                    
+                    {/* Header Post */}
+                    <div className="p-3.5 flex items-center justify-between border-b border-neutral-100">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={avatarUrl} 
+                          alt={post.uploader?.nama} 
+                          className="w-10 h-10 rounded-full object-cover border border-neutral-200 p-[1.5px] bg-gradient-to-tr from-amber-400 to-pink-500"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+                          }}
+                        />
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-neutral-800 text-xs leading-none">{post.uploader?.nama}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider font-black leading-none ${
+                              post.uploader?.role === "admin" ? "bg-purple-100 text-purple-700" :
+                              post.uploader?.role === "guru" ? "bg-blue-100 text-blue-700" :
+                              "bg-green-100 text-green-700"
+                            }`}>
+                              {post.uploader?.role}
+                            </span>
+                          </div>
+                          {post.sekolah_nama && (
+                            <span className="flex items-center gap-0.5 text-neutral-450 text-[10px] font-bold mt-1">
+                              <MapPin size={9} className="text-primary" /> {post.sekolah_nama}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDelete(post.id)}
+                          className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg text-neutral-400 transition"
+                          title="Hapus dokumentasi"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Foto Post */}
+                    <div className="relative aspect-[4/3] bg-neutral-50 overflow-hidden select-none" onDoubleClick={() => toggleLike(post.id)}>
+                      <img
+                        src={post.foto_url}
+                        alt={post.judul}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+
+                    {/* Action Bar (Instagram Style) */}
+                    <div className="p-3.5 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <button 
+                            onClick={() => toggleLike(post.id)}
+                            className="transition transform active:scale-125 cursor-pointer text-neutral-700 hover:text-red-500"
+                          >
+                            <Heart size={22} className={isLiked ? "fill-red-500 text-red-500" : ""} />
+                          </button>
+                          <button className="text-neutral-700 hover:text-neutral-900 cursor-pointer">
+                            <MessageSquare size={22} />
+                          </button>
+                          <button className="text-neutral-700 hover:text-neutral-900 cursor-pointer">
+                            <Send size={21} />
+                          </button>
+                        </div>
+                        <button className="text-neutral-700 hover:text-neutral-900 cursor-pointer">
+                          <Bookmark size={22} />
+                        </button>
+                      </div>
+
+                      {/* Likes count */}
+                      <p className="text-xs font-black text-neutral-800">
+                        {likeCount} Suka
+                      </p>
+
+                      {/* Title & Caption */}
+                      <div className="space-y-1 text-xs">
+                        <p className="leading-relaxed">
+                          <span className="font-extrabold text-neutral-800 mr-2">{post.uploader?.nama}</span>
+                          <span className="font-bold text-neutral-850 bg-neutral-50 px-1.5 py-0.5 rounded border border-neutral-100">{post.judul}</span>
+                        </p>
+                        {post.deskripsi && (
+                          <p className="text-neutral-600 leading-relaxed pl-0">{post.deskripsi}</p>
+                        )}
+                      </div>
+
+                      {/* Date */}
+                      <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">
+                        {formatDate(post.created_at)}
+                      </p>
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+        </div>
+
+        {/* KOLOM KANAN (Sidebar Sugesti / Sekolah info - Desktop Only) */}
+        <div className="hidden lg:block space-y-6">
+          {/* Info User Aktif */}
+          {currentUser && (
+            <div className="bg-white border border-neutral-200 rounded-2xl p-4 flex items-center gap-3.5">
+              <img 
+                src={currentUser?.foto_profil || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop"} 
+                alt={currentUser?.nama} 
+                className="w-12 h-12 rounded-full object-cover border border-neutral-200 p-[1px] bg-gradient-to-tr from-amber-400 to-pink-500"
+              />
+              <div className="flex-1 min-w-0">
+                <h4 className="font-black text-neutral-900 text-xs truncate leading-snug">{currentUser?.nama}</h4>
+                <p className="text-[10px] text-neutral-450 font-bold truncate">{currentUser?.email}</p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-600 rounded text-[7px] uppercase font-black tracking-wider leading-none">
+                    {currentUser?.role}
+                  </span>
+                  {currentUser?.sekolah?.nama_sekolah && (
+                    <span className="text-[9px] text-neutral-500 font-bold flex items-center gap-0.5">
+                      <School size={9} /> {currentUser.sekolah.nama_sekolah}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rekomendasi/Info Proyek Kaizen */}
+          <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-neutral-900 text-xs tracking-tight flex items-center gap-1.5">
+                <Sparkles className="text-amber-500" size={14} /> Panduan Proyek Kaizen
+              </h3>
+            </div>
+            <div className="text-[11px] text-neutral-500 leading-relaxed space-y-3 font-semibold">
+              <p>
+                Gunakan galeri ini untuk saling menginspirasi antar sekolah! Anda dapat membagikan:
+              </p>
+              <ul className="list-disc pl-4 space-y-1.5">
+                <li>Sebelum & Sesudah (Before-After) implementasi 5R/5S.</li>
+                <li>Momen diskusi kelompok atau Genba Walk.</li>
+                <li>Sosialisasi dan ide kreatif perbaikan berkelanjutan.</li>
+              </ul>
+              <button
+                onClick={handleOpenModal}
+                className="w-full mt-2 inline-flex items-center justify-center gap-1.5 bg-primary hover:bg-primary-light text-white text-xs font-bold py-2.5 rounded-xl shadow-md shadow-primary/10 transition cursor-pointer"
+              >
+                <Upload size={13} /> Bagikan Sekarang
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Modal Upload (Instagram Style) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-neutral-100">
-            <div className="flex items-center justify-between border-b border-neutral-150 pb-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-neutral-200">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-4">
               <h3 className="font-extrabold text-base text-neutral-900 flex items-center gap-1.5">
-                <Camera className="text-primary" size={18} /> Unggah Dokumentasi
+                <Camera className="text-primary" size={18} /> Unggah Aktivitas
               </h3>
               <button 
                 onClick={handleCloseModal}
@@ -348,7 +491,7 @@ export default function GaleriPage() {
             <form onSubmit={handleSubmit} className="mt-4 space-y-4 text-xs">
               {/* Image Input */}
               <div className="space-y-1">
-                <label className="block font-bold text-neutral-700">Foto Dokumentasi *</label>
+                <label className="block font-bold text-neutral-700">Foto Aktivitas *</label>
                 {imagePreview ? (
                   <div className="relative aspect-video rounded-xl overflow-hidden border border-neutral-200">
                     <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
@@ -370,7 +513,7 @@ export default function GaleriPage() {
                   >
                     <Upload className="mx-auto text-neutral-400" size={24} />
                     <p className="font-bold text-neutral-600">Klik untuk memilih gambar</p>
-                    <p className="text-[10px] text-neutral-400">Hanya file JPG, JPEG, PNG</p>
+                    <p className="text-[10px] text-neutral-400">File JPG, JPEG, PNG</p>
                   </div>
                 )}
                 <input
@@ -388,7 +531,7 @@ export default function GaleriPage() {
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Diskusi Kelompok 5R di Bengkel 1"
+                  placeholder="Contoh: Implementasi Seiri di Area Lab"
                   value={judul}
                   onChange={(e) => setJudul(e.target.value)}
                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg bg-white focus:outline-none focus:border-primary text-neutral-800"

@@ -865,13 +865,9 @@ function GaleriSection() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {posts.map((post, idx) => (
-            <motion.div
+            <div
               key={post.id}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: idx * 0.05 }}
-              className="bg-neutral-50 border border-neutral-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow duration-300"
+              className="bg-neutral-50 border border-neutral-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 transform hover:-translate-y-1"
             >
               <div className="relative aspect-[4/3] w-full bg-neutral-200 overflow-hidden">
                 <img
@@ -898,7 +894,7 @@ function GaleriSection() {
                   </span>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>
