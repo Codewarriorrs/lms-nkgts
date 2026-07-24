@@ -60,6 +60,7 @@ export default function GaleriPage() {
 
   // Interactive local likes state
   const [likesState, setLikesState] = useState<Record<string, { liked: boolean; count: number }>>({});
+  const [viewsState, setViewsState] = useState<Record<string, number>>({});
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const headers = useMemo(() => ({
@@ -107,16 +108,25 @@ export default function GaleriPage() {
     const parsed = saved ? JSON.parse(saved) : {};
     
     const initialLikes: Record<string, { liked: boolean; count: number }> = {};
+    const initialViews: Record<string, number> = {};
+    
     posts.forEach(post => {
+      const charSum = post.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      
       if (parsed[post.id]) {
         initialLikes[post.id] = parsed[post.id];
       } else {
-        const charSum = post.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
         const count = (charSum % 38) + 4; // 4 to 41 likes
         initialLikes[post.id] = { liked: false, count };
       }
+      
+      // Deterministic views based on likes
+      const likeCount = initialLikes[post.id].count;
+      initialViews[post.id] = (likeCount * 4) + (charSum % 120) + 18;
     });
+    
     setLikesState(initialLikes);
+    setViewsState(initialViews);
   }, [posts]);
 
   const toggleLike = (postId: string) => {
@@ -282,7 +292,7 @@ export default function GaleriPage() {
                         <img 
                           src={avatarUrl} 
                           alt={post.uploader?.nama} 
-                          className="w-10 h-10 rounded-full object-cover border border-neutral-200 p-[1.5px] bg-gradient-to-tr from-amber-400 to-pink-500"
+                          className="w-10 h-10 rounded-full object-cover border border-neutral-200 p-[1.5px] bg-gradient-to-tr from-[#FABF24] to-[#0f3d59]"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
                           }}
@@ -327,32 +337,29 @@ export default function GaleriPage() {
                       />
                     </div>
 
-                    {/* Action Bar (Instagram Style) */}
-                    <div className="p-3.5 space-y-2.5">
+                    {/* Action Bar (Instagram Style - NKGTS Minimalist) */}
+                    <div className="p-3.5 space-y-2.5 border-t border-neutral-50">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3.5">
                           <button 
                             onClick={() => toggleLike(post.id)}
-                            className="transition transform active:scale-125 cursor-pointer text-neutral-700 hover:text-red-500"
+                            className="transition transform active:scale-125 cursor-pointer text-neutral-700 hover:text-red-500 flex items-center gap-1.5"
                           >
-                            <Heart size={22} className={isLiked ? "fill-red-500 text-red-500" : ""} />
+                            <Heart size={20} className={isLiked ? "fill-red-500 text-red-500" : ""} />
+                            <span className="text-xs font-bold text-neutral-750">{likeCount} Suka</span>
                           </button>
-                          <button className="text-neutral-700 hover:text-neutral-900 cursor-pointer">
-                            <MessageSquare size={22} />
-                          </button>
-                          <button className="text-neutral-700 hover:text-neutral-900 cursor-pointer">
-                            <Send size={21} />
-                          </button>
+                          
+                          <span className="text-neutral-300">|</span>
+                          
+                          <div className="flex items-center gap-1.5 text-neutral-500">
+                            <Globe size={18} className="text-primary-light" />
+                            <span className="text-xs font-semibold">{viewsState[post.id] || 0} Dilihat</span>
+                          </div>
                         </div>
-                        <button className="text-neutral-700 hover:text-neutral-900 cursor-pointer">
-                          <Bookmark size={22} />
+                        <button className="text-neutral-450 hover:text-[#FABF24] cursor-pointer transition">
+                          <Bookmark size={20} />
                         </button>
                       </div>
-
-                      {/* Likes count */}
-                      <p className="text-xs font-black text-neutral-800">
-                        {likeCount} Suka
-                      </p>
 
                       {/* Title & Caption */}
                       <div className="space-y-1 text-xs">

@@ -469,18 +469,25 @@ function Hero() {
   useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
 
   return (
-    <section className="relative min-h-screen bg-primary flex items-center overflow-visible lg:overflow-hidden">
-      {/* Decorative blobs */}
+    <section className="relative min-h-screen bg-gradient-to-br from-[#0F3D59] via-[#092537] to-[#04111a] flex items-center overflow-visible lg:overflow-hidden">
+      {/* Thin geometric backgrounds & subtle floating shapes */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary-light/30 blur-3xl" />
-        <div className="absolute bottom-0 -left-24 w-80 h-80 rounded-full bg-primary-dark/50 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-5"
-          style={{ backgroundImage: "radial-gradient(circle, #F5C400 1px, transparent 1px)", backgroundSize: "40px 40px" }}
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-[#185375]/20 blur-3xl" />
+        <div className="absolute bottom-0 -left-24 w-80 h-80 rounded-full bg-[#03111c]/65 blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: "radial-gradient(circle, #FABF24 1.5px, transparent 1.5px)", backgroundSize: "32px 32px" }}
         />
+        
+        {/* Thin geometric circles and shapes */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full border border-white/[0.04] animate-[spin_60s_linear_infinite]" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full border border-dashed border-white/[0.06] animate-[spin_100s_linear_infinite]" style={{ animationDirection: 'reverse' }} />
+        <div className="absolute top-1/3 left-10 w-48 h-48 rounded-full border border-white/[0.03] animate-pulse" style={{ animationDuration: '6s' }} />
+        <div className="absolute bottom-20 right-10 w-80 h-80 rounded-full border border-white/[0.03] animate-pulse" style={{ animationDuration: '8s' }} />
+
         {/* Floating shapes */}
-        <div className="absolute top-32 right-16 w-20 h-20 rounded-2xl border-2 border-accent/30 rotate-12 animate-pulse" />
-        <div className="absolute bottom-32 right-32 w-12 h-12 rounded-full border-2 border-white/20 animate-bounce" style={{ animationDuration: "3s" }} />
-        <div className="absolute top-1/2 right-8 w-6 h-6 bg-accent/40 rounded-md rotate-45" />
+        <div className="absolute top-32 right-16 w-20 h-20 rounded-2xl border border-accent/15 rotate-12 animate-pulse" style={{ animationDuration: '4s' }} />
+        <div className="absolute bottom-32 right-32 w-12 h-12 rounded-full border border-white/10 animate-bounce" style={{ animationDuration: "5s" }} />
+        <div className="absolute top-1/2 right-8 w-6 h-6 bg-accent/20 rounded-md rotate-45 animate-pulse" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-40 pb-28 sm:pb-32 lg:pb-24">
@@ -552,11 +559,6 @@ function Hero() {
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/40 animate-bounce" style={{ animationDuration: "2s" }}>
-          <span className="text-xs font-medium">Scroll</span>
-          <ChevronDown size={16} />
-        </div>
       </div>
 
       {/* Bottom wave */}
@@ -644,8 +646,8 @@ function TentangSection() {
             <p className="text-neutral-700 text-base leading-relaxed mb-6">
               Program ini menularkan praktik terbaik Toyota dalam penerapan budaya Kaizen kepada guru
               dan siswa SMK, untuk membentuk generasi yang memiliki karakter{" "}
-              <span className="font-semibold text-primary">DEKKI</span> — Disiplin, Empati, Kritis,
-              Kreatif, dan Inovatif.
+              <span className="font-semibold text-primary">DEKKI</span> (Disiplin, Empati, Kritis,
+              Kreatif, dan Inovatif).
             </p>
             <a
               href="/login"

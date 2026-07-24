@@ -15,6 +15,9 @@ export const metadata: Metadata = {
   },
   description:
     "Learning Management System untuk program National Kaizen Goes To School (N-KGTS) Fase 4 — 2026. Diselenggarakan oleh PT Toyota-Astra Motor.",
+  icons: {
+    icon: "/logo-nkgts.png",
+  },
 };
 
 export default function RootLayout({
