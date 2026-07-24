@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useInView as useMotionInView, useMotionValue, useSpring } from "motion/react";
+import { useInView as useMotionInView, useMotionValue, useSpring, motion } from "motion/react";
 import {
   BookOpen,
   ClipboardList,
@@ -828,8 +828,6 @@ function CTABanner() {
 function GaleriSection() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useMotionInView(ref); // useMotionInView fits with the motion/react import
 
   useEffect(() => {
     const fetchLandingPosts = async () => {
@@ -864,17 +862,15 @@ function GaleriSection() {
           </p>
         </div>
 
-        <div 
-          ref={ref} 
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"
-        >
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {posts.map((post, idx) => (
-            <div
+            <motion.div
               key={post.id}
-              className={`bg-neutral-50 border border-neutral-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-500 ${
-                inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-              }`}
-              style={{ transitionDelay: `${idx * 50}ms` }}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: idx * 0.05 }}
+              className="bg-neutral-50 border border-neutral-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow duration-300"
             >
               <div className="relative aspect-[4/3] w-full bg-neutral-200 overflow-hidden">
                 <img
@@ -901,7 +897,7 @@ function GaleriSection() {
                   </span>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
