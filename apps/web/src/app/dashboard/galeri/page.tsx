@@ -41,6 +41,7 @@ interface Post {
     role: string;
     foto_profil: string | null;
   };
+  likes: { user_id: string }[];
 }
 
 export default function GaleriPage() {
@@ -61,7 +62,6 @@ export default function GaleriPage() {
 
   // Interactive local likes state
   const [likesState, setLikesState] = useState<Record<string, { liked: boolean; count: number }>>({});
-  const [viewsState, setViewsState] = useState<Record<string, number>>({});
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const headers = useMemo(() => ({
@@ -101,45 +101,46 @@ export default function GaleriPage() {
     loadPosts();
   }, [token]);
 
-  // Load and generate likes state
+  // Load likes state from DB when posts or currentUser changes
   useEffect(() => {
-    if (posts.length === 0) return;
-    
-    const saved = localStorage.getItem("galeri_likes");
-    const parsed = saved ? JSON.parse(saved) : {};
+    if (posts.length === 0 || !currentUser) return;
     
     const initialLikes: Record<string, { liked: boolean; count: number }> = {};
-    const initialViews: Record<string, number> = {};
-    
     posts.forEach(post => {
-      const charSum = post.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      
-      if (parsed[post.id]) {
-        initialLikes[post.id] = parsed[post.id];
-      } else {
-        const count = (charSum % 38) + 4; // 4 to 41 likes
-        initialLikes[post.id] = { liked: false, count };
-      }
-      
-      // Deterministic views based on likes
-      const likeCount = initialLikes[post.id].count;
-      initialViews[post.id] = (likeCount * 4) + (charSum % 120) + 18;
+      const liked = post.likes ? post.likes.some(l => l.user_id === currentUser.id) : false;
+      const count = post.likes ? post.likes.length : 0;
+      initialLikes[post.id] = { liked, count };
     });
     
     setLikesState(initialLikes);
-    setViewsState(initialViews);
-  }, [posts]);
-
-  const toggleLike = (postId: string) => {
-    const currentState = likesState[postId] || { liked: false, count: 8 };
+  }, [posts, currentUser]);
+ 
+  const toggleLike = async (postId: string) => {
+    if (!token) return;
+    
+    const currentState = likesState[postId] || { liked: false, count: 0 };
     const updated = {
       liked: !currentState.liked,
       count: currentState.liked ? currentState.count - 1 : currentState.count + 1
     };
     
-    const newLikes = { ...likesState, [postId]: updated };
-    setLikesState(newLikes);
-    localStorage.setItem("galeri_likes", JSON.stringify(newLikes));
+    // Optimistic UI update
+    setLikesState(prev => ({ ...prev, [postId]: updated }));
+    
+    try {
+      const res = await fetch(`${API_URL}/galeri/${postId}/like`, {
+        method: "POST",
+        headers
+      });
+      if (!res.ok) {
+        // Rollback
+        setLikesState(prev => ({ ...prev, [postId]: currentState }));
+      }
+    } catch (err) {
+      console.error(err);
+      // Rollback
+      setLikesState(prev => ({ ...prev, [postId]: currentState }));
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -338,25 +339,16 @@ export default function GaleriPage() {
                       />
                     </div>
 
-                    {/* Action Bar (Instagram Style - NKGTS Minimalist) */}
-                    <div className="p-3.5 space-y-2.5 border-t border-neutral-50">
+                    {/* Action Bar (NKGTS Minimalist) */}
+                    <div className="p-3.5 space-y-2 border-t border-neutral-50">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3.5">
-                          <button 
-                            onClick={() => toggleLike(post.id)}
-                            className="transition transform active:scale-125 cursor-pointer text-neutral-700 hover:text-red-500 flex items-center gap-1.5"
-                          >
-                            <Heart size={20} className={isLiked ? "fill-red-500 text-red-500" : ""} />
-                            <span className="text-xs font-bold text-neutral-750">{likeCount} Suka</span>
-                          </button>
-                          
-                          <span className="text-neutral-300">|</span>
-                          
-                          <div className="flex items-center gap-1.5 text-neutral-500">
-                            <Globe size={18} className="text-primary-light" />
-                            <span className="text-xs font-semibold">{viewsState[post.id] || 0} Dilihat</span>
-                          </div>
-                        </div>
+                        <button 
+                          onClick={() => toggleLike(post.id)}
+                          className="transition transform active:scale-125 cursor-pointer text-neutral-700 hover:text-red-500 flex items-center gap-1.5"
+                        >
+                          <Heart size={20} className={isLiked ? "fill-red-500 text-red-500" : ""} />
+                          <span className="text-xs font-bold text-neutral-750">{likeCount} Suka</span>
+                        </button>
                       </div>
 
                       {/* Title & Caption */}

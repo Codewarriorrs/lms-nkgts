@@ -53,4 +53,15 @@ export class GaleriController {
     const userRole = req.user.role;
     return this.galeriService.deletePost(id, userId, userRole);
   }
+
+  // 5. Toggle like postingan galeri (Protected)
+  @Post(':id/like')
+  @UseGuards(JwtAuthGuard)
+  async toggleLike(
+    @Req() req: any,
+    @Param('id') id: string
+  ) {
+    const userId = req.user.id;
+    return this.galeriService.toggleLike(id, userId);
+  }
 }

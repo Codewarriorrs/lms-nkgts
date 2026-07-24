@@ -57,6 +57,11 @@ export class GaleriService {
             foto_profil: true,
           },
         },
+        likes: {
+          select: {
+            user_id: true,
+          },
+        },
       },
     });
   }
@@ -74,6 +79,11 @@ export class GaleriService {
           select: {
             nama: true,
             foto_profil: true,
+          },
+        },
+        likes: {
+          select: {
+            user_id: true,
           },
         },
       },
@@ -163,5 +173,32 @@ export class GaleriService {
     return this.prisma.galeri.delete({
       where: { id: postId },
     });
+  }
+
+  // 5. Toggle like pada postingan
+  async toggleLike(postId: string, userId: string) {
+    const existing = await this.prisma.galeriLike.findUnique({
+      where: {
+        galeri_id_user_id: {
+          galeri_id: postId,
+          user_id: userId,
+        },
+      },
+    });
+
+    if (existing) {
+      await this.prisma.galeriLike.delete({
+        where: { id: existing.id },
+      });
+      return { liked: false };
+    } else {
+      await this.prisma.galeriLike.create({
+        data: {
+          galeri_id: postId,
+          user_id: userId,
+        },
+      });
+      return { liked: true };
+    }
   }
 }
