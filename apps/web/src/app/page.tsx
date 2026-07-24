@@ -469,7 +469,7 @@ function Hero() {
   useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
 
   return (
-    <section className="relative min-h-screen bg-gradient-to-br from-[#0F3D59] via-[#092537] to-[#04111a] flex items-center overflow-visible lg:overflow-hidden">
+    <section className="relative min-h-screen bg-primary flex items-center overflow-visible lg:overflow-hidden">
       {/* Thin geometric backgrounds & subtle floating shapes */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-[#185375]/20 blur-3xl" />

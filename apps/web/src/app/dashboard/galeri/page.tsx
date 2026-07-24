@@ -356,9 +356,6 @@ export default function GaleriPage() {
                             <span className="text-xs font-semibold">{viewsState[post.id] || 0} Dilihat</span>
                           </div>
                         </div>
-                        <button className="text-neutral-450 hover:text-[#FABF24] cursor-pointer transition">
-                          <Bookmark size={20} />
-                        </button>
                       </div>
 
                       {/* Title & Caption */}

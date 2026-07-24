@@ -162,6 +162,11 @@ export default function DashboardPage() {
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
+
+        // Skip fetching student data if the logged-in user is not a student
+        if (currentUser && currentUser.role !== "siswa") {
+          return;
+        }
         
         // Fetch tasks
         const tasksRes = await fetch(`${API_URL}/tugas-praktek/status-siswa`, {
@@ -183,7 +188,7 @@ export default function DashboardPage() {
       }
     };
     fetchDashboardData();
-  }, []);
+  }, [currentUser]);
 
   // Compute real-time stats count
   const stats = useMemo(() => {
