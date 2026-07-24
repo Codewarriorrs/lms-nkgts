@@ -226,16 +226,6 @@ export default function GaleriPage() {
       year: "numeric"
     });
   };
-
-  // Mock list of schools for Stories bar
-  const schoolsForStories = [
-    { name: "N-KGTS Pusat", avatar: "🏫", color: "from-amber-400 via-red-500 to-pink-500" },
-    { name: "SMK 1 Toyota", avatar: "🔧", color: "from-blue-400 via-indigo-500 to-purple-500" },
-    { name: "SMK 2 Kaizen", avatar: "✏️", color: "from-green-400 via-emerald-500 to-teal-500" },
-    { name: "SMK 3 Duta", avatar: "🛡️", color: "from-purple-400 via-pink-500 to-red-500" },
-    { name: "SMK 4 Astra", avatar: "🚗", color: "from-yellow-400 to-orange-500" }
-  ];
-
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Layout Grid: Feed di kiri, Sidebar Info di kanan (hanya desktop) */}
@@ -243,34 +233,6 @@ export default function GaleriPage() {
         
         {/* KOLOM KIRI (Feed) */}
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* Stories Bar (Instagram Style) */}
-          <div className="bg-white border border-neutral-200 rounded-2xl p-4 flex items-center gap-4 overflow-x-auto scrollbar-none">
-            {/* Tombol Tambah Story Anda */}
-            <div className="flex flex-col items-center shrink-0 cursor-pointer group" onClick={handleOpenModal}>
-              <div className="relative w-14 h-14 rounded-full bg-neutral-100 flex items-center justify-center border border-neutral-200 group-hover:border-primary transition">
-                <Plus className="text-neutral-500 group-hover:text-primary transition" size={20} />
-                <div className="absolute bottom-0 right-0 bg-primary text-white p-0.5 rounded-full border border-white">
-                  <Camera size={10} />
-                </div>
-              </div>
-              <span className="text-[10px] font-semibold text-neutral-500 mt-1.5">Posting Foto</span>
-            </div>
-
-            {/* Mock Stories dari Sekolah */}
-            {schoolsForStories.map((school, i) => (
-              <div key={i} className="flex flex-col items-center shrink-0 cursor-pointer group">
-                <div className={`p-[2.5px] rounded-full bg-gradient-to-tr ${school.color} transition transform group-hover:scale-105`}>
-                  <div className="w-13 h-13 rounded-full bg-white flex items-center justify-center border border-white text-lg">
-                    {school.avatar}
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold text-neutral-700 mt-1.5 truncate max-w-[70px]">{school.name}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Error Message */}
           {error && (
             <div className="bg-red-50 border border-red-150 rounded-xl p-4 flex items-center gap-3 text-red-700 text-xs font-semibold">
               <AlertCircle size={18} />
