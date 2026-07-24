@@ -17,7 +17,8 @@ import {
   Camera,
   Bookmark,
   Send,
-  Sparkles,
+  Download,
+  BookOpen,
   School
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
@@ -414,7 +415,7 @@ export default function GaleriPage() {
           <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-neutral-900 text-xs tracking-tight flex items-center gap-1.5">
-                <Sparkles className="text-amber-500" size={14} /> Panduan Proyek Kaizen
+                <BookOpen className="text-primary" size={14} /> Panduan Proyek Kaizen
               </h3>
             </div>
             <div className="text-[11px] text-neutral-500 leading-relaxed space-y-3 font-semibold">
@@ -426,6 +427,27 @@ export default function GaleriPage() {
                 <li>Momen diskusi kelompok atau Genba Walk.</li>
                 <li>Sosialisasi dan ide kreatif perbaikan berkelanjutan.</li>
               </ul>
+
+              <div className="pt-3 border-t border-neutral-100 space-y-2">
+                <p className="text-[10px] text-neutral-450 uppercase font-black tracking-wider">Unduh Template Project</p>
+                <div className="flex gap-2">
+                  <a
+                    href="/TemplateProposal.pdf"
+                    download="TemplateProposal.pdf"
+                    className="flex-1 inline-flex items-center justify-center gap-1 bg-neutral-100 hover:bg-[#FABF24]/10 hover:text-amber-600 border border-neutral-200 hover:border-amber-300 text-neutral-600 rounded-xl py-2 font-bold transition text-[10px] cursor-pointer"
+                  >
+                    <Download size={11} /> Proposal
+                  </a>
+                  <a
+                    href="/TemplateLaporan.pdf"
+                    download="TemplateLaporan.pdf"
+                    className="flex-1 inline-flex items-center justify-center gap-1 bg-neutral-100 hover:bg-[#FABF24]/10 hover:text-amber-600 border border-neutral-200 hover:border-amber-300 text-neutral-600 rounded-xl py-2 font-bold transition text-[10px] cursor-pointer"
+                  >
+                    <Download size={11} /> Laporan
+                  </a>
+                </div>
+              </div>
+
               <button
                 onClick={handleOpenModal}
                 className="w-full mt-2 inline-flex items-center justify-center gap-1.5 bg-primary hover:bg-primary-light text-white text-xs font-bold py-2.5 rounded-xl shadow-md shadow-primary/10 transition cursor-pointer"
