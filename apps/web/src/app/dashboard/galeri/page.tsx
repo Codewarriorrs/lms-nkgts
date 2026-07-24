@@ -428,25 +428,7 @@ export default function GaleriPage() {
                 <li>Sosialisasi dan ide kreatif perbaikan berkelanjutan.</li>
               </ul>
 
-              <div className="pt-3 border-t border-neutral-100 space-y-2">
-                <p className="text-[10px] text-neutral-450 uppercase font-black tracking-wider">Unduh Template Project</p>
-                <div className="flex gap-2">
-                  <a
-                    href="/TemplateProposal.pdf"
-                    download="TemplateProposal.pdf"
-                    className="flex-1 inline-flex items-center justify-center gap-1 bg-neutral-100 hover:bg-[#FABF24]/10 hover:text-amber-600 border border-neutral-200 hover:border-amber-300 text-neutral-600 rounded-xl py-2 font-bold transition text-[10px] cursor-pointer"
-                  >
-                    <Download size={11} /> Proposal
-                  </a>
-                  <a
-                    href="/TemplateLaporan.pdf"
-                    download="TemplateLaporan.pdf"
-                    className="flex-1 inline-flex items-center justify-center gap-1 bg-neutral-100 hover:bg-[#FABF24]/10 hover:text-amber-600 border border-neutral-200 hover:border-amber-300 text-neutral-600 rounded-xl py-2 font-bold transition text-[10px] cursor-pointer"
-                  >
-                    <Download size={11} /> Laporan
-                  </a>
-                </div>
-              </div>
+
 
               <button
                 onClick={handleOpenModal}

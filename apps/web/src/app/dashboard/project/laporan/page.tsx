@@ -5,7 +5,7 @@ import UploadCard from "@/components/project/UploadCard";
 import { ArrowLeft } from "lucide-react";
 
 export default function LaporanPage() {
-  const sample = { name: "Contoh Laporan.pdf", url: "#" };
+  const sample = { name: "TemplateLaporan.pdf", url: "/TemplateLaporan.pdf" };
 
   return (
     <div className="px-6 py-8 space-y-6">

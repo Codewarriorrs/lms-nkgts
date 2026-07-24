@@ -120,8 +120,9 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-4 h-full flex flex-col items-start justify-center gap-3">
             <div className="w-full text-xs font-bold text-neutral-400 uppercase tracking-[0.1em]">Unduh Template</div>
             {sample ? (
-              <a href={sample.url} target="_blank" rel="noreferrer" className="w-full text-sm font-semibold text-neutral-800 hover:underline">
-                {sample.name}
+              <a href={sample.url} download={sample.name} className="w-full text-xs font-bold inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-neutral-200 text-neutral-700 hover:bg-[#FABF24]/10 hover:text-amber-600 hover:border-amber-300 rounded-lg transition mt-1.5">
+                <Download size={13} className="text-primary shrink-0" />
+                <span>{sample.name}</span>
               </a>
             ) : (
               <div className="text-xs text-neutral-400">Belum ada contoh</div>
