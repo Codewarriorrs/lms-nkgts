@@ -11,6 +11,7 @@ export class AppController implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    await this.seedSekolahAmbassador();
     await this.seedUsersIfEmpty();
     await this.seedMateriIfEmpty();
     await this.seedTugasIfEmpty();
@@ -403,6 +404,30 @@ export class AppController implements OnModuleInit {
     }
 
     console.log('✅ 5 Master Tugas Praktek Berhasil Di-seed / Di-update!');
+  }
+
+  private async seedSekolahAmbassador() {
+    console.log('*** Menyuntikkan & memperbarui 7 Master Sekolah Ambassador N-KGTS ke Database... ***');
+
+    const sekolahAmbassador = [
+      'SMK Negeri 1 Magelang',
+      'SMK Negeri 6 Purworejo',
+      'SMK Negeri 2 Gedangsari',
+      'SMK Negeri 1 Mojokerto',
+      'SMK Bina Prestasi',
+      'SMK Negeri 26 Jakarta',
+      'SMK Negeri 2 Surabaya',
+    ];
+
+    for (const namaSekolah of sekolahAmbassador) {
+      await this.prisma.sekolah.upsert({
+        where: { nama_sekolah: namaSekolah },
+        update: { nama_sekolah: namaSekolah },
+        create: { nama_sekolah: namaSekolah },
+      });
+    }
+
+    console.log('✅ 7 Master Sekolah Ambassador Berhasil Di-seed / Di-update!');
   }
 
   @Get()
