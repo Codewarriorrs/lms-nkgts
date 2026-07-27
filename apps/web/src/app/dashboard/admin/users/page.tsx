@@ -381,6 +381,44 @@ export default function AdminUsersPage() {
     document.body.removeChild(link);
   };
 
+  // 8. Handle Export Excel Nilai Siswa
+  const [exportSekolahId, setExportSekolahId] = useState<string>("");
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const token = localStorage.getItem("token");
+      let url = `${API_URL}/admin/export-nilai`;
+      if (exportSekolahId) {
+        url += `?sekolah_id=${exportSekolahId}`;
+      }
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Gagal mengekspor data nilai siswa");
+      }
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `rekap_nilai_lms_nkgts${exportSekolahId ? `_sekolah_${exportSekolahId}` : ""}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      setSuccessMsg("Rekapitulasi nilai siswa berhasil diunduh ke format Excel.");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Gagal mengunduh file Excel nilai");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
@@ -506,7 +544,7 @@ export default function AdminUsersPage() {
                 />
               </div>
 
-              <div className="w-full md:w-auto flex gap-3 self-end md:self-auto">
+              <div className="w-full md:w-auto flex flex-wrap gap-3 self-end md:self-auto items-center">
                 <select
                   value={roleFilter}
                   onChange={(e) => {
@@ -520,6 +558,32 @@ export default function AdminUsersPage() {
                   <option value="guru">Guru</option>
                   <option value="siswa">Siswa</option>
                 </select>
+
+                {/* Export Excel Controls */}
+                <div className="flex items-center gap-2 border-l border-neutral-100 pl-3">
+                  <select
+                    value={exportSekolahId}
+                    onChange={(e) => setExportSekolahId(e.target.value)}
+                    className="px-3.5 py-2 border border-neutral-100 rounded-xl text-sm bg-white text-neutral-700 focus:outline-none focus:border-primary transition duration-200 cursor-pointer max-w-[200px] truncate"
+                  >
+                    <option value="">Semua Sekolah</option>
+                    {schools.map((s) => (
+                      <option key={s.id} value={s.id.toString()}>
+                        {s.nama_sekolah}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={handleExportExcel}
+                    disabled={isExporting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white shadow-xs transition duration-200 cursor-pointer"
+                    title="Tarik Rekapitulasi Nilai Siswa Ke Format Excel"
+                  >
+                    <FileSpreadsheet size={16} />
+                    {isExporting ? "Mengekspor..." : "Export Excel Nilai"}
+                  </button>
+                </div>
               </div>
             </div>
 

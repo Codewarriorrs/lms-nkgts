@@ -594,4 +594,85 @@ export class InvitationService {
       message: `Progres belajar siswa dari Modul ${startFromModule} s/d Modul 5 berhasil direset!`,
     };
   }
+
+  // 12. Rekapitulasi Nilai Siswa (Export to Excel)
+  async exportNilaiBuffer(sekolahId?: number): Promise<Buffer> {
+    const whereClause: any = { role: RoleEnum.siswa };
+    if (sekolahId) {
+      whereClause.sekolah_id = sekolahId;
+    }
+
+    const students = await this.prisma.user.findMany({
+      where: whereClause,
+      include: {
+        sekolah: true,
+        nilai_latsol: {
+          include: {
+            modul_teori: true,
+          },
+        },
+      },
+      orderBy: [
+        { sekolah_id: 'asc' },
+        { nama: 'asc' },
+      ],
+    });
+
+    const rows = students.map((siswa) => {
+      const scoresMap: Record<number, number> = {};
+      siswa.nilai_latsol.forEach((item) => {
+        if (item.modul_teori && item.modul_teori.urutan) {
+          scoresMap[item.modul_teori.urutan] = item.skor;
+        }
+      });
+
+      const m1 = scoresMap[1] ?? 0;
+      const m2 = scoresMap[2] ?? 0;
+      const m3 = scoresMap[3] ?? 0;
+      const m4 = scoresMap[4] ?? 0;
+      const m5 = scoresMap[5] ?? 0;
+
+      const totalScore = m1 + m2 + m3 + m4 + m5;
+      const averageScore = Math.round((totalScore / 5) * 10) / 10;
+
+      return {
+        'NIS': siswa.nis || '-',
+        'Nama Siswa': siswa.nama,
+        'Email': siswa.email,
+        'Sekolah': siswa.sekolah?.nama_sekolah || '-',
+        'Kelas': siswa.kelas || '-',
+        'Modul 1 (Latsol)': m1,
+        'Modul 2 (Latsol)': m2,
+        'Modul 3 (Latsol)': m3,
+        'Modul 4 (Latsol)': m4,
+        'Modul 5 (Latsol)': m5,
+        'Rata-rata Skor (%)': averageScore,
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    
+    // Set auto column width
+    const columnWidths = [
+      { wch: 12 }, // NIS
+      { wch: 25 }, // Nama Siswa
+      { wch: 28 }, // Email
+      { wch: 30 }, // Sekolah
+      { wch: 15 }, // Kelas
+      { wch: 18 }, // Modul 1
+      { wch: 18 }, // Modul 2
+      { wch: 18 }, // Modul 3
+      { wch: 18 }, // Modul 4
+      { wch: 18 }, // Modul 5
+      { wch: 20 }, // Rata-rata
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Rekap Nilai Siswa');
+
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    return buffer;
+  }
 }
+

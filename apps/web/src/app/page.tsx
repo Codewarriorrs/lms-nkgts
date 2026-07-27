@@ -938,6 +938,49 @@ function Footer() {
   );
 }
 
+// ── HELPDESK ──────────────────────────────────────────────────
+
+function HelpdeskSection() {
+  return (
+    <section className="bg-primary/5 py-12 border-t border-b border-primary/10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <h3 className="text-lg font-bold text-neutral-900 mb-1">
+          Kendala login? <span className="text-primary">Hubungi helpdesk kami</span>
+        </h3>
+        <p className="text-xs text-neutral-500 max-w-md mx-auto mb-6">
+          Tim bantuan N-KGTS siap membantu mengaktifkan akun atau menyelesaikan masalah kendala akses LMS Anda.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <a
+            href="https://bit.ly/helpdeskNKGTS"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-white border border-neutral-200 text-neutral-800 text-xs font-semibold px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary hover:shadow-sm transition-all"
+          >
+            <span>Form Bantuan</span>
+          </a>
+          <a
+            href="https://wa.me/6285866455551"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-emerald-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-emerald-700 hover:shadow-sm transition-all"
+          >
+            <span>WhatsApp Luthfi</span>
+          </a>
+          <a
+            href="https://wa.me/6287830971414"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-emerald-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-emerald-700 hover:shadow-sm transition-all"
+          >
+            <span>WhatsApp Riris</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── MAIN ──────────────────────────────────────────────────────
 
 export default function LandingPage() {
@@ -950,7 +993,9 @@ export default function LandingPage() {
       <ModulSection />
       <CTABanner />
       <FAQSection />
+      <HelpdeskSection />
       <Footer />
     </main>
   );
 }
+

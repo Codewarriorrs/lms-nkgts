@@ -11,14 +11,17 @@ import {
   UseGuards, 
   UseInterceptors, 
   UploadedFile, 
-  BadRequestException 
+  BadRequestException,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InvitationService } from './invitation.service';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { ActivateAccountDto } from './dto/activate-account.dto';
 import { ResetProgressDto } from './dto/reset-progress.dto';
+import { ExportNilaiDto } from './dto/export-nilai.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -168,4 +171,19 @@ export class InvitationController {
   ) {
     return this.invitationService.resetProgress(id, resetProgressDto.startFromModule);
   }
+
+  // 14. Tarik data rekapitulasi nilai (Export to Excel)
+  @Get('admin/export-nilai')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async exportNilai(
+    @Query() query: ExportNilaiDto,
+    @Res() res: Response
+  ) {
+    const buffer = await this.invitationService.exportNilaiBuffer(query.sekolah_id);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="rekap_nilai_lms_nkgts.xlsx"');
+    res.send(buffer);
+  }
 }
+

@@ -183,9 +183,37 @@ export function LoginForm() {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-xs text-neutral-400">
-            Kendala login? <span className="font-semibold text-neutral-700">Hubungi Admin Sekolah Anda</span>
-          </p>
+          <div className="mt-8 pt-6 border-t border-neutral-100 text-center">
+            <p className="text-xs font-medium text-neutral-500 mb-3">
+              Kendala login? <span className="font-semibold text-primary">Hubungi helpdesk kami</span>
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
+              <a
+                href="https://bit.ly/helpdeskNKGTS"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-700 hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all font-medium"
+              >
+                <span>Form Bantuan</span>
+              </a>
+              <a
+                href="https://wa.me/6285866455551"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-all font-medium"
+              >
+                <span>WA Luthfi</span>
+              </a>
+              <a
+                href="https://wa.me/6287830971414"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-all font-medium"
+              >
+                <span>WA Riris</span>
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
