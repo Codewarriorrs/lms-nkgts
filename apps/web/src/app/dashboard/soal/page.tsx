@@ -26,6 +26,8 @@ interface LatsolStatus {
   completed: boolean;
   nilai?: number;
   poin?: number;
+  bisa_ulang?: boolean;
+  latsol_bisa_ulang?: boolean;
 }
 
 interface Question {
@@ -34,6 +36,8 @@ interface Question {
   pilihan: string[];
   poin: number;
   image_url: string | null;
+  jawaban_benar?: number;
+  pembahasan?: string | null;
 }
 
 export default function SoalPage() {
@@ -45,6 +49,8 @@ export default function SoalPage() {
   const [activeModuleId, setActiveModuleId] = useState<number | null>(null);
   const [activeModuleJudul, setActiveModuleJudul] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [isReviewMode, setIsReviewMode] = useState(false);
+  const [reviewScoreInfo, setReviewScoreInfo] = useState<{ nilai: number; poin: number } | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -85,12 +91,18 @@ export default function SoalPage() {
     loadStatus();
   }, [token]);
 
-  const handleStartExam = async (moduleId: number, judul: string) => {
+  const handleStartExam = async (moduleId: number, judul: string, isReview: boolean = false, nilai: number = 0, poin: number = 0) => {
     if (!token) return;
     try {
       setLoading(true);
       setExamResult(null);
       setAnswers({});
+      setIsReviewMode(isReview);
+      if (isReview) {
+        setReviewScoreInfo({ nilai, poin });
+      } else {
+        setReviewScoreInfo(null);
+      }
       const res = await fetch(`${API_URL}/latsol/modules/${moduleId}`, { headers });
       if (res.ok) {
         const data = await res.json();
@@ -163,7 +175,7 @@ export default function SoalPage() {
   };
 
   if (currentUser?.role === "admin" || currentUser?.role === "guru") {
-    return <TeacherDashboard tab="progres" />;
+    return <TeacherDashboard tab="latsol" />;
   }
 
   if (loading && statusList.length === 0) {
@@ -174,7 +186,7 @@ export default function SoalPage() {
     );
   }
 
-  // ── RENDER MODE 1: LEMBAR UJIAN (EXAM SHEET) ──
+  // ── RENDER MODE 1: LEMBAR UJIAN (EXAM SHEET / REVIEW) ──
   if (activeModuleId !== null) {
     return (
       <div className="px-6 py-8 max-w-3xl mx-auto space-y-6">
@@ -189,19 +201,35 @@ export default function SoalPage() {
           </button>
           <div className="text-right">
             <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
-              Ujian Modul
+              {isReviewMode ? "Pembahasan Ujian" : "Ujian Modul"}
             </span>
           </div>
         </div>
 
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 leading-tight">
-            Latihan Soal: {activeModuleJudul}
+            {isReviewMode ? "Kunci & Pembahasan Latsol" : "Latihan Soal"}: {activeModuleJudul}
           </h1>
           <p className="text-neutral-400 text-xs font-semibold mt-1">
-            Isi lembar kuis evaluasi di bawah ini dengan memilih satu jawaban paling tepat.
+            {isReviewMode 
+              ? "Ulas kembali pembahasan dan kunci jawaban modul ini." 
+              : "Isi lembar kuis evaluasi di bawah ini dengan memilih satu jawaban paling tepat."}
           </p>
         </div>
+
+        {isReviewMode && reviewScoreInfo && (
+          <div className="bg-white rounded-2xl border border-neutral-150 p-5 flex items-center justify-between shadow-xs">
+            <div className="space-y-0.5">
+              <p className="text-neutral-400 text-[10px] font-bold uppercase">Nilai Pengerjaan</p>
+              <h3 className="text-neutral-900 font-black text-lg">Skor: {reviewScoreInfo.nilai}%</h3>
+            </div>
+            <div className="text-right">
+              <span className="bg-success/10 text-success text-xs font-black px-3 py-1 rounded-full border border-success/30">
+                +{reviewScoreInfo.poin} Poin Diperoleh
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Results view if submitted */}
         {examResult ? (
@@ -229,12 +257,24 @@ export default function SoalPage() {
               </div>
             </div>
 
-            <button
-              onClick={handleExitExam}
-              className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-6 py-2.5 rounded-xl transition shadow-md shadow-primary/15 inline-block"
-            >
-              Kembali ke Daftar Latsol
-            </button>
+            <div className="flex flex-col items-center gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setExamResult(null);
+                  setIsReviewMode(true);
+                  setReviewScoreInfo({ nilai: examResult.skor, poin: examResult.total_poin });
+                }}
+                className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-6 py-2.5 rounded-xl transition shadow-md shadow-primary/15 inline-block"
+              >
+                Lihat Pembahasan
+              </button>
+              <button
+                onClick={handleExitExam}
+                className="bg-white hover:bg-neutral-50 text-neutral-850 text-xs font-bold px-6 py-2.5 rounded-xl transition border border-neutral-200 inline-block"
+              >
+                Kembali ke Daftar Latsol
+              </button>
+            </div>
           </div>
         ) : (
           /* Question sheet */
@@ -267,19 +307,21 @@ export default function SoalPage() {
                       {/* Options List */}
                       <div className="pl-6 space-y-2.5">
                         {q.pilihan.map((opsi, oIdx) => {
-                          const isSelected = selectedOpt === oIdx;
+                          const isSelected = isReviewMode ? oIdx === q.jawaban_benar : selectedOpt === oIdx;
                           return (
                             <div 
                               key={oIdx}
-                              onClick={() => handleSelectAnswer(q.id, oIdx)}
+                              onClick={isReviewMode ? undefined : () => handleSelectAnswer(q.id, oIdx)}
                               className={`flex items-center gap-3 p-3 rounded-xl border text-xs cursor-pointer select-none transition ${
                                 isSelected 
-                                  ? "bg-primary/5 border-primary/40 text-primary font-semibold" 
-                                  : "border-neutral-100 hover:bg-neutral-50 text-neutral-700"
+                                  ? (isReviewMode ? "bg-success/5 border-success/40 text-success font-bold" : "bg-primary/5 border-primary/40 text-primary font-semibold") 
+                                  : (isReviewMode ? "border-neutral-100 text-neutral-400 opacity-60 pointer-events-none" : "border-neutral-100 hover:bg-neutral-50 text-neutral-700")
                               }`}
                             >
                               <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 text-[10px] font-bold ${
-                                isSelected ? "border-primary bg-primary text-white" : "border-neutral-300 bg-white text-neutral-400"
+                                isSelected 
+                                  ? (isReviewMode ? "border-success bg-success text-white" : "border-primary bg-primary text-white") 
+                                  : "border-neutral-300 bg-white text-neutral-400"
                               }`}>
                                 {String.fromCharCode(65 + oIdx)}
                               </div>
@@ -288,20 +330,29 @@ export default function SoalPage() {
                           );
                         })}
                       </div>
+
+                      {isReviewMode && q.pembahasan && (
+                        <div className="mt-4 p-3.5 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-600 pl-6 ml-6">
+                          <p className="font-bold text-neutral-800 mb-1">Pembahasan:</p>
+                          <p className="leading-relaxed">{q.pembahasan}</p>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
 
                 {/* Submit Panel */}
-                <div className="flex justify-end pt-4">
-                  <button
-                    onClick={handleSubmitExam}
-                    disabled={submitting}
-                    className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-8 py-3 rounded-xl transition shadow-md shadow-primary/10 disabled:opacity-50"
-                  >
-                    {submitting ? "Mengirim Jawaban..." : "Submit Ujian"}
-                  </button>
-                </div>
+                {!isReviewMode && (
+                  <div className="flex justify-end pt-4">
+                    <button
+                      onClick={handleSubmitExam}
+                      disabled={submitting}
+                      className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-8 py-3 rounded-xl transition shadow-md shadow-primary/10 disabled:opacity-50"
+                    >
+                      {submitting ? "Mengirim Jawaban..." : "Submit Ujian"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -360,12 +411,44 @@ export default function SoalPage() {
               )}
 
               {m.unlocked ? (
-                <button
-                  onClick={() => handleStartExam(m.modul_id, m.judul)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-primary hover:bg-primary-light text-white transition shadow-md shadow-primary/10 shrink-0"
-                >
-                  {m.completed ? "Ulangi Latsol" : "Mulai Latsol"} <ArrowRight size={13} />
-                </button>
+                m.completed ? (
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleStartExam(m.modul_id, m.judul, true, m.nilai ?? 0, m.poin ?? 0)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-neutral-100 hover:bg-neutral-250 text-neutral-700 transition"
+                      >
+                        Lihat Pembahasan
+                      </button>
+                      {m.bisa_ulang || m.latsol_bisa_ulang ? (
+                        <button
+                          onClick={() => handleStartExam(m.modul_id, m.judul, false)}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-primary hover:bg-primary-light text-white transition shadow-md shadow-primary/10"
+                        >
+                          Ulangi Latsol <ArrowRight size={13} />
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed opacity-60"
+                          title="Menunggu izin guru untuk mengulang"
+                        >
+                          Ulangi Latsol
+                        </button>
+                      )}
+                    </div>
+                    {!(m.bisa_ulang || m.latsol_bisa_ulang) && (
+                      <span className="text-[9px] text-neutral-400 font-semibold italic">Butuh izin guru untuk mengulang</span>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleStartExam(m.modul_id, m.judul, false)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-primary hover:bg-primary-light text-white transition shadow-md shadow-primary/10 shrink-0"
+                  >
+                    Mulai Latsol <ArrowRight size={13} />
+                  </button>
+                )
               ) : (
                 <div className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-neutral-200 text-neutral-500 shrink-0 select-none">
                   <Lock size={13} /> Terkunci

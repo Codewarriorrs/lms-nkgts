@@ -283,11 +283,12 @@ export class MateriService {
       }
 
       // Petakan skor Latsol per modul
-      const latsolMap: Record<number, { skor: number; total_poin: number }> = {};
+      const latsolMap: Record<number, { skor: number; total_poin: number; bisa_ulang: boolean }> = {};
       for (const record of student.nilai_latsol) {
         latsolMap[record.modul_teori_id] = {
           skor: record.skor,
-          total_poin: record.total_poin
+          total_poin: record.total_poin,
+          bisa_ulang: record.bisa_ulang,
         };
       }
 
@@ -303,6 +304,8 @@ export class MateriService {
           score,
           latsol_score: latsolInfo ? latsolInfo.skor : null,
           latsol_poin: latsolInfo ? latsolInfo.total_poin : null,
+          latsol_bisa_ulang: latsolInfo ? latsolInfo.bisa_ulang : false,
+          global_latsol_bisa_ulang: mod.latsol_bisa_ulang,
         };
       });
 

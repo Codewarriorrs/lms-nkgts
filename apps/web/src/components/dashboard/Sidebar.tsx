@@ -30,6 +30,7 @@ const navItems = [
   { label: "Soal Latihan", icon: ClipboardList, href: "/dashboard/soal" },
   { label: "Tugas Praktik", icon: Briefcase, href: "/dashboard/tugas" },
   { label: "Project Kaizen", icon: FolderKanban, href: "/dashboard/project" },
+  { label: "Galeri NKGTS", icon: Globe, href: "/dashboard/galeri" },
 ];
 
 export function Sidebar({ open, collapsed = false, onClose }: SidebarProps) {
@@ -68,6 +69,7 @@ export function Sidebar({ open, collapsed = false, onClose }: SidebarProps) {
       { label: "Soal Latihan", icon: ClipboardList, href: "/dashboard/soal" },
       { label: "Tugas Praktik", icon: Briefcase, href: "/dashboard/tugas" },
       { label: "Project Kaizen", icon: FolderKanban, href: "/dashboard/project" },
+      { label: "Galeri NKGTS", icon: Globe, href: "/dashboard/galeri" },
       { label: "Progres Siswa", icon: Users, href: "/dashboard/progres" },
     ];
   } else if (currentUser?.role === "admin") {

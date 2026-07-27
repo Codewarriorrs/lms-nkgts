@@ -38,7 +38,7 @@ import { uploadFileOrBase64 } from "@/utils/upload";
 import { CircularProgressCard } from "@/components/ui/circular-progress-card";
 
 interface TeacherDashboardProps {
-  tab?: "ringkasan" | "tugas" | "project" | "progres" | "materi";
+  tab?: "ringkasan" | "tugas" | "project" | "progres" | "materi" | "latsol";
 }
 
 export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboardProps) {
@@ -121,6 +121,13 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
   const [latsolPoin, setLatsolPoin] = useState<number>(10);
   const [latsolImageUrl, setLatsolImageUrl] = useState<string | null>(null);
 
+  // Latsol tab state
+  const [selectedLatsolModuleId, setSelectedLatsolModuleId] = useState<number | "">("");
+
+  const activeLatsolModule = useMemo(() => {
+    return modules.find((m) => m.id === selectedLatsolModuleId);
+  }, [modules, selectedLatsolModuleId]);
+
   const editorRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const latsolImageInputRef = useRef<HTMLInputElement>(null);
@@ -158,6 +165,13 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
   useEffect(() => {
     loadData();
   }, [token]);
+
+  // Set default selected Latsol Module when modules are loaded
+  useEffect(() => {
+    if (modules.length > 0 && selectedLatsolModuleId === "") {
+      setSelectedLatsolModuleId(modules[0].id);
+    }
+  }, [modules, selectedLatsolModuleId]);
 
   // Fetch Latsol questions when selectedModule changes
   const loadLatsolQuestions = async (moduleId: number) => {
@@ -386,6 +400,80 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       return;
     }
     setPreviewDoc({ url: fileUrl, name: fileName });
+  };
+
+  // Toggle student retry permission (individual)
+  const handleToggleStudentLatsolRepeat = async (siswaId: string, moduleId: number, targetState: boolean) => {
+    try {
+      const res = await fetch(`${API_URL}/latsol/toggle-repeat`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          siswa_id: siswaId,
+          modul_teori_id: moduleId,
+          bisa_ulang: targetState,
+        }),
+      });
+      if (res.ok) {
+        // Update state locally
+        setStudentsProgress((prev) =>
+          prev.map((student) => {
+            if (student.id !== siswaId) return student;
+            return {
+              ...student,
+              modules: student.modules.map((m: any) => {
+                if (m.id !== moduleId) return m;
+                return { ...m, latsol_bisa_ulang: targetState };
+              }),
+            };
+          })
+        );
+        setSelectedStudent((student: any) => {
+          if (!student) return null;
+          return {
+            ...student,
+            modules: student.modules.map((m: any) => {
+              if (m.id !== moduleId) return m;
+              return { ...m, latsol_bisa_ulang: targetState };
+            }),
+          };
+        });
+      } else {
+        alert("Gagal memperbarui izin mengulang latsol.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Toggle global retry permission (all students)
+  const handleToggleGlobalLatsolRepeat = async (moduleId: number, targetState: boolean) => {
+    try {
+      const res = await fetch(`${API_URL}/latsol/toggle-global-repeat`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          modul_teori_id: moduleId,
+          bisa_ulang: targetState,
+        }),
+      });
+      if (res.ok) {
+        setModules((prev) =>
+          prev.map((mod) => {
+            if (mod.id !== moduleId) return mod;
+            return { ...mod, latsol_bisa_ulang: targetState };
+          })
+        );
+        setSelectedModule((current: any) => {
+          if (!current || current.id !== moduleId) return current;
+          return { ...current, latsol_bisa_ulang: targetState };
+        });
+      } else {
+        alert("Gagal memperbarui izin mengulang global.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Convert base64 data URI to blob URL when preview modal opens
@@ -1193,6 +1281,156 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
         </div>
       )}
 
+      {/* ── TAB: REKAP LATIHAN SOAL SISWA ── */}
+      {tab === "latsol" && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-neutral-100 pb-5">
+            <div>
+              <h1 className="text-2xl font-bold text-neutral-900 leading-tight">Rekap Nilai Latihan Soal</h1>
+              <p className="text-neutral-400 text-xs font-semibold mt-1">
+                Pantau daftar nilai Latihan Soal (Latsol) mandiri siswa per-modul secara instan dan rapi.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Module Selector */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-neutral-400 uppercase">Modul:</span>
+                <select
+                  value={selectedLatsolModuleId}
+                  onChange={(e) => setSelectedLatsolModuleId(e.target.value ? Number(e.target.value) : "")}
+                  className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none font-bold text-neutral-750 cursor-pointer"
+                >
+                  {modules.map((m) => (
+                    <option key={m.id} value={m.id}>{m.urutan}. {m.judul}</option>
+                  ))}
+                </select>
+              </div>
+
+              {renderSchoolFilter()}
+              
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400">
+                  <Search size={14} />
+                </span>
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari siswa..."
+                  className="pl-8 pr-4 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none"
+                />
+              </div>
+
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none font-bold text-neutral-700 cursor-pointer"
+              >
+                {classesList.map((cls) => (
+                  <option key={cls} value={cls}>{cls === "Semua" ? "Semua Kelas" : `Kelas ${cls}`}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Global Retry Toggle - Admin Only */}
+          {currentUser?.role === "admin" && activeLatsolModule && (
+            <div className="bg-neutral-50 border border-neutral-150 rounded-xl p-3 flex items-center justify-between gap-4 text-xs max-w-xl shadow-xs">
+              <div className="space-y-0.5">
+                <p className="font-bold text-neutral-850">Izin Mengulang Latsol (Semua Siswa)</p>
+                <p className="text-[10px] text-neutral-400">Aktifkan agar seluruh siswa bisa mengulang Latihan Soal untuk modul <strong>"{activeLatsolModule.judul}"</strong> kapan saja.</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                <input
+                  type="checkbox"
+                  checked={activeLatsolModule.latsol_bisa_ulang || false}
+                  onChange={() => handleToggleGlobalLatsolRepeat(activeLatsolModule.id, !activeLatsolModule.latsol_bisa_ulang)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-neutral-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+          )}
+
+          <div className="bg-white rounded-xl border border-neutral-100 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-neutral-50/50 text-neutral-400 font-extrabold uppercase border-b border-neutral-100">
+                    <th className="px-6 py-4">Nama Siswa</th>
+                    {currentUser?.role === "admin" && <th className="px-6 py-4">Sekolah</th>}
+                    <th className="px-6 py-4">Kelas</th>
+                    <th className="px-6 py-4">Skor Latsol</th>
+                    <th className="px-6 py-4 text-right">Poin</th>
+                    {currentUser?.role === "admin" && (
+                      <th className="px-6 py-4 text-right">Aksi Izin Ulang</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 text-neutral-700">
+                  {filteredStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={currentUser?.role === "admin" ? 6 : 5} className="px-6 py-8 text-center text-neutral-400 italic">Siswa tidak ditemukan.</td>
+                    </tr>
+                  ) : (
+                    filteredStudents.map((student) => {
+                      const studentModProgress = student.modules.find((m: any) => m.id === selectedLatsolModuleId);
+                      const hasTaken = studentModProgress?.latsol_score !== undefined && studentModProgress?.latsol_score !== null;
+                      const score = studentModProgress?.latsol_score;
+                      const poin = studentModProgress?.latsol_poin;
+
+                      return (
+                        <tr key={student.id} className="hover:bg-neutral-50/30 transition">
+                          <td className="px-6 py-4 font-bold text-neutral-900">{student.nama}</td>
+                          {currentUser?.role === "admin" && (
+                            <td className="px-6 py-4 font-semibold text-neutral-600">{student.sekolah_nama || "-"}</td>
+                          )}
+                          <td className="px-6 py-4 text-neutral-500 font-semibold">{student.kelas || "-"}</td>
+                          <td className="px-6 py-4 font-semibold">
+                            {hasTaken ? (
+                              <span className={`px-2 py-1 rounded-md text-[10px] font-black ${
+                                score >= 70 ? "bg-success/10 text-success border border-success/20" : "bg-warning/10 text-warning border border-warning/20"
+                              }`}>
+                                {score}%
+                              </span>
+                            ) : (
+                              <span className="text-neutral-400 italic">Belum ujian</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right font-extrabold text-neutral-800">
+                            {hasTaken ? `${poin ?? 0} Poin` : "-"}
+                          </td>
+                          {currentUser?.role === "admin" && (
+                            <td className="px-6 py-4 text-right">
+                              {hasTaken && activeLatsolModule ? (
+                                <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={studentModProgress?.latsol_bisa_ulang || activeLatsolModule?.latsol_bisa_ulang || false}
+                                    disabled={activeLatsolModule?.latsol_bisa_ulang}
+                                    onChange={() => handleToggleStudentLatsolRepeat(student.id, activeLatsolModule.id, !studentModProgress?.latsol_bisa_ulang)}
+                                    className="h-3 w-3 accent-primary rounded border-neutral-350"
+                                  />
+                                  <span className="text-[10px] font-bold text-neutral-600">
+                                    {activeLatsolModule?.latsol_bisa_ulang ? "Aktif (Global)" : "Bisa Ulang"}
+                                  </span>
+                                </label>
+                              ) : (
+                                <span className="text-neutral-400">-</span>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── TAB 5: KELOLA MATERI ── */}
       {tab === "materi" && (
         <div className="space-y-6">
@@ -1566,6 +1804,25 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                         </button>
                       </div>
 
+                      {/* Global Repeat Permission Toggle - Admin Only */}
+                      {currentUser?.role === "admin" && (
+                        <div className="bg-neutral-50 border border-neutral-150 rounded-xl p-3 flex items-center justify-between gap-4 text-xs">
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-neutral-800">Izin Mengulang Latsol (Semua Siswa)</p>
+                            <p className="text-[10px] text-neutral-400">Aktifkan agar seluruh siswa bisa mengulang Latihan Soal untuk modul ini kapan saja.</p>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={selectedModule.latsol_bisa_ulang || false}
+                              onChange={() => handleToggleGlobalLatsolRepeat(selectedModule.id, !selectedModule.latsol_bisa_ulang)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-neutral-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                          </label>
+                        </div>
+                      )}
+
                       {/* Google Forms Style Form Creator */}
                       {isAddingLatsol && (
                         <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-5 space-y-4 text-xs">
@@ -1807,9 +2064,27 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                       <div>
                         <p className="font-bold text-neutral-550 text-[10px]">Nilai Latsol</p>
                         {m.latsol_score !== undefined && m.latsol_score !== null ? (
-                          <p className="font-black text-sm mt-0.5 text-primary">
-                            {m.latsol_score}% ({m.latsol_poin ?? 0} Poin)
-                          </p>
+                          <>
+                            <p className="font-black text-sm mt-0.5 text-primary">
+                              {m.latsol_score}% ({m.latsol_poin ?? 0} Poin)
+                            </p>
+                            {currentUser?.role === "admin" && (
+                              <div className="mt-1.5">
+                                <label className="flex items-center gap-1 cursor-pointer select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={m.latsol_bisa_ulang || m.global_latsol_bisa_ulang || false}
+                                    disabled={m.global_latsol_bisa_ulang}
+                                    onChange={() => handleToggleStudentLatsolRepeat(selectedStudent.id, m.id, !m.latsol_bisa_ulang)}
+                                    className="h-3 w-3 accent-primary rounded border-neutral-350"
+                                  />
+                                  <span className="text-[9px] font-bold text-neutral-600">
+                                    {m.global_latsol_bisa_ulang ? "Izin Aktif (Global)" : "Bisa Ulang"}
+                                  </span>
+                                </label>
+                              </div>
+                            )}
+                          </>
                         ) : (
                           <p className="text-neutral-450 mt-0.5 italic">Belum ujian</p>
                         )}

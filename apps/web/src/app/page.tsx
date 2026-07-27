@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useInView as useMotionInView, useMotionValue, useSpring } from "motion/react";
+import { useInView as useMotionInView, useMotionValue, useSpring, motion } from "motion/react";
 import {
   BookOpen,
   ClipboardList,
@@ -18,14 +18,19 @@ import {
   School,
   GraduationCap,
   ArrowRight,
+  Calendar,
+  MapPin,
+  Image as ImageIcon
 } from "lucide-react";
 import CardSwap, { Card } from "@/components/ui/CardSwap";
+import { API_URL } from "@/lib/api";
 
 // ── DATA ─────────────────────────────────────────────────────
 
 const navLinks = [
   { label: "Tentang Program", href: "#tentang" },
   { label: "Modul", href: "#modul" },
+  { label: "Galeri", href: "#galeri" },
   { label: "FAQ", href: "#faq" },
 ];
 
@@ -40,14 +45,15 @@ const stats = [
   },
   {
     icon: Users,
-    value: 420,
+    value: 250,
+    suffix: "+",
     animate: true,
     label: "Siswa Peserta 2026",
     color: "bg-accent/70 text-primary",
   },
   {
     icon: GraduationCap,
-    value: 30,
+    value: 50,
     suffix: "+",
     animate: true,
     label: "Guru Praktisi Bersertifikat",
@@ -464,17 +470,24 @@ function Hero() {
 
   return (
     <section className="relative min-h-screen bg-primary flex items-center overflow-visible lg:overflow-hidden">
-      {/* Decorative blobs */}
+      {/* Thin geometric backgrounds & subtle floating shapes */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary-light/30 blur-3xl" />
-        <div className="absolute bottom-0 -left-24 w-80 h-80 rounded-full bg-primary-dark/50 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-5"
-          style={{ backgroundImage: "radial-gradient(circle, #F5C400 1px, transparent 1px)", backgroundSize: "40px 40px" }}
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-[#185375]/20 blur-3xl" />
+        <div className="absolute bottom-0 -left-24 w-80 h-80 rounded-full bg-[#03111c]/65 blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: "radial-gradient(circle, #FABF24 1.5px, transparent 1.5px)", backgroundSize: "32px 32px" }}
         />
+        
+        {/* Thin geometric circles and shapes */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full border border-white/[0.04] animate-[spin_60s_linear_infinite]" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full border border-dashed border-white/[0.06] animate-[spin_100s_linear_infinite]" style={{ animationDirection: 'reverse' }} />
+        <div className="absolute top-1/3 left-10 w-48 h-48 rounded-full border border-white/[0.03] animate-pulse" style={{ animationDuration: '6s' }} />
+        <div className="absolute bottom-20 right-10 w-80 h-80 rounded-full border border-white/[0.03] animate-pulse" style={{ animationDuration: '8s' }} />
+
         {/* Floating shapes */}
-        <div className="absolute top-32 right-16 w-20 h-20 rounded-2xl border-2 border-accent/30 rotate-12 animate-pulse" />
-        <div className="absolute bottom-32 right-32 w-12 h-12 rounded-full border-2 border-white/20 animate-bounce" style={{ animationDuration: "3s" }} />
-        <div className="absolute top-1/2 right-8 w-6 h-6 bg-accent/40 rounded-md rotate-45" />
+        <div className="absolute top-32 right-16 w-20 h-20 rounded-2xl border border-accent/15 rotate-12 animate-pulse" style={{ animationDuration: '4s' }} />
+        <div className="absolute bottom-32 right-32 w-12 h-12 rounded-full border border-white/10 animate-bounce" style={{ animationDuration: "5s" }} />
+        <div className="absolute top-1/2 right-8 w-6 h-6 bg-accent/20 rounded-md rotate-45 animate-pulse" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-40 pb-28 sm:pb-32 lg:pb-24">
@@ -546,11 +559,6 @@ function Hero() {
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/40 animate-bounce" style={{ animationDuration: "2s" }}>
-          <span className="text-xs font-medium">Scroll</span>
-          <ChevronDown size={16} />
-        </div>
       </div>
 
       {/* Bottom wave */}
@@ -638,8 +646,8 @@ function TentangSection() {
             <p className="text-neutral-700 text-base leading-relaxed mb-6">
               Program ini menularkan praktik terbaik Toyota dalam penerapan budaya Kaizen kepada guru
               dan siswa SMK, untuk membentuk generasi yang memiliki karakter{" "}
-              <span className="font-semibold text-primary">DEKKI</span> — Disiplin, Empati, Kritis,
-              Kreatif, dan Inovatif.
+              <span className="font-semibold text-primary">DEKKI</span> (Disiplin, Empati, Kritis,
+              Kreatif, dan Inovatif).
             </p>
             <a
               href="/login"
@@ -818,6 +826,84 @@ function CTABanner() {
   );
 }
 
+// ── GALERI DOKUMENTASI SEKOLAH ──────────────────────────────────
+
+function GaleriSection() {
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLandingPosts = async () => {
+      try {
+        const res = await fetch(`${API_URL}/galeri/landing`);
+        if (res.ok) {
+          setPosts(await res.json());
+        }
+      } catch (err) {
+        console.error("Gagal mengambil galeri landing page:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLandingPosts();
+  }, []);
+
+  if (loading || posts.length === 0) return null;
+
+  return (
+    <section id="galeri" className="bg-white py-20 border-t border-neutral-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <span className="inline-block bg-accent text-neutral-900 text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-wide uppercase">
+            Dokumentasi Sekolah
+          </span>
+          <h2 className="text-3xl font-extrabold text-neutral-900">
+            Galeri Dokumentasi NKGTS
+          </h2>
+          <p className="text-neutral-500 text-sm max-w-xl mx-auto mt-2 font-semibold">
+            Foto implementasi budaya Kaizen dan kolaborasi aktif dari sekolah-sekolah duta NKGTS.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {posts.map((post, idx) => (
+            <div
+              key={post.id}
+              className="bg-neutral-50 border border-neutral-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 transform hover:-translate-y-1"
+            >
+              <div className="relative aspect-[4/3] w-full bg-neutral-200 overflow-hidden">
+                <img
+                  src={post.foto_url}
+                  alt={post.judul}
+                  className="w-full h-full object-cover hover:scale-[1.02] transition duration-300"
+                  loading="lazy"
+                />
+              </div>
+              <div className="p-4 space-y-2">
+                <div>
+                  <h3 className="font-extrabold text-neutral-900 text-sm line-clamp-1">{post.judul}</h3>
+                  {post.deskripsi && (
+                    <p className="text-neutral-500 text-xs line-clamp-2 mt-1 leading-relaxed break-words">{post.deskripsi}</p>
+                  )}
+                </div>
+                
+                <div className="flex items-center justify-between text-[10px] text-neutral-400 font-bold border-t border-neutral-200/50 pt-2.5 mt-2">
+                  <span className="flex items-center gap-0.5 truncate max-w-[150px] text-neutral-500">
+                    <MapPin size={10} className="text-primary" /> {post.sekolah_nama || "N-KGTS Pusat"}
+                  </span>
+                  <span className="flex items-center gap-0.5">
+                    <Calendar size={10} /> {new Date(post.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── FAQ ───────────────────────────────────────────────────────
 
 function FAQSection() {
@@ -920,7 +1006,7 @@ function Footer() {
             <div className="bg-white/10 rounded-xl p-4 inline-block">
               <p className="text-white font-bold text-sm">PT Toyota-Astra Motor</p>
               <p className="text-white/50 text-xs mt-0.5">Toyota Berbagi · Bersama Membangun Indonesia</p>
-              <img src="https://pbs.twimg.com/media/CIP5tRJW8AA7045.png" alt="Logo Toyota Berbagi" className="block mx-auto h-28 w-auto object-contain mt-2 rounded p-0.5" />
+              <img src="/logo-toyota-berbagi.png" alt="Logo Toyota Berbagi" className="block mx-auto h-28 w-auto object-contain mt-2 rounded p-0.5" />
             </div>
           </div>
         </div>
@@ -992,6 +1078,7 @@ export default function LandingPage() {
       <TentangSection />
       <ModulSection />
       <CTABanner />
+      <GaleriSection />
       <FAQSection />
       <HelpdeskSection />
       <Footer />
