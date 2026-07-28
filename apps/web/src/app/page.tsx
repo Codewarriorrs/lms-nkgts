@@ -75,7 +75,7 @@ const moduls = [
     deskripsi:
       "Akses materi soft skill problem solving berbasis metodologi Kaizen dalam 5 topik pelatihan terstruktur.",
     icon: BookOpen,
-    img: "https://images.unsplash.com/photo-1610500796385-3ffc1ae2f046?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    img: "/GambarStock4.png", 
     tag: "Teori",
     link: "/dashboard",
   },
@@ -85,7 +85,7 @@ const moduls = [
     deskripsi:
       "Uji pemahaman materi melalui soal latihan yang tersedia setelah kamu menyelesaikan setiap topik.",
     icon: ClipboardList,
-    img: "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    img: "/GambarStock6.png",
     tag: "Evaluasi",
     link: "/dashboard",
   },
@@ -95,7 +95,7 @@ const moduls = [
     deskripsi:
       "Kerjakan dan kumpulkan tugas praktek yang diberikan guru langsung melalui platform LMS.",
     icon: Briefcase,
-    img: "https://images.unsplash.com/photo-1589087394593-e1f8a7d30fed?q=80&w=1467&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    img: "/GambarStock19.png",
     tag: "Praktek",
     link: "/dashboard/tugas",
   },
@@ -105,7 +105,7 @@ const moduls = [
     deskripsi:
       "Daftarkan, jalankan, dan laporkan progress project kaizen kamu secara berkala dengan template terstruktur.",
     icon: FolderKanban,
-    img: "https://images.unsplash.com/photo-1557734864-c78b6dfef1b1?q=80&w=1634&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    img: "/GambarStock20.png",
     tag: "Project",
     link: "/dashboard/project",
   },
@@ -115,7 +115,7 @@ const moduls = [
     deskripsi:
       "Terima penilaian dan feedback langsung dari Guru Praktisi Kaizen untuk setiap tugas dan project.",
     icon: BarChart2,
-    img: "https://images.unsplash.com/photo-1664382953518-4a664ab8a8c9?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    img: "/GambarStock13.png",
     tag: "Feedback",
     link: "/dashboard",
   },
@@ -125,7 +125,7 @@ const moduls = [
     deskripsi:
       "Raih Sertifikat Partisipasi Kaizen dan Sertifikat Penyelesaian Project setelah menuntaskan program.",
     icon: Award,
-    img: "https://images.unsplash.com/photo-1667967699372-1c26d40dec46?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    img: "/GambarStock14.png",
     tag: "Sertifikat",
   },
 ];
@@ -526,8 +526,8 @@ function Hero() {
               <CardSwap
                 width="100%"
                 height="280px"
-                cardDistance={15}
-                verticalDistance={15}
+                cardDistance={7}
+                verticalDistance={7}
                 delay={4500}
                 pauseOnHover={false}
                 skewAmount={3}
@@ -535,25 +535,44 @@ function Hero() {
               >
                 <Card>
                   <img
-                    src="https://kabarterdepan.com/wp-content/uploads/2023/10/WhatsApp-Image-2023-10-03-at-18.06.03.webp"
+                    src="/Gambarstock1.png"
                     alt="Preview 1"
+                    title="Pelaksanaan NKGTS"
                     className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
                   />
                 </Card>
                 <Card>
                   <img
-                    src="https://vibes.koranjuri.com/wp-content/uploads/2024/08/IMG_20240829_181517.jpg"
+                    src="/GambarStock18.png"
                     alt="Preview 2"
+                    title="Pemberian Sertifikat"
                     className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
                   />
                 </Card>
                 <Card>
                   <img
-                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSKxYTpWnysl034eJwiHM-PLkdCzhg6zx1_NULPTye2aNXFopwCg7I3iMPX&s=10"
+                    src="/GambarStock7.png"
                     alt="Preview 3"
+                    title="Presentasi Siswa"
                     className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
                   />
                 </Card>
+                <Card>
+                  <img
+                    src="/GambarStock2.png"
+                    alt="Preview 4"
+                    title="Pelatihan Guru"
+                    className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
+                    />
+                  </Card>
+                  <Card>
+                  <img
+                    src="/GambarStock5.png"
+                    alt="Preview 5"
+                    title="Kunjungan"
+                    className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
+                    />
+                  </Card>
               </CardSwap>
             </div>
           </div>
