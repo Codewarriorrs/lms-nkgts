@@ -169,7 +169,7 @@ export class InvitationController {
     @Param('id') id: string,
     @Body() resetProgressDto: ResetProgressDto
   ) {
-    return this.invitationService.resetProgress(id, resetProgressDto.startFromModule);
+    return this.invitationService.resetProgress(id, resetProgressDto.startFromModule, resetProgressDto.resetType);
   }
 
   // 14. Tarik data rekapitulasi nilai (Export to Excel)

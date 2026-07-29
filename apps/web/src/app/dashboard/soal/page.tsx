@@ -129,12 +129,11 @@ export default function SoalPage() {
   const handleSubmitExam = async () => {
     if (!activeModuleId || !token) return;
     
-    // Validate that all questions are answered
-    const unanswered = questions.filter((q) => answers[q.id] === undefined);
+    // Validate that all questions are answered (Mandatory)
+    const unanswered = questions.filter((q) => answers[q.id] === undefined || answers[q.id] === null);
     if (unanswered.length > 0) {
-      if (!confirm(`Ada ${unanswered.length} soal belum dijawab. Tetap kumpulkan?`)) {
-        return;
-      }
+      alert(`Peringatan: Harap jawab seluruh pertanyaan kuis sebelum mengumpulkan! (${questions.length - unanswered.length} dari ${questions.length} soal dijawab)`);
+      return;
     }
 
     try {
@@ -307,25 +306,48 @@ export default function SoalPage() {
                       {/* Options List */}
                       <div className="pl-6 space-y-2.5">
                         {q.pilihan.map((opsi, oIdx) => {
-                          const isSelected = isReviewMode ? oIdx === q.jawaban_benar : selectedOpt === oIdx;
+                          const isCorrectKey = isReviewMode && oIdx === q.jawaban_benar;
+                          const isUserWrongChoice = isReviewMode && selectedOpt === oIdx && selectedOpt !== q.jawaban_benar;
+                          const isNormalSelected = !isReviewMode && selectedOpt === oIdx;
+
+                          let containerStyle = "border-neutral-100 hover:bg-neutral-50 text-neutral-700";
+                          let badgeStyle = "border-neutral-300 bg-white text-neutral-400";
+
+                          if (isReviewMode) {
+                            if (isCorrectKey) {
+                              containerStyle = "bg-emerald-50 border-emerald-500 text-emerald-800 font-bold shadow-xs";
+                              badgeStyle = "border-emerald-600 bg-emerald-600 text-white";
+                            } else if (isUserWrongChoice) {
+                              containerStyle = "bg-rose-50 border-rose-400 text-rose-800 font-bold shadow-xs";
+                              badgeStyle = "border-rose-500 bg-rose-500 text-white";
+                            } else {
+                              containerStyle = "border-neutral-100 text-neutral-400 opacity-60 pointer-events-none";
+                            }
+                          } else if (isNormalSelected) {
+                            containerStyle = "bg-primary/5 border-primary/40 text-primary font-semibold";
+                            badgeStyle = "border-primary bg-primary text-white";
+                          }
+
                           return (
                             <div 
                               key={oIdx}
                               onClick={isReviewMode ? undefined : () => handleSelectAnswer(q.id, oIdx)}
-                              className={`flex items-center gap-3 p-3 rounded-xl border text-xs cursor-pointer select-none transition ${
-                                isSelected 
-                                  ? (isReviewMode ? "bg-success/5 border-success/40 text-success font-bold" : "bg-primary/5 border-primary/40 text-primary font-semibold") 
-                                  : (isReviewMode ? "border-neutral-100 text-neutral-400 opacity-60 pointer-events-none" : "border-neutral-100 hover:bg-neutral-50 text-neutral-700")
-                              }`}
+                              className={`flex items-center gap-3 p-3 rounded-xl border text-xs cursor-pointer select-none transition ${containerStyle}`}
                             >
-                              <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 text-[10px] font-bold ${
-                                isSelected 
-                                  ? (isReviewMode ? "border-success bg-success text-white" : "border-primary bg-primary text-white") 
-                                  : "border-neutral-300 bg-white text-neutral-400"
-                              }`}>
+                              <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 text-[10px] font-bold ${badgeStyle}`}>
                                 {String.fromCharCode(65 + oIdx)}
                               </div>
-                              <span className="leading-snug">{opsi}</span>
+                              <span className="leading-snug flex-1">{opsi}</span>
+                              {isReviewMode && isCorrectKey && (
+                                <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">
+                                  Kunci Benar
+                                </span>
+                              )}
+                              {isReviewMode && isUserWrongChoice && (
+                                <span className="text-[10px] font-black uppercase text-rose-700 bg-rose-100 px-2 py-0.5 rounded shrink-0">
+                                  Jawaban Anda (Salah)
+                                </span>
+                              )}
                             </div>
                           );
                         })}

@@ -20,6 +20,7 @@ export function ResetProgressModal({
   onSuccess,
 }: ResetProgressModalProps) {
   const [startModule, setStartModule] = useState<number>(3);
+  const [resetType, setResetType] = useState<"all" | "materi_latsol" | "praktik">("all");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -38,6 +39,7 @@ export function ResetProgressModal({
         },
         body: JSON.stringify({
           startFromModule: startModule,
+          resetType,
         }),
       });
 
@@ -105,14 +107,31 @@ export function ResetProgressModal({
             </div>
           )}
 
-          <div className="space-y-2">
+          {/* Opsi Komponen Reset */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-neutral-700">
+              Komponen yang Direset:
+            </label>
+            <select
+              value={resetType}
+              onChange={(e) => setResetType(e.target.value as "all" | "materi_latsol" | "praktik")}
+              className="w-full border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white font-medium"
+            >
+              <option value="all">Semua Komponen (Materi, Kuis, & Tugas Praktik)</option>
+              <option value="materi_latsol">Materi & Kuis / Latsol Saja</option>
+              <option value="praktik">Tugas Praktik Saja</option>
+            </select>
+          </div>
+
+          {/* Titik Awal Reset */}
+          <div className="space-y-1.5">
             <label className="text-xs font-bold text-neutral-700">
               Pilih Titik Awal Reset:
             </label>
             <select
               value={startModule}
               onChange={(e) => setStartModule(parseInt(e.target.value, 10))}
-              className="w-full border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
+              className="w-full border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white font-medium"
             >
               {modulesList.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -120,8 +139,8 @@ export function ResetProgressModal({
                 </option>
               ))}
             </select>
-            <p className="text-[10px] text-neutral-400 leading-relaxed">
-              * Opsi ini akan menghapus data progres membaca materi, kuis (latsol), dan pengumpulan tugas praktik untuk modul terpilih serta modul-modul setelahnya. Modul sebelum titik awal reset akan tetap utuh.
+            <p className="text-[10px] text-neutral-400 leading-relaxed pt-1">
+              * Data komponen terpilih untuk modul ini & setelahnya akan dihapus tuntas. Modul sebelum titik awal reset tetap utuh.
             </p>
           </div>
 

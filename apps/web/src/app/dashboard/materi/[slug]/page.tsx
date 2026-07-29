@@ -359,6 +359,16 @@ export default function MateriDetailPage() {
     const quizList = dbModule.soal_latihan || [];
     if (quizList.length === 0) return;
 
+    // Validasi Wajib Jawab Seluruh Soal Kuis Modul (Mandatory)
+    const answeredCount = Object.keys(answers).filter(
+      (idx) => answers[parseInt(idx, 10)] !== undefined && answers[parseInt(idx, 10)] !== null
+    ).length;
+
+    if (answeredCount < quizList.length) {
+      alert(`Peringatan: Harap jawab seluruh pertanyaan kuis sebelum mengumpulkan! (${answeredCount} dari ${quizList.length} soal dijawab)`);
+      return;
+    }
+
     const correctAnswers = quizList.reduce((count: number, item: any, index: number) => {
       return count + (answers[index] === item.jawaban_benar ? 1 : 0);
     }, 0);

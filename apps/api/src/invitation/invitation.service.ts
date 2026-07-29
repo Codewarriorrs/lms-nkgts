@@ -532,7 +532,7 @@ export class InvitationService {
   }
 
   // 13. Reset progres belajar parsial/sekuensial
-  async resetProgress(userId: string, startFromModule: number) {
+  async resetProgress(userId: string, startFromModule: number, resetType: string = 'all') {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -540,58 +540,71 @@ export class InvitationService {
       throw new NotFoundException('Pengguna tidak ditemukan!');
     }
 
-    await Promise.all([
+    const tasks: Promise<any>[] = [];
+
+    const shouldResetMateriLatsol = resetType === 'all' || resetType === 'materi_latsol';
+    const shouldResetPraktik = resetType === 'all' || resetType === 'praktik';
+
+    if (shouldResetMateriLatsol) {
       // 1. progres_teori >= startFromModule
-      this.prisma.progresTeori.deleteMany({
-        where: {
-          siswa_id: userId,
-          modul_teori: {
-            urutan: {
-              gte: startFromModule,
+      tasks.push(
+        this.prisma.progresTeori.deleteMany({
+          where: {
+            siswa_id: userId,
+            modul_teori: {
+              urutan: { gte: startFromModule },
             },
           },
-        },
-      }),
+        }),
+      );
 
       // 2. nilai_latsol >= startFromModule
-      this.prisma.nilaiLatsol.deleteMany({
-        where: {
-          siswa_id: userId,
-          modul_teori: {
-            urutan: {
-              gte: startFromModule,
+      tasks.push(
+        this.prisma.nilaiLatsol.deleteMany({
+          where: {
+            siswa_id: userId,
+            modul_teori: {
+              urutan: { gte: startFromModule },
             },
           },
-        },
-      }),
+        }),
+      );
 
-      // 3. submisi_praktek >= startFromModule
-      this.prisma.submisiPraktek.deleteMany({
-        where: {
-          siswa_id: userId,
-          tugas_praktek: {
-            urutan: {
-              gte: startFromModule,
+      // 3. nilai_latihan >= startFromModule
+      tasks.push(
+        this.prisma.nilaiLatihan.deleteMany({
+          where: {
+            siswa_id: userId,
+            modul_teori: {
+              urutan: { gte: startFromModule },
             },
           },
-        },
-      }),
+        }),
+      );
+    }
 
-      // 4. nilai_latihan >= startFromModule
-      this.prisma.nilaiLatihan.deleteMany({
-        where: {
-          siswa_id: userId,
-          modul_teori: {
-            urutan: {
-              gte: startFromModule,
+    if (shouldResetPraktik) {
+      // 4. submisi_praktek >= startFromModule
+      tasks.push(
+        this.prisma.submisiPraktek.deleteMany({
+          where: {
+            siswa_id: userId,
+            tugas_praktek: {
+              urutan: { gte: startFromModule },
             },
           },
-        },
-      }),
-    ]);
+        }),
+      );
+    }
+
+    await Promise.all(tasks);
+
+    let typeDesc = 'seluruh progres (Materi, Kuis, & Tugas Praktik)';
+    if (resetType === 'materi_latsol') typeDesc = 'Materi & Kuis/Latsol';
+    else if (resetType === 'praktik') typeDesc = 'Tugas Praktik';
 
     return {
-      message: `Progres belajar siswa dari Modul ${startFromModule} s/d Modul 5 berhasil direset!`,
+      message: `Berhasil mereset ${typeDesc} siswa dari Modul ${startFromModule} s/d Modul 5!`,
     };
   }
 

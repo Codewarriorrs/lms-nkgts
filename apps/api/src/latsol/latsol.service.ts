@@ -215,10 +215,10 @@ export class LatsolService {
           unlocked = false;
           alasan_terkunci = `Materi modul "${mod.judul}" belum selesai dibaca.`;
         }
-        // Prasyarat 2: Kuis di dalam materi harus bernilai 100 (benar semua)
-        else if (!internalQuiz || internalQuiz.skor !== 100) {
+        // Prasyarat 2: Kuis di dalam materi harus sudah diselesaikan
+        else if (!internalQuiz) {
           unlocked = false;
-          alasan_terkunci = `Kuis materi di akhir modul "${mod.judul}" belum diselesaikan dengan nilai 100%.`;
+          alasan_terkunci = `Kuis materi di akhir modul "${mod.judul}" belum diselesaikan.`;
         }
         // Prasyarat 3: Modul sebelumnya harus sudah menyelesaikan Latsol-nya (berurutan)
         else if (i > 0) {
