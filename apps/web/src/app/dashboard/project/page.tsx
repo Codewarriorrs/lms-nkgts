@@ -42,8 +42,8 @@ export default function ProjectPage() {
         <Link href="/dashboard/project/proposal" className="block">
           <div className="bg-white rounded-xl border border-neutral-100 p-6 shadow-sm hover:shadow-md transition">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-accent/20 flex items-center justify-center text-accent-dark">
-                <FileText size={20} />
+              <div className="w-14 h-14 rounded-full bg-accent/70 flex items-center justify-center text-primary">
+                <FileText size={25} />
               </div>
               <div>
                 <h3 className="text-neutral-900 font-bold">Kumpulkan Proposal</h3>
@@ -56,8 +56,8 @@ export default function ProjectPage() {
         <Link href="/dashboard/project/laporan" className="block">
           <div className="bg-white rounded-xl border border-neutral-100 p-6 shadow-sm hover:shadow-md transition">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-accent/20 flex items-center justify-center text-accent-dark">
-                <FileCheck size={20} />
+              <div className="w-14 h-14 rounded-full bg-accent/70 flex items-center justify-center text-primary">
+                <FileCheck size={25} />
               </div>
               <div>
                 <h3 className="text-neutral-900 font-bold">Kumpulkan Laporan</h3>

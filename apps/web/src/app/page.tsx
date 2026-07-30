@@ -1058,27 +1058,30 @@ function HelpdeskSection() {
         <div className="flex flex-wrap items-center justify-center gap-3">
           <a
             href="https://bit.ly/helpdeskNKGTS"
+            title="Form Bantuan"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-white border border-neutral-200 text-neutral-800 text-xs font-semibold px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary hover:shadow-sm transition-all"
           >
-            <span>Form Bantuan</span>
+            <img src="LogoForm.svg" alt="Logo Form" className="w-5 h-5 object-contain"/><span>Form Bantuan</span>
           </a>
           <a
             href="https://wa.me/6285866455551"
+            title="Admin 1"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-emerald-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-emerald-700 hover:shadow-sm transition-all"
+            className="inline-flex items-center gap-2 bg-white border border-neutral-200 text-neutral-800 text-xs font-semibold px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary hover:shadow-sm transition-all"
           >
-            <span>WhatsApp Luthfi</span>
+            <img src="LogoWhatsApp.svg" alt="Logo WhatsApp" className="w-5 h-5 object-contain"/><span>WhatsApp Admin 1</span>
           </a>
           <a
             href="https://wa.me/6287830971414"
+            title="Admin 2"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-emerald-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-emerald-700 hover:shadow-sm transition-all"
+            className="inline-flex items-center gap-2 bg-white border border-neutral-200 text-neutral-800 text-xs font-semibold px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary hover:shadow-sm transition-all"
           >
-            <span>WhatsApp Riris</span>
+            <img src="LogoWhatsApp.svg" alt="Logo WhatsApp" className="w-5 h-5 object-contain"/><span>WhatsApp Admin 2</span>
           </a>
         </div>
       </div>

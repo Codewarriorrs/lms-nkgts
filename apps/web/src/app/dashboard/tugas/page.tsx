@@ -1547,13 +1547,13 @@ export default function TugasPage() {
 
                       {/* Form 1: Rumah */}
                       <div className="border rounded-2xl p-4 bg-white space-y-3">
-                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Potensi Bahaya: Rumah / Diperjalanan (Wajib 5 baris)</h4>
+                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Potensi Bahaya: Rumah / Diperjalanan <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
                         {renderFormTable(bahayaRumahS4, setBahayaRumahS4)}
                       </div>
 
                       {/* Form 2: Sekolah */}
                       <div className="border rounded-2xl p-4 bg-white space-y-3">
-                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Potensi Bahaya: Aktivitas di Sekolah (Wajib 5 baris)</h4>
+                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Potensi Bahaya: Aktivitas di Sekolah <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
                         {renderFormTable(bahayaSekolahS4, setBahayaSekolahS4)}
                       </div>
 
@@ -1783,13 +1783,13 @@ export default function TugasPage() {
                     <div className="space-y-5">
                       {/* Form 1: Sekolah */}
                       <div className="border rounded-2xl p-4 bg-white space-y-3">
-                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Pemborosan: Aktivitas di Sekolah (Wajib 5 baris)</h4>
+                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Pemborosan: Aktivitas di Sekolah <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
                         {renderFormWaste(wasteSekolahS5, setWasteSekolahS5)}
                       </div>
 
                       {/* Form 2: Rumah */}
                       <div className="border rounded-2xl p-4 bg-white space-y-3">
-                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Pemborosan: Di Rumah / Tempat Lain (Wajib 5 baris)</h4>
+                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Pemborosan: Di Rumah / Tempat Lain <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
                         {renderFormWaste(wasteRumahS5, setWasteRumahS5)}
                       </div>
 

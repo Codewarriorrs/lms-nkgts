@@ -190,27 +190,30 @@ export function LoginForm() {
             <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
               <a
                 href="https://bit.ly/helpdeskNKGTS"
+                title="Form Bantuan"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-700 hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all font-medium"
+                className="inline-flex items-center gap-2 bg-white border border-neutral-200 text-neutral-800 text-xs font-semibold px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary hover:shadow-sm transition-all"
               >
-                <span>Form Bantuan</span>
+                <img src="LogoForm.svg" alt="Logo Form" className="w-5 h-5 object-contain"/><span>Form Bantuan</span>
               </a>
               <a
                 href="https://wa.me/6285866455551"
+                title="Admin 1"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-all font-medium"
+                className="inline-flex items-center gap-2 bg-white border border-neutral-200 text-neutral-800 text-xs font-semibold px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary hover:shadow-sm transition-all"
               >
-                <span>WA Luthfi</span>
+                <img src="LogoWhatsApp.svg" alt="Logo WhatsApp" className="w-5 h-5 object-contain"/><span>WhatsApp Admin 1</span>
               </a>
               <a
                 href="https://wa.me/6287830971414"
+                title="Admin 2"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-all font-medium"
+                className="inline-flex items-center gap-2 bg-white border border-neutral-200 text-neutral-800 text-xs font-semibold px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary hover:shadow-sm transition-all"
               >
-                <span>WA Riris</span>
+                <img src="LogoWhatsApp.svg" alt="Logo WhatsApp" className="w-5 h-5 object-contain"/><span>WhatsApp Admin 2</span>
               </a>
             </div>
           </div>
