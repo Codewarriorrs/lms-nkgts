@@ -1,14 +1,13 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { RoleEnum } from '../../generated/prisma';
+import { RoleEnum, ApprovalStatus } from '../../generated/prisma';
 
 @Injectable()
 export class GaleriService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // 1. Membuat postingan galeri baru
+  // 1. Membuat postingan galeri baru (Dengan Limitasi Kuota Upload Siswa & Status Moderasi)
   async createPost(userId: string, dto: { judul: string; deskripsi?: string; foto_url: string }) {
-    // Cari data user untuk mengambil info sekolah
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { sekolah: true },
@@ -18,6 +17,20 @@ export class GaleriService {
       throw new NotFoundException('User tidak ditemukan');
     }
 
+    // Pengecekan Kuota Upload: Siswa hanya dapat mengunggah 1 kali foto ke Galeri
+    if (user.role === RoleEnum.siswa) {
+      const uploadCount = await this.prisma.galeri.count({
+        where: { user_id: userId },
+      });
+
+      if (uploadCount >= 1) {
+        throw new ForbiddenException('Siswa hanya diperbolehkan mengunggah 1 kali foto ke Galeri N-KGTS.');
+      }
+    }
+
+    // Admin postingan langsung APPROVED, selain itu default PENDING (butuh moderasi Admin)
+    const initialStatus = user.role === RoleEnum.admin ? ApprovalStatus.APPROVED : ApprovalStatus.PENDING;
+
     return this.prisma.galeri.create({
       data: {
         user_id: userId,
@@ -26,6 +39,7 @@ export class GaleriService {
         foto_url: dto.foto_url,
         sekolah_id: user.sekolah_id,
         sekolah_nama: user.sekolah?.nama_sekolah || null,
+        status: initialStatus,
       },
       include: {
         uploader: {
@@ -41,11 +55,90 @@ export class GaleriService {
     });
   }
 
-  // 2. Mengambil semua postingan galeri
-  async getAllPosts() {
+  // 2. Mengambil postingan galeri dengan Paginasi & Filter Status (Default: APPROVED)
+  async getAllPosts(pageStr?: string, limitStr?: string, statusParam?: string) {
+    const page = pageStr ? Math.max(1, parseInt(pageStr, 10)) : 1;
+    const limit = limitStr ? Math.max(1, parseInt(limitStr, 10)) : 12;
+    const skip = (page - 1) * limit;
+
+    let targetStatus: ApprovalStatus = ApprovalStatus.APPROVED;
+    if (statusParam && Object.values(ApprovalStatus).includes(statusParam as ApprovalStatus)) {
+      targetStatus = statusParam as ApprovalStatus;
+    }
+
+    const whereCondition = { status: targetStatus };
+
+    const [posts, total] = await Promise.all([
+      this.prisma.galeri.findMany({
+        where: whereCondition,
+        skip,
+        take: limit,
+        orderBy: {
+          created_at: 'desc',
+        },
+        include: {
+          uploader: {
+            select: {
+              id: true,
+              nama: true,
+              email: true,
+              role: true,
+              foto_profil: true,
+            },
+          },
+          likes: {
+            select: {
+              user_id: true,
+            },
+          },
+        },
+      }),
+      this.prisma.galeri.count({ where: whereCondition }),
+    ]);
+
+    return {
+      posts,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  // 3. Mengambil postingan khusus untuk landing page (Hanya APPROVED, Maksimal 6 atau 8)
+  async getLandingPosts(limitCount: number = 6) {
     return this.prisma.galeri.findMany({
+      where: {
+        status: ApprovalStatus.APPROVED,
+      },
+      take: limitCount,
       orderBy: {
         created_at: 'desc',
+      },
+      include: {
+        uploader: {
+          select: {
+            nama: true,
+            foto_profil: true,
+          },
+        },
+        likes: {
+          select: {
+            user_id: true,
+          },
+        },
+      },
+    });
+  }
+
+  // 4. Mengambil postingan pending khusus Moderasi Admin
+  async getPendingPosts() {
+    return this.prisma.galeri.findMany({
+      where: {
+        status: ApprovalStatus.PENDING,
+      },
+      orderBy: {
+        created_at: 'asc',
       },
       include: {
         uploader: {
@@ -55,84 +148,46 @@ export class GaleriService {
             email: true,
             role: true,
             foto_profil: true,
-          },
-        },
-        likes: {
-          select: {
-            user_id: true,
+            sekolah: {
+              select: { nama_sekolah: true },
+            },
           },
         },
       },
     });
   }
 
-  // 3. Mengambil postingan khusus untuk landing page
-  // Aturan: Pilih minimal 1 dan maksimal 3 untuk setiap sekolah.
-  // Jika postingan masih sedikit (< 15 secara keseluruhan), ambil semua gambar acak/terbaru (maksimal 15).
-  async getLandingPosts() {
-    const allPosts = await this.prisma.galeri.findMany({
-      orderBy: {
-        created_at: 'desc',
-      },
-      include: {
-        uploader: {
-          select: {
-            nama: true,
-            foto_profil: true,
-          },
-        },
-        likes: {
-          select: {
-            user_id: true,
-          },
-        },
-      },
+  // 5. Mengubah status moderasi galeri (APPROVED / REJECTED)
+  async updatePostStatus(postId: string, status: ApprovalStatus) {
+    const post = await this.prisma.galeri.findUnique({
+      where: { id: postId },
     });
 
-    if (allPosts.length <= 15) {
-      return allPosts;
+    if (!post) {
+      throw new NotFoundException('Postingan galeri tidak ditemukan.');
     }
 
-    // Kelompokkan berdasarkan sekolah_id (atau sekolah_nama)
-    const groupedBySchool: Record<string, typeof allPosts> = {};
-    const postsWithoutSchool: typeof allPosts = [];
-
-    for (const post of allPosts) {
-      const key = post.sekolah_id ? String(post.sekolah_id) : null;
-      if (key) {
-        if (!groupedBySchool[key]) {
-          groupedBySchool[key] = [];
-        }
-        groupedBySchool[key].push(post);
-      } else {
-        postsWithoutSchool.push(post);
-      }
-    }
-
-    const selectedPosts: typeof allPosts = [];
-
-    // Ambil maksimal 3 dari tiap sekolah
-    for (const schoolId of Object.keys(groupedBySchool)) {
-      const schoolPosts = groupedBySchool[schoolId];
-      // Ambil hingga 3 postingan teratas
-      const sliceCount = Math.min(schoolPosts.length, 3);
-      selectedPosts.push(...schoolPosts.slice(0, sliceCount));
-    }
-
-    // Jika setelah didistribusikan per sekolah hasilnya masih sedikit, kita tambahkan postingan tanpa sekolah atau postingan lainnya
-    if (selectedPosts.length < 15) {
-      const remainingSlots = 15 - selectedPosts.length;
-      const alreadySelectedIds = new Set(selectedPosts.map((p) => p.id));
-      
-      const extraPosts = allPosts.filter((p) => !alreadySelectedIds.has(p.id));
-      selectedPosts.push(...extraPosts.slice(0, remainingSlots));
-    }
-
-    // Urutkan kembali berdasarkan waktu upload terbaru
-    return selectedPosts.sort((a, b) => b.created_at.getTime() - a.created_at.getTime()).slice(0, 15);
+    return this.prisma.galeri.update({
+      where: { id: postId },
+      data: { status },
+    });
   }
 
-  // 4. Menghapus postingan galeri
+  // 6. Cek status kuota upload user
+  async getUserQuotaStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User tidak ditemukan');
+
+    const count = await this.prisma.galeri.count({ where: { user_id: userId } });
+    const isSiswa = user.role === RoleEnum.siswa;
+    return {
+      uploadedCount: count,
+      maxQuota: isSiswa ? 1 : 999,
+      isQuotaExceeded: isSiswa && count >= 1,
+    };
+  }
+
+  // 7. Menghapus postingan galeri
   async deletePost(postId: string, userId: string, userRole: RoleEnum) {
     const post = await this.prisma.galeri.findUnique({
       where: { id: postId },
@@ -142,12 +197,10 @@ export class GaleriService {
       throw new NotFoundException('Postingan galeri tidak ditemukan');
     }
 
-    // Cari info uploader
     const postOwner = await this.prisma.user.findUnique({
       where: { id: post.user_id },
     });
 
-    // Cari info requestor
     const requestor = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -159,7 +212,6 @@ export class GaleriService {
     const isOwner = post.user_id === userId;
     const isAdmin = userRole === RoleEnum.admin;
     
-    // Guru dari sekolah yang sama
     const isGuruSameSchool = 
       userRole === RoleEnum.guru && 
       postOwner && 
@@ -175,7 +227,7 @@ export class GaleriService {
     });
   }
 
-  // 5. Toggle like pada postingan
+  // 8. Toggle like pada postingan
   async toggleLike(postId: string, userId: string) {
     const existing = await this.prisma.galeriLike.findUnique({
       where: {
@@ -202,3 +254,4 @@ export class GaleriService {
     }
   }
 }
+

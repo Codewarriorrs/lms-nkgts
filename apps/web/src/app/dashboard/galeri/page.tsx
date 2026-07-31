@@ -47,9 +47,21 @@ interface Post {
 export default function GaleriPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [pendingPosts, setPendingPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalPosts, setTotalPosts] = useState(0);
+
+  // Admin tab state ('public' | 'pending')
+  const [activeTab, setActiveTab] = useState<"public" | "pending">("public");
+
+  // User quota state
+  const [quotaInfo, setQuotaInfo] = useState<{ uploadedCount: number; maxQuota: number; isQuotaExceeded: boolean } | null>(null);
 
   // Form states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -78,14 +90,30 @@ export default function GaleriPage() {
     }
   }, []);
 
-  const loadPosts = async () => {
+  const loadQuota = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/galeri/quota`, { headers });
+      if (res.ok) {
+        setQuotaInfo(await res.json());
+      }
+    } catch (err) {
+      console.error("Gagal memuat status kuota galeri:", err);
+    }
+  };
+
+  const loadPosts = async (currentPage: number = 1) => {
     if (!token) return;
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_URL}/galeri`, { headers });
+      const res = await fetch(`${API_URL}/galeri?page=${currentPage}&limit=6`, { headers });
       if (res.ok) {
-        setPosts(await res.json());
+        const data = await res.json();
+        setPosts(data.posts || []);
+        setTotalPages(data.totalPages || 1);
+        setTotalPosts(data.total || 0);
+        setPage(data.page || 1);
       } else {
         setError("Gagal memuat galeri.");
       }
@@ -97,9 +125,49 @@ export default function GaleriPage() {
     }
   };
 
+  const loadPendingPosts = async () => {
+    if (!token || currentUser?.role !== "admin") return;
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/galeri/pending`, { headers });
+      if (res.ok) {
+        setPendingPosts(await res.json());
+      }
+    } catch (err) {
+      console.error("Gagal memuat postingan pending:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    loadPosts();
-  }, [token]);
+    if (activeTab === "public") {
+      loadPosts(page);
+    } else {
+      loadPendingPosts();
+    }
+    loadQuota();
+  }, [token, page, activeTab]);
+
+  const handleApproveReject = async (postId: string, status: "APPROVED" | "REJECTED") => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/galeri/${postId}/status`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setPendingPosts((prev) => prev.filter((p) => p.id !== postId));
+        alert(`Postingan telah ${status === "APPROVED" ? "disetujui (ACC)" : "ditolak"}.`);
+      } else {
+        alert("Gagal memperbarui status postingan.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi kesalahan saat memoderasi postingan.");
+    }
+  };
 
   // Load likes state from DB when posts or currentUser changes
   useEffect(() => {
@@ -245,6 +313,47 @@ export default function GaleriPage() {
         
         {/* KOLOM KIRI (Feed) */}
         <div className="lg:col-span-2 space-y-6">
+          
+          {/* Admin Moderation Tabs */}
+          {currentUser?.role === "admin" && (
+            <div className="flex items-center gap-2 bg-neutral-100 p-1.5 rounded-xl border border-neutral-200 text-xs font-bold">
+              <button
+                onClick={() => setActiveTab("public")}
+                className={`flex-1 py-2 px-3 rounded-lg transition ${
+                  activeTab === "public" ? "bg-white text-neutral-900 shadow-xs" : "text-neutral-500 hover:text-neutral-800"
+                }`}
+              >
+                Postingan Publik
+              </button>
+              <button
+                onClick={() => setActiveTab("pending")}
+                className={`flex-1 py-2 px-3 rounded-lg transition flex items-center justify-center gap-1.5 ${
+                  activeTab === "pending" ? "bg-white text-primary shadow-xs" : "text-neutral-500 hover:text-neutral-800"
+                }`}
+              >
+                Antrean Moderasi (ACC)
+                {pendingPosts.length > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                    {pendingPosts.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Student Quota Banner */}
+          {currentUser?.role === "siswa" && quotaInfo?.isQuotaExceeded && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-3 text-amber-800 text-xs font-semibold">
+              <AlertCircle size={18} className="shrink-0 text-amber-600" />
+              <div>
+                <p className="font-bold">Kuota Unggahan Terpakai (1/1 Foto)</p>
+                <p className="text-[11px] text-amber-700 font-normal">
+                  Siswa hanya diperbolehkan mengunggah 1 kali foto ke Galeri N-KGTS. Hapus foto lama Anda jika ingin mengganti.
+                </p>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 border border-red-150 rounded-xl p-4 flex items-center gap-3 text-red-700 text-xs font-semibold">
               <AlertCircle size={18} />
@@ -252,126 +361,201 @@ export default function GaleriPage() {
             </div>
           )}
 
-          {/* Post Feed Container */}
-          {loading ? (
-            <div className="flex h-[35vh] items-center justify-center">
-              <Loader2 className="animate-spin text-primary" size={32} />
-            </div>
-          ) : posts.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-neutral-200 p-12 text-center text-neutral-400 space-y-3">
-              <ImageIcon size={48} className="mx-auto text-neutral-300" />
-              <p className="font-bold text-sm">Belum ada dokumentasi</p>
-              <p className="text-xs">Jadilah yang pertama untuk membagikan dokumentasi proyek Kaizen sekolah Anda!</p>
-              <button
-                onClick={handleOpenModal}
-                className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold px-4 py-2 rounded-xl transition"
-              >
-                Mulai Unggah
-              </button>
+          {/* Render Active Tab: Pending Posts vs Public Posts */}
+          {activeTab === "pending" && currentUser?.role === "admin" ? (
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-neutral-800">Menunggu Persetujuan Admin (ACC):</h3>
+              {loading ? (
+                <div className="flex h-[30vh] items-center justify-center">
+                  <Loader2 className="animate-spin text-primary" size={28} />
+                </div>
+              ) : pendingPosts.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-neutral-200 p-8 text-center text-neutral-400">
+                  <p className="font-bold text-xs">Tidak ada antrean foto baru.</p>
+                  <p className="text-[11px]">Semua postingan galeri sudah ditinjau.</p>
+                </div>
+              ) : (
+                pendingPosts.map((post) => (
+                  <div key={post.id} className="bg-white rounded-2xl border border-amber-200 p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-neutral-900 text-xs">{post.uploader?.nama}</span>
+                        <span className="text-[10px] text-neutral-400">({post.uploader?.sekolah?.nama_sekolah || "N-KGTS"})</span>
+                      </div>
+                      <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase px-2 py-0.5 rounded">PENDING</span>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <img src={post.foto_url} alt={post.judul} className="w-24 h-24 object-cover rounded-xl border border-neutral-200 shrink-0" />
+                      <div className="space-y-1 text-xs flex-1">
+                        <p className="font-extrabold text-neutral-900">{post.judul}</p>
+                        {post.deskripsi && <p className="text-neutral-600 text-[11px]">{post.deskripsi}</p>}
+                        <p className="text-[10px] text-neutral-400 pt-1">{formatDate(post.created_at)}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                      <button
+                        onClick={() => handleApproveReject(post.id, "REJECTED")}
+                        className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold transition"
+                      >
+                        Tolak (Reject)
+                      </button>
+                      <button
+                        onClick={() => handleApproveReject(post.id, "APPROVED")}
+                        className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
+                      >
+                        Setujui (ACC Publik)
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           ) : (
-            <div className="space-y-6 max-w-[550px] mx-auto">
-              {posts.map((post) => {
-                const isOwner = post.user_id === currentUser?.id;
-                const isAdmin = currentUser?.role === "admin";
-                const isGuruSameSchool = 
-                  currentUser?.role === "guru" && 
-                  currentUser?.sekolah_id !== null && 
-                  currentUser?.sekolah_id === post.sekolah_id;
+            /* Public Feed Container */
+            loading ? (
+              <div className="flex h-[35vh] items-center justify-center">
+                <Loader2 className="animate-spin text-primary" size={32} />
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-neutral-200 p-12 text-center text-neutral-400 space-y-3">
+                <ImageIcon size={48} className="mx-auto text-neutral-300" />
+                <p className="font-bold text-sm">Belum ada dokumentasi publik</p>
+                <p className="text-xs">Jadilah yang pertama untuk membagikan dokumentasi proyek Kaizen sekolah Anda!</p>
+                <button
+                  onClick={handleOpenModal}
+                  disabled={currentUser?.role === "siswa" && quotaInfo?.isQuotaExceeded}
+                  className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold px-4 py-2 rounded-xl transition disabled:opacity-50"
+                >
+                  Mulai Unggah
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6 max-w-[550px] mx-auto">
+                {posts.map((post) => {
+                  const isOwner = post.user_id === currentUser?.id;
+                  const isAdmin = currentUser?.role === "admin";
+                  const isGuruSameSchool = 
+                    currentUser?.role === "guru" && 
+                    currentUser?.sekolah_id !== null && 
+                    currentUser?.sekolah_id === post.sekolah_id;
 
-                const canDelete = isOwner || isAdmin || isGuruSameSchool;
-                const avatarUrl = post.uploader?.foto_profil || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+                  const canDelete = isOwner || isAdmin || isGuruSameSchool;
+                  const avatarUrl = post.uploader?.foto_profil || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
 
-                const isLiked = likesState[post.id]?.liked || false;
-                const likeCount = likesState[post.id]?.count || 0;
+                  const isLiked = likesState[post.id]?.liked || false;
+                  const likeCount = likesState[post.id]?.count || 0;
 
-                return (
-                  <div key={post.id} className="bg-white rounded-2xl border border-neutral-200 overflow-hidden shadow-xs">
-                    
-                    {/* Header Post */}
-                    <div className="p-3.5 flex items-center justify-between border-b border-neutral-100">
-                      <div className="flex items-center gap-3">
-                        <img 
-                          src={avatarUrl} 
-                          alt={post.uploader?.nama} 
-                          className="w-10 h-10 rounded-full object-cover border border-neutral-200 p-[1.5px] bg-gradient-to-tr from-[#FABF24] to-[#0f3d59]"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
-                          }}
-                        />
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-extrabold text-neutral-800 text-xs leading-none">{post.uploader?.nama}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider font-black leading-none ${
-                              post.uploader?.role === "admin" ? "bg-purple-100 text-purple-700" :
-                              post.uploader?.role === "guru" ? "bg-blue-100 text-blue-700" :
-                              "bg-green-100 text-green-700"
-                            }`}>
-                              {post.uploader?.role}
-                            </span>
+                  return (
+                    <div key={post.id} className="bg-white rounded-2xl border border-neutral-200 overflow-hidden shadow-xs">
+                      
+                      {/* Header Post */}
+                      <div className="p-3.5 flex items-center justify-between border-b border-neutral-100">
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={avatarUrl} 
+                            alt={post.uploader?.nama} 
+                            className="w-10 h-10 rounded-full object-cover border border-neutral-200 p-[1.5px] bg-gradient-to-tr from-[#FABF24] to-[#0f3d59]"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+                            }}
+                          />
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-extrabold text-neutral-800 text-xs leading-none">{post.uploader?.nama}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider font-black leading-none ${
+                                post.uploader?.role === "admin" ? "bg-purple-100 text-purple-700" :
+                                post.uploader?.role === "guru" ? "bg-blue-100 text-blue-700" :
+                                "bg-green-100 text-green-700"
+                              }`}>
+                                {post.uploader?.role}
+                              </span>
+                            </div>
+                            {post.sekolah_nama && (
+                              <span className="flex items-center gap-0.5 text-neutral-450 text-[10px] font-bold mt-1">
+                                <MapPin size={9} className="text-primary" /> {post.sekolah_nama}
+                              </span>
+                            )}
                           </div>
-                          {post.sekolah_nama && (
-                            <span className="flex items-center gap-0.5 text-neutral-450 text-[10px] font-bold mt-1">
-                              <MapPin size={9} className="text-primary" /> {post.sekolah_nama}
-                            </span>
-                          )}
                         </div>
-                      </div>
 
-                      {canDelete && (
-                        <button
-                          onClick={() => handleDelete(post.id)}
-                          className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg text-neutral-400 transition"
-                          title="Hapus dokumentasi"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Foto Post */}
-                    <div className="relative aspect-[4/3] bg-neutral-50 overflow-hidden select-none" onDoubleClick={() => toggleLike(post.id)}>
-                      <img
-                        src={post.foto_url}
-                        alt={post.judul}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-
-                    {/* Action Bar (NKGTS Minimalist) */}
-                    <div className="p-3.5 space-y-2 border-t border-neutral-50">
-                      <div className="flex items-center justify-between">
-                        <button 
-                          onClick={() => toggleLike(post.id)}
-                          className="transition transform active:scale-125 cursor-pointer text-neutral-700 hover:text-red-500 flex items-center gap-1.5"
-                        >
-                          <Heart size={20} className={isLiked ? "fill-red-500 text-red-500" : ""} />
-                          <span className="text-xs font-bold text-neutral-750">{likeCount} Suka</span>
-                        </button>
-                      </div>
-
-                      {/* Title & Caption */}
-                      <div className="space-y-1 text-xs">
-                        <p className="leading-relaxed">
-                          <span className="font-extrabold text-neutral-800 mr-2">{post.uploader?.nama}</span>
-                          <span className="font-bold text-neutral-850 bg-neutral-50 px-1.5 py-0.5 rounded border border-neutral-100">{post.judul}</span>
-                        </p>
-                        {post.deskripsi && (
-                          <p className="text-neutral-600 leading-relaxed pl-0">{post.deskripsi}</p>
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(post.id)}
+                            className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg text-neutral-400 transition"
+                            title="Hapus dokumentasi"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         )}
                       </div>
 
-                      {/* Date */}
-                      <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">
-                        {formatDate(post.created_at)}
-                      </p>
-                    </div>
+                      {/* Foto Post */}
+                      <div className="relative aspect-[4/3] bg-neutral-50 overflow-hidden select-none" onDoubleClick={() => toggleLike(post.id)}>
+                        <img
+                          src={post.foto_url}
+                          alt={post.judul}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
 
+                      {/* Action Bar */}
+                      <div className="p-3.5 space-y-2 border-t border-neutral-50">
+                        <div className="flex items-center justify-between">
+                          <button 
+                            onClick={() => toggleLike(post.id)}
+                            className="transition transform active:scale-125 cursor-pointer text-neutral-700 hover:text-red-500 flex items-center gap-1.5"
+                          >
+                            <Heart size={20} className={isLiked ? "fill-red-500 text-red-500" : ""} />
+                            <span className="text-xs font-bold text-neutral-750">{likeCount} Suka</span>
+                          </button>
+                        </div>
+
+                        {/* Title & Caption */}
+                        <div className="space-y-1 text-xs">
+                          <p className="leading-relaxed">
+                            <span className="font-extrabold text-neutral-800 mr-2">{post.uploader?.nama}</span>
+                            <span className="font-bold text-neutral-850 bg-neutral-50 px-1.5 py-0.5 rounded border border-neutral-100">{post.judul}</span>
+                          </p>
+                          {post.deskripsi && (
+                            <p className="text-neutral-600 leading-relaxed pl-0">{post.deskripsi}</p>
+                          )}
+                        </div>
+
+                        {/* Date */}
+                        <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">
+                          {formatDate(post.created_at)}
+                        </p>
+                      </div>
+
+                    </div>
+                  );
+                })}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between bg-white border border-neutral-200 rounded-xl p-3 text-xs font-bold">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="px-3 py-1.5 border border-neutral-200 rounded-lg hover:bg-neutral-50 disabled:opacity-40"
+                    >
+                      &laquo; Sebelumnya
+                    </button>
+                    <span className="text-neutral-500 font-semibold">
+                      Halaman <span className="text-neutral-900">{page}</span> dari {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      className="px-3 py-1.5 border border-neutral-200 rounded-lg hover:bg-neutral-50 disabled:opacity-40"
+                    >
+                      Selanjutnya &raquo;
+                    </button>
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </div>
+            )
           )}
 
         </div>

@@ -57,6 +57,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
   const [selectedClass, setSelectedClass] = useState("Semua");
   const [statusFilter, setStatusFilter] = useState("Semua");
   const [selectedSchool, setSelectedSchool] = useState("Semua");
+  const [selectedTaskModuleId, setSelectedTaskModuleId] = useState<string>("Semua");
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
@@ -281,11 +282,18 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       let matchStatus = true;
       if (statusFilter === "Belum Dinilai") matchStatus = task.nilai === null;
       if (statusFilter === "Sudah Dinilai") matchStatus = task.nilai !== null;
+
+      const matchClass = selectedClass === "Semua" || task.siswa.kelas === selectedClass;
+
+      const taskUrutanStr = String(task.tugas_praktek_id || task.tugas_praktek?.urutan || "");
+      const matchTaskModule = selectedTaskModuleId === "Semua" || taskUrutanStr === selectedTaskModuleId;
+
       const studentSchool = task.siswa.sekolah?.nama_sekolah || task.siswa.sekolah_nama || "N-KGTS Pusat";
       const matchSchool = selectedSchool === "Semua" || studentSchool === selectedSchool;
-      return matchSearch && matchStatus && matchSchool;
+
+      return matchSearch && matchStatus && matchClass && matchTaskModule && matchSchool;
     });
-  }, [taskSubmissions, searchQuery, statusFilter, selectedSchool]);
+  }, [taskSubmissions, searchQuery, statusFilter, selectedClass, selectedTaskModuleId, selectedSchool]);
 
   // Filtered Project Submissions
   const filteredProjects = useMemo(() => {
@@ -992,9 +1000,32 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
               </div>
 
               <select 
+                value={selectedTaskModuleId}
+                onChange={(e) => setSelectedTaskModuleId(e.target.value)}
+                className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold text-neutral-700"
+              >
+                <option value="Semua">Semua Modul Tugas</option>
+                <option value="1">Tugas Modul 1 (Ringkas 1 - Memilah)</option>
+                <option value="2">Tugas Modul 2 (Ringkas 2 - Pemilahan)</option>
+                <option value="3">Tugas Modul 3 (Checklist Evaluasi 5R)</option>
+                <option value="4">Tugas Modul 4 (Potensi Bahaya)</option>
+                <option value="5">Tugas Modul 5 (Mencari Pemborosan)</option>
+              </select>
+
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold text-neutral-700"
+              >
+                {classesList.map((cls) => (
+                  <option key={cls} value={cls}>{cls === "Semua" ? "Semua Kelas" : `Kelas ${cls}`}</option>
+                ))}
+              </select>
+
+              <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold"
+                className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold text-neutral-700"
               >
                 <option value="Semua">Semua Status</option>
                 <option value="Belum Dinilai">Belum Dinilai</option>

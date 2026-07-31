@@ -264,17 +264,24 @@ model NilaiLatsol {
   @@map("nilai_latsol")
 }
 
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // === DATA GALERI DOKUMENTASI NKGTS ===
 model Galeri {
-  id           String   @id @default(uuid()) @db.Uuid
-  user_id      String   @db.Uuid
-  uploader     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  judul        String   @db.VarChar(255)
-  deskripsi    String?  @db.Text
-  foto_url     String   @db.Text // URL Supabase Storage
-  sekolah_id   Int?     // ID Sekolah uploader (jika ada)
-  sekolah_nama String?  @db.VarChar(150) // Nama Sekolah uploader (jika ada)
-  created_at   DateTime @default(now())
+  id           String         @id @default(uuid()) @db.Uuid
+  user_id      String         @db.Uuid
+  uploader     User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  judul        String         @db.VarChar(255)
+  deskripsi    String?        @db.Text
+  foto_url     String         @db.Text // URL Supabase Storage
+  sekolah_id   Int?           // ID Sekolah uploader (jika ada)
+  sekolah_nama String?        @db.VarChar(150) // Nama Sekolah uploader (jika ada)
+  status       ApprovalStatus @default(PENDING)
+  created_at   DateTime       @default(now())
   likes        GaleriLike[]
 
   @@map("galeri")

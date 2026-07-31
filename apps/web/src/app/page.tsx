@@ -854,7 +854,7 @@ function GaleriSection() {
   useEffect(() => {
     const fetchLandingPosts = async () => {
       try {
-        const res = await fetch(`${API_URL}/galeri/landing`);
+        const res = await fetch(`${API_URL}/galeri/landing?limit=6`);
         if (res.ok) {
           setPosts(await res.json());
         }
