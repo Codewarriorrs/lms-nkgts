@@ -9,8 +9,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY apps/api/package*.json ./apps/api/
 
-# Install dependencies
-RUN npm install
+# Install dependencies (termasuk devDependencies untuk build dan prisma)
+RUN npm install --include=dev
 
 # Copy source code backend
 COPY apps/api ./apps/api
