@@ -17,7 +17,7 @@ RUN NODE_ENV=development npm install
 COPY apps/api ./apps/api
 
 # Jalankan prisma generate dan build NestJS
-RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
+RUN ./apps/api/node_modules/.bin/prisma generate --schema=apps/api/prisma/schema.prisma
 RUN npm run build -w apps/api
 
 EXPOSE 3001
