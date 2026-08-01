@@ -8,9 +8,10 @@ WORKDIR /app
 # Copy file package untuk instalasi dependency monorepo
 COPY package*.json ./
 COPY apps/api/package*.json ./apps/api/
+COPY apps/web/package*.json ./apps/web/
 
 # Install dependencies (termasuk devDependencies untuk build dan prisma)
-RUN npm install --include=dev
+RUN NODE_ENV=development npm install
 
 # Copy source code backend
 COPY apps/api ./apps/api
