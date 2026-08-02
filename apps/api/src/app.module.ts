@@ -9,9 +9,10 @@ import { TugasPraktekModule } from './tugas-praktek/tugas-praktek.module';
 import { ProjectKaizenModule } from './project-kaizen/project-kaizen.module';
 import { LatsolModule } from './latsol/latsol.module';
 import { GaleriModule } from './galeri/galeri.module';
+import { NilaiPklModule } from './nilai-pkl/nilai-pkl.module';
 
 @Module({
-  imports: [AuthModule, InvitationModule, MateriModule, TugasPraktekModule, ProjectKaizenModule, LatsolModule, GaleriModule],
+  imports: [AuthModule, InvitationModule, MateriModule, TugasPraktekModule, ProjectKaizenModule, LatsolModule, GaleriModule, NilaiPklModule],
   controllers: [AppController],
   providers: [AppService, PrismaService],
 })

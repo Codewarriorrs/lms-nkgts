@@ -60,6 +60,7 @@ model User {
   nilai_latsol    NilaiLatsol[]
   galeri          Galeri[]
   galeri_likes    GaleriLike[]
+  nilai_pkl       NilaiPkl?
 
   @@map("users") // Mengubah nama tabel di database menjadi huruf kecil 'users'
 }
@@ -298,4 +299,20 @@ model GaleriLike {
 
   @@unique([galeri_id, user_id])
   @@map("galeri_likes")
+}
+
+// === DATA PENILAIAN PKL SISWA ===
+model NilaiPkl {
+  id           String   @id @default(uuid()) @db.Uuid
+  siswa_id     String   @unique @db.Uuid
+  siswa        User     @relation(fields: [siswa_id], references: [id], onDelete: Cascade)
+  penilai_id   String   @db.Uuid
+  nilai        Int      // Nilai rata-rata / skor akhir (0-100 atau 1-5 terkonversi)
+  detail_nilai Json     // Menyimpan skor per indikator (Disiplin, Empati, Kritis, Kreatif, Inovatif)
+  catatan      String?  @db.Text
+  rekomendasi  String   // "Sangat Direkomendasikan", "Direkomendasikan", dst.
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@map("nilai_pkl")
 }

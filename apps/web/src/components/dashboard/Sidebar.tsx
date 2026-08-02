@@ -14,9 +14,11 @@ import {
   X,
   Users,
   Settings,
-  Globe
+  Globe,
+  GraduationCap
 } from "lucide-react";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { API_URL } from "@/lib/api";
 
 interface SidebarProps {
   open: boolean;
@@ -38,12 +40,30 @@ export function Sidebar({ open, collapsed = false, onClose }: SidebarProps) {
   const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [hasPklGrade, setHasPklGrade] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
     if (stored) {
       try {
-        setCurrentUser(JSON.parse(stored));
+        const user = JSON.parse(stored);
+        setCurrentUser(user);
+
+        if (user.role === "siswa") {
+          const token = localStorage.getItem("token");
+          fetch(`${API_URL}/nilai-pkl/my-grade`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.status === "success" && data.data) {
+                setHasPklGrade(true);
+              }
+            })
+            .catch(() => {});
+        }
       } catch (e) {
         console.error("Failed to parse stored user in sidebar", e);
       }
@@ -71,11 +91,17 @@ export function Sidebar({ open, collapsed = false, onClose }: SidebarProps) {
       { label: "Project Kaizen", icon: FolderKanban, href: "/dashboard/project" },
       { label: "Galeri NKGTS", icon: Globe, href: "/dashboard/galeri" },
       { label: "Progres Siswa", icon: Users, href: "/dashboard/progres" },
+      { label: "Penilaian PKL", icon: GraduationCap, href: "/dashboard/penilaian-pkl" },
     ];
   } else if (currentUser?.role === "admin") {
     items.push(
       { label: "Kelola Pengguna", icon: Users, href: "/dashboard/admin/users" },
-      { label: "Pengaturan Kontak", icon: Settings, href: "/dashboard/admin/settings/email-contact" }
+      { label: "Pengaturan Kontak", icon: Settings, href: "/dashboard/admin/settings/email-contact" },
+      { label: "Penilaian PKL", icon: GraduationCap, href: "/dashboard/penilaian-pkl" },
+    );
+  } else if (currentUser?.role === "siswa" && hasPklGrade) {
+    items.push(
+      { label: "Nilai PKL", icon: GraduationCap, href: "/dashboard/nilai-pkl" }
     );
   }
 
