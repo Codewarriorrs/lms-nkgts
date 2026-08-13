@@ -440,7 +440,7 @@ export default function GaleriPage() {
                     currentUser?.sekolah_id === post.sekolah_id;
 
                   const canDelete = isOwner || isAdmin || isGuruSameSchool;
-                  const avatarUrl = post.uploader?.foto_profil || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+                  const avatarUrl = post.uploader?.foto_profil || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(post.uploader?.nama || "User")}`;
 
                   const isLiked = likesState[post.id]?.liked || false;
                   const likeCount = likesState[post.id]?.count || 0;
@@ -456,7 +456,7 @@ export default function GaleriPage() {
                             alt={post.uploader?.nama} 
                             className="w-10 h-10 rounded-full object-cover border border-neutral-200 p-[1.5px] bg-gradient-to-tr from-[#FABF24] to-[#0f3d59]"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+                              (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(post.uploader?.nama || "User")}`;
                             }}
                           />
                           <div>
@@ -566,7 +566,7 @@ export default function GaleriPage() {
           {currentUser && (
             <div className="bg-white border border-neutral-200 rounded-2xl p-4 flex items-center gap-3.5">
               <img 
-                src={currentUser?.foto_profil || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop"} 
+                src={currentUser?.foto_profil || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser?.nama || "User")}`} 
                 alt={currentUser?.nama} 
                 className="w-12 h-12 rounded-full object-cover border border-neutral-200 p-[1px] bg-gradient-to-tr from-amber-400 to-pink-500"
               />

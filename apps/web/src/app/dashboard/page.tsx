@@ -60,7 +60,7 @@ const ProfileCard = ({ user }: { user: any }) => {
   const displayRole = user.role || "siswa";
   const displaySchool = user.sekolah?.nama_sekolah || user.sekolah_nama || user.school || "N-KGTS Pusat";
   const displayClass = user.kelas || "-";
-  const avatarUrl = user.foto_profil || user.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+  const avatarUrl = user.foto_profil || user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`;
 
   return (
     <div className="bg-white border border-neutral-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm max-w-sm shrink-0">
@@ -69,7 +69,7 @@ const ProfileCard = ({ user }: { user: any }) => {
         alt={displayName}
         className="w-12 h-12 rounded-full object-cover border border-neutral-100 shrink-0"
         onError={(e) => {
-          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+          (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`;
         }}
       />
       <div className="min-w-0 flex-1">

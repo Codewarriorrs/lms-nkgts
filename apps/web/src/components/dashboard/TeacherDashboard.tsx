@@ -802,11 +802,11 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
             {/* Small Profile Card Component */}
             <div className="bg-white border border-neutral-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm max-w-sm shrink-0">
               <img
-                src={currentUser?.foto_profil || currentUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop"}
+                src={currentUser?.foto_profil || currentUser?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser?.nama || currentUser?.name || "User")}`}
                 alt={currentUser?.nama || currentUser?.name}
                 className="w-12 h-12 rounded-full object-cover border border-neutral-100 shrink-0"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop";
+                  (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser?.nama || currentUser?.name || "User")}`;
                 }}
               />
               <div className="min-w-0 flex-1">
