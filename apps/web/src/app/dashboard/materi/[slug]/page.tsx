@@ -36,11 +36,11 @@ interface ModuleProgressState {
 const STORAGE_KEY = "kaizen-module-progress";
 
 const pdfMap: Record<string, string> = {
-  "pengenalan-kaizen": "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%201%20(PENGENALAN%20BUDAYA%20KAIZEN)%20(1).pptx",
-  "5r": "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%202%20(5R).pptx",
-  "6-potensi-bahaya": "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%203%20(6%20POTENSI%20BAHAYA).pptx",
-  "7-pemborosan": "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%204%20(7%20PEMBOROSAN).pptx",
-  "8-langkah-penyelesaian-masalah": "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%205%20(8%20LANGKAH%20PENYELESAIAN%20MASALAH).pptx"
+  "pengenalan-kaizen": "https://nos.wjv-1.neo.id/kaizen-files/materi/MATERI_1_PENGENALAN_BUDAYA_KAIZEN.pptx",
+  "5r": "https://nos.wjv-1.neo.id/kaizen-files/materi/MATERI_2_5R.pptx",
+  "6-potensi-bahaya": "https://nos.wjv-1.neo.id/kaizen-files/materi/MATERI_3_6_POTENSI_BAHAYA.pptx",
+  "7-pemborosan": "https://nos.wjv-1.neo.id/kaizen-files/materi/MATERI_4_7_PEMBOROSAN.pptx",
+  "8-langkah-penyelesaian-masalah": "https://nos.wjv-1.neo.id/kaizen-files/materi/MATERI_5_8_LANGKAH_PENYELESAIAN_MASALAH.pptx"
 };
 
 function getInitialProgress(moduleId: number): ModuleProgressState {

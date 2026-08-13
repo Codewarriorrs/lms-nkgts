@@ -30,11 +30,11 @@ function getAllProgress(): Record<string, ModuleProgressState> {
 }
 
 const pptxLinks: Record<number, string> = {
-  1: "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%201%20(PENGENALAN%20BUDAYA%20KAIZEN)%20(1).pptx",
-  2: "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%202%20(5R).pptx",
-  3: "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%203%20(6%20POTENSI%20BAHAYA).pptx",
-  4: "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%204%20(7%20PEMBOROSAN).pptx",
-  5: "https://mlgsbknueptsrayfrkts.supabase.co/storage/v1/object/public/lms-files/materi/MATERI%205%20(8%20LANGKAH%20PENYELESAIAN%20MASALAH).pptx"
+  1: "https://nos.wjv-1.neo.id/kaizen-files/materi/MATERI_1_PENGENALAN_BUDAYA_KAIZEN.pptx",
+  2: "https://nos.wjv-1.neo.id/kaizen-files/materi/MATERI_2_5R.pptx",
+  3: "https://nos.wjv-1.neo.id/kaizen-files/materi/MATERI_3_6_POTENSI_BAHAYA.pptx",
+  4: "https://nos.wjv-1.neo.id/kaizen-files/materi/MATERI_4_7_PEMBOROSAN.pptx",
+  5: "https://nos.wjv-1.neo.id/kaizen-files/materi/MATERI_5_8_LANGKAH_PENYELESAIAN_MASALAH.pptx"
 };
 
 export default function MateriPage() {
