@@ -566,12 +566,12 @@ export default function GaleriPage() {
           {currentUser && (
             <div className="bg-white border border-neutral-200 rounded-2xl p-4 flex items-center gap-3.5">
               <img 
-                src={currentUser?.foto_profil || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser?.nama || "User")}`} 
-                alt={currentUser?.nama} 
+                src={currentUser?.foto_profil || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser?.nama || currentUser?.name || "User")}`} 
+                alt={currentUser?.nama || currentUser?.name} 
                 className="w-12 h-12 rounded-full object-cover border border-neutral-200 p-[1px] bg-gradient-to-tr from-amber-400 to-pink-500"
               />
               <div className="flex-1 min-w-0">
-                <h4 className="font-black text-neutral-900 text-xs truncate leading-snug">{currentUser?.nama}</h4>
+                <h4 className="font-black text-neutral-900 text-xs truncate leading-snug">{currentUser?.nama || currentUser?.name || "Nama Pengguna"}</h4>
                 <p className="text-[10px] text-neutral-450 font-bold truncate">{currentUser?.email}</p>
                 <div className="flex items-center gap-1.5 mt-1">
                   <span className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-600 rounded text-[7px] uppercase font-black tracking-wider leading-none">
