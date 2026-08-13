@@ -1,41 +1,43 @@
-import { supabase } from "@/lib/supabase";
+import { API_URL } from "@/lib/api";
 
 /**
- * Mengunggah file ke Supabase Storage jika dikonfigurasi.
- * Jika tidak dikonfigurasi (null), otomatis fallback menggunakan Base64 reader.
+ * Mengunggah file ke Biznet S3 melalui API Backend.
+ * Jika terjadi kegagalan, otomatis fallback menggunakan Base64 reader.
  * 
  * @param file File objek dari input picker
- * @param folder Nama sub-folder di bucket (contoh: 'materi', 'project', 'revisi')
+ * @param folder Nama sub-folder di bucket (contoh: 'materi', 'project', 'revisi', 'galeri')
  * @returns String URL publik atau string data URI Base64
  */
 export async function uploadFileOrBase64(file: File, folder: string): Promise<string> {
-  if (supabase) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+  if (token) {
     try {
-      const fileExt = file.name.split(".").pop();
-      const randomStr = Math.random().toString(36).substring(2, 9);
-      const fileName = `${folder}/${Date.now()}-${randomStr}.${fileExt}`;
+      const formData = new FormData();
+      formData.append("file", file);
 
-      const { data, error } = await supabase.storage
-        .from("lms-files")
-        .upload(fileName, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+      console.log(`Mencoba mengunggah berkas ke Biznet S3 via Backend: folder=${folder}`);
+      const res = await fetch(`${API_URL}/upload/file?folder=${folder}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
-      if (error) {
-        console.error("Gagal mengunggah ke Supabase Storage:", error);
-        throw new Error(error.message);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.url) {
+          console.log(`Berhasil mengunggah file ke Biznet S3: ${data.url}`);
+          return data.url;
+        }
       }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("lms-files")
-        .getPublicUrl(fileName);
-
-      console.log(`Berhasil mengunggah file ke Supabase: ${publicUrl}`);
-      return publicUrl;
+      console.warn("Gagal mengunggah ke backend (status not OK), menggunakan fallback Base64...");
     } catch (err) {
-      console.warn("Upload Supabase gagal, menggunakan fallback Base64...", err);
+      console.warn("Upload ke backend gagal, menggunakan fallback Base64...", err);
     }
+  } else {
+    console.warn("Token otentikasi tidak ditemukan, menggunakan fallback Base64...");
   }
 
   // Fallback to Base64
