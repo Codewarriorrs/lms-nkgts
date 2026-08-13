@@ -533,18 +533,11 @@ function Hero() {
                 skewAmount={3}
                 easing="elastic"
               >
-                <Card>
-                  <img
-                    src="/Gambarstock1.png"
-                    alt="Preview 1"
-                    title="Pelaksanaan NKGTS"
-                    className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
-                  />
-                </Card>
+
                 <Card>
                   <img
                     src="/GambarStock18.png"
-                    alt="Preview 2"
+                    alt="Preview 1"
                     title="Pemberian Sertifikat"
                     className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
                   />
@@ -552,7 +545,7 @@ function Hero() {
                 <Card>
                   <img
                     src="/GambarStock7.png"
-                    alt="Preview 3"
+                    alt="Preview 2"
                     title="Presentasi Siswa"
                     className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
                   />
@@ -560,7 +553,7 @@ function Hero() {
                 <Card>
                   <img
                     src="/GambarStock2.png"
-                    alt="Preview 4"
+                    alt="Preview 3"
                     title="Pelatihan Guru"
                     className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
                     />
@@ -568,7 +561,7 @@ function Hero() {
                   <Card>
                   <img
                     src="/GambarStock5.png"
-                    alt="Preview 5"
+                    alt="Preview 4"
                     title="Kunjungan"
                     className="h-full w-full rounded-[10px] object-cover transform-gpu backface-hidden will-change-transform ring-1 ring-transparent"
                     />
