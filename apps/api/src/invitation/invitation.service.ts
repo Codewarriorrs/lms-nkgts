@@ -72,7 +72,7 @@ export class InvitationService {
 
     // 1. Coba Mengirim Lewat Brevo API (HTTPS Port 443, gratis 300 email/hari & mendukung verifikasi satu email Gmail/Sekolah tanpa domain kustom)
     if (hasBrevo) {
-      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Platform N-KGTS LMS';
+      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
       try {
         const response = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
@@ -87,7 +87,7 @@ export class InvitationService {
               email: brevoSenderEmail,
             },
             to: [{ email, name: nama }],
-            subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
+            subject: 'Undangan Aktivasi Akun - Kaizenesia',
             htmlContent: mailHtmlContent,
           }),
           signal: AbortSignal.timeout(5000), // Timeout 5 detik
@@ -131,9 +131,9 @@ export class InvitationService {
       });
 
       const mailOptions = {
-        from: `"Platform N-KGTS LMS" <${gmailUser}>`,
+        from: `"Kaizenesia" <${gmailUser}>`,
         to: email,
-        subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
+        subject: 'Undangan Aktivasi Akun - Kaizenesia',
         html: mailHtmlContent,
       };
 
@@ -750,7 +750,7 @@ export class InvitationService {
 
     // 1. Coba Brevo API
     if (hasBrevo) {
-      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Platform N-KGTS LMS';
+      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
       try {
         const response = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
@@ -765,7 +765,7 @@ export class InvitationService {
               email: brevoSenderEmail,
             },
             to: [{ email, name: nama }],
-            subject: 'Instruksi Atur Ulang Kata Sandi - Platform N-KGTS LMS',
+            subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
             htmlContent: mailHtmlContent,
           }),
           signal: AbortSignal.timeout(5000),
@@ -809,9 +809,9 @@ export class InvitationService {
       });
 
       const mailOptions = {
-        from: `"Platform N-KGTS LMS" <${gmailUser}>`,
+        from: `"Kaizenesia" <${gmailUser}>`,
         to: email,
-        subject: 'Instruksi Atur Ulang Kata Sandi - Platform N-KGTS LMS',
+        subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
         html: mailHtmlContent,
       };
 

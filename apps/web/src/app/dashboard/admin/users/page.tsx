@@ -772,43 +772,48 @@ export default function AdminUsersPage() {
                             day: "numeric"
                           })}
                         </td>
-                        <td className="px-6 py-4 text-right space-x-2">
-                           <button
-                             onClick={() => {
-                               setSelectedEditUser(user);
-                               setEditRoleValue(user.role);
-                             }}
-                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-100 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer"
-                           >
-                             Ubah Role
-                           </button>
-                           {user.role === "siswa" && (
-                             <button
-                               onClick={() => {
-                                 setResetTargetUser({ id: user.id, nama: user.nama });
-                               }}
-                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/20 hover:bg-warning/10 text-warning text-xs font-bold transition cursor-pointer"
-                               title="Reset progres belajar siswa"
-                             >
-                               Reset
-                             </button>
-                           )}
-                           <button
-                             onClick={() => setSendResetTargetUser(user)}
-                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-sky-200 hover:bg-sky-50 text-sky-700 text-xs font-bold transition cursor-pointer"
-                             title="Kirim email petunjuk atur ulang kata sandi (berlaku 24 jam)"
-                           >
-                             <KeyRound size={13} />
-                             Kirim Link Reset
-                           </button>
-                           {user.email !== "admin@nkgts.com" && user.id !== currentUser?.id && (
-                             <button
-                               onClick={() => handleDeleteUser(user.id, user.nama)}
-                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-50 text-red-650 text-xs font-bold transition cursor-pointer"
-                             >
-                               Hapus
-                             </button>
-                           )}
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={() => {
+                                setSelectedEditUser(user);
+                                setEditRoleValue(user.role);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer"
+                              title="Ubah peran / role pengguna"
+                            >
+                              Ubah Role
+                            </button>
+                            {user.role === "siswa" && (
+                              <button
+                                onClick={() => {
+                                  setResetTargetUser({ id: user.id, nama: user.nama });
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-warning/30 bg-warning/5 hover:bg-warning/15 text-warning-dark text-xs font-bold transition cursor-pointer"
+                                title="Reset progres belajar siswa"
+                              >
+                                Reset Progres
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setSendResetTargetUser(user)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition cursor-pointer"
+                              title="Kirim email petunjuk atur ulang kata sandi (berlaku 24 jam)"
+                            >
+                              <KeyRound size={12} />
+                              Kirim Link Reset
+                            </button>
+                            {user.email !== "admin@nkgts.com" && user.id !== currentUser?.id && (
+                              <button
+                                onClick={() => handleDeleteUser(user.id, user.nama)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-600 text-xs font-bold transition cursor-pointer"
+                                title="Hapus akun pengguna"
+                              >
+                                <Trash2 size={12} />
+                                Hapus
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -891,25 +896,27 @@ export default function AdminUsersPage() {
                             })}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right space-x-2">
-                          <button
-                            onClick={() => handleResendInvite(invite.id, invite.email)}
-                            disabled={loading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-100 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer disabled:opacity-50"
-                            title="Kirim ulang email undangan"
-                          >
-                            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-                            Kirim Ulang
-                          </button>
-                          <button
-                            onClick={() => setDeleteTargetId(invite.id)}
-                            disabled={loading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-danger/10 hover:bg-danger/10 text-danger text-xs font-bold transition cursor-pointer disabled:opacity-50"
-                            title="Batalkan dan hapus undangan"
-                          >
-                            <Trash2 size={12} />
-                            Hapus
-                          </button>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={() => handleResendInvite(invite.id, invite.email)}
+                              disabled={loading}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                              title="Kirim ulang email undangan"
+                            >
+                              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+                              Kirim Ulang
+                            </button>
+                            <button
+                              onClick={() => setDeleteTargetId(invite.id)}
+                              disabled={loading}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-600 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                              title="Batalkan dan hapus undangan"
+                            >
+                              <Trash2 size={12} />
+                              Hapus
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1000,23 +1007,25 @@ export default function AdminUsersPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right space-x-2">
-                          <button
-                            onClick={() => setSendResetTargetUser(user)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-sky-200 hover:bg-sky-50 text-sky-700 text-xs font-bold transition cursor-pointer"
-                            title="Kirim ulang email reset kata sandi (perpanjang 24 jam)"
-                          >
-                            <RefreshCw size={12} />
-                            Kirim Ulang
-                          </button>
-                          <button
-                            onClick={() => setCancelResetTargetUser(user)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-650 text-xs font-bold transition cursor-pointer"
-                            title="Batalkan tautan token reset sandi"
-                          >
-                            <X size={12} />
-                            Batalkan
-                          </button>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={() => setSendResetTargetUser(user)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition cursor-pointer"
+                              title="Kirim ulang email reset kata sandi (perpanjang 24 jam)"
+                            >
+                              <RefreshCw size={12} />
+                              Kirim Ulang
+                            </button>
+                            <button
+                              onClick={() => setCancelResetTargetUser(user)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-600 text-xs font-bold transition cursor-pointer"
+                              title="Batalkan tautan token reset sandi"
+                            >
+                              <X size={12} />
+                              Batalkan
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1362,7 +1371,7 @@ export default function AdminUsersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-100 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
-              <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                 <KeyRound size={20} />
               </div>
               <div>
@@ -1398,7 +1407,7 @@ export default function AdminUsersPage() {
                 type="button"
                 disabled={sendingReset}
                 onClick={handleSendResetPasswordSubmit}
-                className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-light text-white rounded-xl text-xs font-bold shadow-sm shadow-primary/10 transition cursor-pointer disabled:opacity-50"
               >
                 {sendingReset ? (
                   <>
