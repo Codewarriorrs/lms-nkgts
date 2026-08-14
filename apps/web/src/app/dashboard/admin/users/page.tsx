@@ -18,7 +18,9 @@ import {
   ChevronLeft, 
   ChevronRight, 
   X,
-  FileSpreadsheet
+  FileSpreadsheet,
+  KeyRound,
+  Send
 } from "lucide-react";
 
 interface UserType {
@@ -73,6 +75,8 @@ export default function AdminUsersPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [selectedEditUser, setSelectedEditUser] = useState<UserType | null>(null);
   const [resetTargetUser, setResetTargetUser] = useState<{ id: string; nama: string } | null>(null);
+  const [sendResetTargetUser, setSendResetTargetUser] = useState<UserType | null>(null);
+  const [sendingReset, setSendingReset] = useState(false);
   const [editRoleValue, setEditRoleValue] = useState("");
   const [updatingRole, setUpdatingRole] = useState(false);
   const [inviteForm, setInviteForm] = useState({
@@ -275,6 +279,32 @@ export default function AdminUsersPage() {
       fetchActiveUsers();
     } catch (err: any) {
       setErrorMsg(err.message);
+    }
+  };
+
+  // 4d. Handle send reset password email
+  const handleSendResetPasswordSubmit = async () => {
+    if (!sendResetTargetUser) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      setSendingReset(true);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/users/${sendResetTargetUser.id}/send-reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal mengirimkan email reset kata sandi");
+      setSuccessMsg(data.message || `Email petunjuk atur ulang kata sandi berhasil dikirim ke ${sendResetTargetUser.email}!`);
+      setSendResetTargetUser(null);
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setSendingReset(false);
     }
   };
 
@@ -663,6 +693,14 @@ export default function AdminUsersPage() {
                                Reset
                              </button>
                            )}
+                           <button
+                             onClick={() => setSendResetTargetUser(user)}
+                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-sky-200 hover:bg-sky-50 text-sky-700 text-xs font-bold transition cursor-pointer"
+                             title="Kirim email petunjuk atur ulang kata sandi (berlaku 24 jam)"
+                           >
+                             <KeyRound size={13} />
+                             Kirim Link Reset
+                           </button>
                            {user.email !== "admin@nkgts.com" && user.id !== currentUser?.id && (
                              <button
                                onClick={() => handleDeleteUser(user.id, user.nama)}
@@ -1110,6 +1148,66 @@ export default function AdminUsersPage() {
             fetchActiveUsers();
           }}
         />
+      )}
+
+      {/* Modal Konfirmasi Kirim Link Reset Password */}
+      {sendResetTargetUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
+              <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                <KeyRound size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-neutral-900 text-base">Kirim Link Reset Password</h3>
+                <p className="text-xs text-neutral-400">Instruksi atur ulang sandi via email resmi</p>
+              </div>
+            </div>
+
+            <div className="py-4 space-y-3 text-xs">
+              <p className="text-neutral-600 leading-relaxed">
+                Apakah Anda yakin ingin mengirimkan email instruksi atur ulang kata sandi ke akun berikut?
+              </p>
+              <div className="p-3.5 bg-neutral-50 border border-neutral-100 rounded-xl space-y-1">
+                <p className="font-bold text-neutral-900 text-sm">{sendResetTargetUser.nama}</p>
+                <p className="text-neutral-500 font-mono text-xs">{sendResetTargetUser.email}</p>
+                <p className="text-neutral-400 text-[11px] font-semibold">{sendResetTargetUser.nama_sekolah}</p>
+              </div>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] font-medium leading-relaxed">
+                * Tautan pada email ini berlaku selama <strong>24 jam</strong>. Pengguna dapat membuka tautan tersebut untuk membuat kata sandi baru secara mandiri.
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-neutral-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={sendingReset}
+                onClick={() => setSendResetTargetUser(null)}
+                className="px-4 py-2 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition cursor-pointer disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={sendingReset}
+                onClick={handleSendResetPasswordSubmit}
+                className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer disabled:opacity-50"
+              >
+                {sendingReset ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Mengirim Email...
+                  </>
+                ) : (
+                  <>
+                    <Send size={14} />
+                    Ya, Kirim Email
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
