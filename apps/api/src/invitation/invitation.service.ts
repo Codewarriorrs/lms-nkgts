@@ -305,15 +305,25 @@ export class InvitationService {
     ]);
 
     return {
-      users: users.map(user => ({
-        id: user.id,
-        nama: user.nama,
-        email: user.email,
-        role: user.role,
-        nis: user.nis,
-        nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
-        created_at: user.created_at,
-      })),
+      users: users.map(user => {
+        const hasActiveResetToken = Boolean(
+          user.reset_password_token &&
+          user.reset_password_expires &&
+          user.reset_password_expires > new Date()
+        );
+
+        return {
+          id: user.id,
+          nama: user.nama,
+          email: user.email,
+          role: user.role,
+          nis: user.nis,
+          nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
+          created_at: user.created_at,
+          reset_password_expires: user.reset_password_expires,
+          has_active_reset_token: hasActiveResetToken,
+        };
+      }),
       pagination: {
         total,
         page,
@@ -858,6 +868,54 @@ export class InvitationService {
 
     return {
       message: `Email instruksi atur ulang kata sandi berhasil dikirim ke ${user.email} (berlaku 24 jam)!`,
+    };
+  }
+
+  // 15. Ambil Daftar Pengguna dengan Token Reset Password Aktif (Admin Only)
+  async getActiveResetPasswordUsers() {
+    const now = new Date();
+    const users = await this.prisma.user.findMany({
+      where: {
+        reset_password_token: { not: null },
+        reset_password_expires: { gt: now },
+      },
+      orderBy: { reset_password_expires: 'desc' },
+      include: { sekolah: true },
+    });
+
+    return users.map((user) => ({
+      id: user.id,
+      nama: user.nama,
+      email: user.email,
+      role: user.role,
+      nis: user.nis,
+      nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
+      created_at: user.created_at,
+      reset_password_expires: user.reset_password_expires,
+      token: user.reset_password_token,
+    }));
+  }
+
+  // 16. Batalkan Tautan Reset Password Pengguna (Admin Only)
+  async cancelResetPasswordToken(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Pengguna tidak ditemukan!');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        reset_password_token: null,
+        reset_password_expires: null,
+      },
+    });
+
+    return {
+      message: `Tautan atur ulang kata sandi untuk akun ${user.nama} (${user.email}) berhasil dibatalkan.`,
     };
   }
 }

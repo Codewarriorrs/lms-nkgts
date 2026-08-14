@@ -193,5 +193,21 @@ export class InvitationController {
   async sendResetPasswordEmail(@Param('id') id: string) {
     return this.invitationService.sendResetPasswordEmail(id);
   }
+
+  // 16. Ambil daftar pengguna dengan token reset password aktif (Admin only)
+  @Get('admin/users/active-resets')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async getActiveResetPasswordUsers() {
+    return this.invitationService.getActiveResetPasswordUsers();
+  }
+
+  // 17. Batalkan tautan reset password pengguna (Admin only)
+  @Delete('admin/users/:id/cancel-reset-password')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async cancelResetPasswordToken(@Param('id') id: string) {
+    return this.invitationService.cancelResetPasswordToken(id);
+  }
 }
 
