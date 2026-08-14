@@ -6,6 +6,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
+import { RoleEnum } from '../../generated/prisma';
 
 @Injectable()
 export class AuthService {
@@ -22,13 +23,13 @@ export class AuthService {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(dto.password_clear, salt);
 
-      // Eksekusi penulisan data ke PostgreSQL
+      // Eksekusi penulisan data ke PostgreSQL (Role selalu dipaksa 'siswa' untuk registrasi publik)
       const user = await this.prisma.user.create({
         data: {
           nama: dto.nama,
           email: emailLower,
           password_hash: hashedPassword,
-          role: dto.role,
+          role: RoleEnum.siswa,
           sekolah_id: dto.sekolah_id || null,
           nis: dto.nis,
         },

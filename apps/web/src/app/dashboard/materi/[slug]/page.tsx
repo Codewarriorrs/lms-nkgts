@@ -380,11 +380,16 @@ export default function MateriDetailPage() {
     setSubmitted(true);
     setShowPembahasan(false);
 
-    // Kirim nilai kuis ke database
+    // Kirim jawaban kuis ke database untuk dievaluasi oleh server
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
-      await fetch(`${API_URL}/materi/quiz`, {
+      const answersPayload = Object.entries(answers).map(([idx, ans]) => ({
+        soal_id: quizList[parseInt(idx, 10)]?.id,
+        jawaban_dipilih: ans as number,
+      }));
+
+      const res = await fetch(`${API_URL}/materi/quiz`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -392,9 +397,32 @@ export default function MateriDetailPage() {
         },
         body: JSON.stringify({
           modul_teori_id: dbModule.id,
+          answers: answersPayload,
           score
         })
       });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (typeof result.skor === "number") {
+          const serverScore = result.skor;
+          const serverCompleted = serverScore >= 70;
+          setProgress((current) => ({
+            ...current,
+            completed: current.completed || serverCompleted,
+            score: serverScore
+          }));
+        }
+      }
+
+      // Refresh detail modul agar pembahasan dan kunci jawaban terbuka bagi siswa
+      const refreshRes = await fetch(`${API_URL}/materi/modules/${slug}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (refreshRes.ok) {
+        const freshData = await refreshRes.json();
+        setDbModule(freshData);
+      }
     } catch (err) {
       console.error("Gagal mengirimkan nilai kuis ke database:", err);
     }

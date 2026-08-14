@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { UpdateProgressDto } from './dto/update-progress.dto';
 import { SubmitQuizDto } from './dto/submit-quiz.dto';
-import { ProgresEnum } from '../../generated/prisma';
+import { ProgresEnum, RoleEnum } from '../../generated/prisma';
 import { UpdateMateriDto } from './dto/update-materi.dto';
 
 @Injectable()
@@ -138,14 +138,36 @@ export class MateriService {
   }
 
   async submitQuiz(userId: string, dto: SubmitQuizDto) {
-    const { modul_teori_id, score } = dto;
+    const { modul_teori_id } = dto;
 
     // Pastikan modul ada
     const modul = await this.prisma.modulTeori.findUnique({
       where: { id: modul_teori_id },
+      include: {
+        soal_latihan: {
+          orderBy: { id: 'asc' },
+        },
+      },
     });
     if (!modul) {
       throw new NotFoundException('Modul teori tidak ditemukan');
+    }
+
+    const dbQuestions = modul.soal_latihan;
+    let finalScore = 0;
+
+    // Evaluasi skor mandiri di sisi server (Server-Side Evaluation)
+    if (dto.answers && Array.isArray(dto.answers) && dto.answers.length > 0 && dbQuestions.length > 0) {
+      let correctCount = 0;
+      for (const ans of dto.answers) {
+        const question = dbQuestions.find((q) => q.id === ans.soal_id);
+        if (question && question.jawaban_benar === ans.jawaban_dipilih) {
+          correctCount++;
+        }
+      }
+      finalScore = Math.round((correctCount / dbQuestions.length) * 100);
+    } else if (typeof dto.score === 'number') {
+      finalScore = Math.min(100, Math.max(0, dto.score));
     }
 
     // 1. Simpan skor ke tabel NilaiLatihan
@@ -153,12 +175,12 @@ export class MateriService {
       data: {
         siswa_id: userId,
         modul_teori_id,
-        skor: score,
+        skor: finalScore,
       },
     });
 
     // 2. Jika skor >= 70, paksa status progres modul tersebut menjadi 'selesai'
-    if (score >= 70) {
+    if (finalScore >= 70) {
       await this.prisma.progresTeori.upsert({
         where: {
           siswa_id_modul_teori_id: {
@@ -178,10 +200,14 @@ export class MateriService {
       });
     }
 
-    return attempt;
+    return {
+      ...attempt,
+      skor: finalScore,
+      completed: finalScore >= 70,
+    };
   }
 
-  async getModuleDetails(slug: string) {
+  async getModuleDetails(slug: string, userId?: string, userRole?: string) {
     const modul = await this.prisma.modulTeori.findUnique({
       where: { slug },
       include: {
@@ -193,6 +219,27 @@ export class MateriService {
 
     if (!modul) {
       throw new NotFoundException('Modul teori tidak ditemukan');
+    }
+
+    // Keamanan: Jika request berasal dari siswa yang belum menyelesaikan kuis, saring kunci jawaban
+    const isTeacherOrAdmin = userRole === RoleEnum.guru || userRole === RoleEnum.admin;
+    if (!isTeacherOrAdmin && userId) {
+      const hasCompleted = await this.prisma.nilaiLatihan.findFirst({
+        where: {
+          siswa_id: userId,
+          modul_teori_id: modul.id,
+        },
+      });
+
+      if (!hasCompleted) {
+        return {
+          ...modul,
+          soal_latihan: modul.soal_latihan.map((q) => {
+            const { jawaban_benar, pembahasan, ...sanitizedQuestion } = q as any;
+            return sanitizedQuestion;
+          }),
+        };
+      }
     }
 
     return modul;
