@@ -1001,15 +1001,24 @@ function Footer() {
           <div>
             <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-4">Navigasi</p>
             <div className="space-y-2.5">
-              {["Tentang Program", "Modul", "FAQ", "Masuk"].map((l) => (
-                <a
-                  key={l}
-                  href={l === "Masuk" ? "/login" : `#${l.toLowerCase().replace(" ", "")}`}
-                  className="block text-sm text-white/60 hover:text-accent transition-colors duration-200"
-                >
-                  {l}
-                </a>
-              ))}
+              {["Tentang Program", "Modul", "Galeri", "FAQ", "Masuk"].map((l) => {
+                const anchorMap: Record<string, string> = {
+                  "Tentang Program": "#tentang",
+                  "Modul": "#modul",
+                  "Galeri": "#galeri",
+                  "FAQ": "#faq",
+                };
+                const href = l === "Masuk" ? "/login" : anchorMap[l];
+                return (
+                  <a
+                    key={l}
+                    href={href}
+                    className="block text-sm text-white/60 hover:text-accent transition-colors duration-200"
+                  >
+                    {l}
+                  </a>
+                );
+              })}
             </div>
           </div>
 
