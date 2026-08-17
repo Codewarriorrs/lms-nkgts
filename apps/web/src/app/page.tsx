@@ -1004,7 +1004,7 @@ function Footer() {
               {["Tentang Program", "Modul", "FAQ", "Masuk"].map((l) => (
                 <a
                   key={l}
-                  href={l === "Masuk" ? "/login" : `#${l.toLowerCase().replace(" ", "")}`}
+                  href={l === "Masuk" ? "/login" : l === "Tentang Program" ? "#tentang" : `#${l.toLowerCase().replace(" ", "")}`}
                   className="block text-sm text-white/60 hover:text-accent transition-colors duration-200"
                 >
                   {l}
