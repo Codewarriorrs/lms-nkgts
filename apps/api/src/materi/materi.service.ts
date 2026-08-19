@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { UpdateProgressDto } from './dto/update-progress.dto';
 import { SubmitQuizDto } from './dto/submit-quiz.dto';
-import { ProgresEnum } from '../../generated/prisma';
+import { ProgresEnum, RoleEnum } from '../../generated/prisma';
 import { UpdateMateriDto } from './dto/update-materi.dto';
 
 @Injectable()
@@ -181,7 +181,7 @@ export class MateriService {
     return attempt;
   }
 
-  async getModuleDetails(slug: string) {
+  async getModuleDetails(slug: string, userId?: string, userRole?: string) {
     const modul = await this.prisma.modulTeori.findUnique({
       where: { slug },
       include: {
@@ -193,6 +193,44 @@ export class MateriService {
 
     if (!modul) {
       throw new NotFoundException('Modul teori tidak ditemukan');
+    }
+
+    // Jika siswa dan modul urutan > 1, pastikan modul urutan sebelumnya sudah selesai
+    if (userRole === RoleEnum.siswa && userId && modul.urutan && modul.urutan > 1) {
+      const prevModule = await this.prisma.modulTeori.findFirst({
+        where: { urutan: modul.urutan - 1 },
+      });
+
+      if (prevModule) {
+        const prevProgress = await this.prisma.progresTeori.findUnique({
+          where: {
+            siswa_id_modul_teori_id: {
+              siswa_id: userId,
+              modul_teori_id: prevModule.id,
+            },
+          },
+        });
+
+        const prevQuiz = await this.prisma.nilaiLatihan.findFirst({
+          where: {
+            siswa_id: userId,
+            modul_teori_id: prevModule.id,
+          },
+          orderBy: { skor: 'desc' },
+        });
+
+        const isPrevCompleted = Boolean(
+          prevProgress?.status === ProgresEnum.selesai ||
+          (prevProgress?.persentase !== undefined && prevProgress.persentase >= 92) ||
+          (prevQuiz && prevQuiz.skor >= 70)
+        );
+
+        if (!isPrevCompleted) {
+          throw new ForbiddenException(
+            `Modul "${modul.judul}" masih terkunci. Harap selesaikan modul sebelumnya (${prevModule.judul}) terlebih dahulu.`
+          );
+        }
+      }
     }
 
     return modul;

@@ -109,7 +109,20 @@ export class AuthService {
     if (dto.foto_profil !== undefined) dataToUpdate.foto_profil = dto.foto_profil;
 
     if (dto.tanggal_lahir !== undefined) {
-      dataToUpdate.tanggal_lahir = dto.tanggal_lahir ? new Date(dto.tanggal_lahir) : null;
+      if (dto.tanggal_lahir) {
+        const parsedDate = new Date(dto.tanggal_lahir);
+        if (isNaN(parsedDate.getTime())) {
+          throw new BadRequestException('Format tanggal lahir tidak valid');
+        }
+        const now = new Date();
+        now.setHours(23, 59, 59, 999);
+        if (parsedDate > now) {
+          throw new BadRequestException('Tanggal lahir tidak boleh di masa depan');
+        }
+        dataToUpdate.tanggal_lahir = parsedDate;
+      } else {
+        dataToUpdate.tanggal_lahir = null;
+      }
     }
 
     const updatedUser = await this.prisma.user.update({

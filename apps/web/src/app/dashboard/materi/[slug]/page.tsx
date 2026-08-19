@@ -20,7 +20,8 @@ import {
   Underline,
   List,
   ListOrdered,
-  Sidebar
+  Sidebar,
+  Lock
 } from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { API_URL } from "@/lib/api";
@@ -82,6 +83,8 @@ export default function MateriDetailPage() {
   const lastSavedProgressRef = useRef<number>(0);
   const editorRef = useRef<HTMLDivElement>(null);
 
+  const [lockedError, setLockedError] = useState<string | null>(null);
+
   // 1. Memuat Info User dari LocalStorage
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -100,6 +103,7 @@ export default function MateriDetailPage() {
       if (!slug) return;
       try {
         setLoading(true);
+        setLockedError(null);
         const token = localStorage.getItem("token");
         if (!token) return;
         const res = await fetch(`${API_URL}/materi/modules/${slug}`, {
@@ -109,6 +113,11 @@ export default function MateriDetailPage() {
           const data = await res.json();
           setDbModule(data);
           setHtmlContent(data.deskripsi || "");
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          if (res.status === 403) {
+            setLockedError(errData.message || "Modul ini masih terkunci. Harap selesaikan modul sebelumnya terlebih dahulu.");
+          }
         }
       } catch (err) {
         console.error("Gagal memuat detail modul dari database:", err);
@@ -415,6 +424,28 @@ export default function MateriDetailPage() {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (lockedError) {
+    return (
+      <div className="px-6 py-12 max-w-lg mx-auto text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+          <Lock size={32} />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-neutral-900">Modul Masih Terkunci</h2>
+          <p className="text-sm text-neutral-600 leading-relaxed">{lockedError}</p>
+        </div>
+        <div className="pt-2">
+          <Link
+            href="/dashboard/materi"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-light transition shadow-sm"
+          >
+            <ArrowLeft size={14} /> Kembali ke Daftar Materi
+          </Link>
+        </div>
       </div>
     );
   }
@@ -752,14 +783,19 @@ export default function MateriDetailPage() {
                                       className="h-4 w-4 accent-primary"
                                     />
                                     <span className="flex-1">{option}</span>
-                                    {submitted && isCorrectAnswer && (
+                                    {submitted && isCorrectAnswer && selected && (
                                       <span className="text-success text-xs font-bold bg-success/20 px-2.5 py-0.5 rounded flex-shrink-0">
-                                        ✓ Jawaban Benar
+                                        ✓ Jawaban Anda (Benar)
+                                      </span>
+                                    )}
+                                    {submitted && isCorrectAnswer && !selected && (
+                                      <span className="text-success text-xs font-bold bg-success/20 px-2.5 py-0.5 rounded flex-shrink-0">
+                                        ✓ Kunci Jawaban Benar
                                       </span>
                                     )}
                                     {submitted && selected && !isCorrectAnswer && (
                                       <span className="text-danger text-xs font-bold bg-danger/20 px-2.5 py-0.5 rounded flex-shrink-0">
-                                        ✗ Pilihan Anda
+                                        ✗ Jawaban Anda (Salah)
                                       </span>
                                     )}
                                   </label>

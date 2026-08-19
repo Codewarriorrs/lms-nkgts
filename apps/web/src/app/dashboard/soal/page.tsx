@@ -96,13 +96,26 @@ export default function SoalPage() {
     try {
       setLoading(true);
       setExamResult(null);
-      setAnswers({});
-      setIsReviewMode(isReview);
+      
+      // Muat jawaban tersimpan jika dalam mode review
       if (isReview) {
         setReviewScoreInfo({ nilai, poin });
+        if (typeof window !== "undefined") {
+          const savedStr = window.localStorage.getItem(`lms-latsol-answers-${moduleId}`);
+          if (savedStr) {
+            try {
+              setAnswers(JSON.parse(savedStr));
+            } catch {
+              setAnswers({});
+            }
+          }
+        }
       } else {
         setReviewScoreInfo(null);
+        setAnswers({});
       }
+
+      setIsReviewMode(isReview);
       const res = await fetch(`${API_URL}/latsol/modules/${moduleId}`, { headers });
       if (res.ok) {
         const data = await res.json();
@@ -155,6 +168,9 @@ export default function SoalPage() {
       if (res.ok) {
         const data = await res.json();
         setExamResult(data);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(`lms-latsol-answers-${activeModuleId}`, JSON.stringify(answers));
+        }
         loadStatus(); // refresh unlock sequence
       } else {
         alert("Gagal mengumpulkan lembar jawaban kuis.");
@@ -306,19 +322,24 @@ export default function SoalPage() {
                       {/* Options List */}
                       <div className="pl-6 space-y-2.5">
                         {q.pilihan.map((opsi, oIdx) => {
-                          const isCorrectKey = isReviewMode && oIdx === q.jawaban_benar;
-                          const isUserWrongChoice = isReviewMode && selectedOpt === oIdx && selectedOpt !== q.jawaban_benar;
-                          const isNormalSelected = !isReviewMode && selectedOpt === oIdx;
+                          const isSelected = selectedOpt === oIdx;
+                          const isCorrectKey = oIdx === q.jawaban_benar;
+                          const isUserCorrectChoice = isSelected && isCorrectKey;
+                          const isUserWrongChoice = isSelected && !isCorrectKey;
+                          const isNormalSelected = !isReviewMode && isSelected;
 
                           let containerStyle = "border-neutral-100 hover:bg-neutral-50 text-neutral-700";
                           let badgeStyle = "border-neutral-300 bg-white text-neutral-400";
 
                           if (isReviewMode) {
-                            if (isCorrectKey) {
-                              containerStyle = "bg-emerald-50 border-emerald-500 text-emerald-800 font-bold shadow-xs";
+                            if (isUserCorrectChoice) {
+                              containerStyle = "bg-emerald-50 border-emerald-500 text-emerald-800 font-bold shadow-xs ring-1 ring-emerald-400";
                               badgeStyle = "border-emerald-600 bg-emerald-600 text-white";
+                            } else if (isCorrectKey) {
+                              containerStyle = "bg-emerald-50/70 border-emerald-300 text-emerald-800 font-semibold";
+                              badgeStyle = "border-emerald-500 bg-emerald-500 text-white";
                             } else if (isUserWrongChoice) {
-                              containerStyle = "bg-rose-50 border-rose-400 text-rose-800 font-bold shadow-xs";
+                              containerStyle = "bg-rose-50 border-rose-400 text-rose-800 font-bold shadow-xs ring-1 ring-rose-300";
                               badgeStyle = "border-rose-500 bg-rose-500 text-white";
                             } else {
                               containerStyle = "border-neutral-100 text-neutral-400 opacity-60 pointer-events-none";
@@ -338,14 +359,19 @@ export default function SoalPage() {
                                 {String.fromCharCode(65 + oIdx)}
                               </div>
                               <span className="leading-snug flex-1">{opsi}</span>
-                              {isReviewMode && isCorrectKey && (
+                              {isReviewMode && isUserCorrectChoice && (
+                                <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">
+                                  ✓ Jawaban Anda (Benar)
+                                </span>
+                              )}
+                              {isReviewMode && isCorrectKey && !isSelected && (
                                 <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">
                                   Kunci Benar
                                 </span>
                               )}
                               {isReviewMode && isUserWrongChoice && (
                                 <span className="text-[10px] font-black uppercase text-rose-700 bg-rose-100 px-2 py-0.5 rounded shrink-0">
-                                  Jawaban Anda (Salah)
+                                  ✗ Jawaban Anda (Salah)
                                 </span>
                               )}
                             </div>
