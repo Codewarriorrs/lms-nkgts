@@ -15,7 +15,8 @@ RUN npm install --workspace=apps/api
 
 COPY apps/api ./apps/api
 
-RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
+ENV PATH="/app/node_modules/.bin:/app/apps/api/node_modules/.bin:${PATH}"
+
 RUN npm run build --workspace=apps/api
 
 # 2. Production Runner Stage
