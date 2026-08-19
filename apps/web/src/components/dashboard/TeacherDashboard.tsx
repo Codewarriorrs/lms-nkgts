@@ -867,23 +867,6 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
             </div>
           </div>
 
-          <div className="bg-neutral-900 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-neutral-800 shadow-sm text-white">
-            <div className="space-y-2">
-              <span className="bg-accent text-neutral-900 text-[10px] font-bold px-2.5 py-0.5 rounded uppercase tracking-wider">
-                Budaya Kaizen 2026
-              </span>
-              <h3 className="font-bold text-lg leading-snug">National Kaizen Goes To School</h3>
-              <p className="text-neutral-400 text-xs leading-relaxed max-w-xl">
-                Gunakan tab "Kelola Materi & Kuis" untuk menambahkan modul teori baru, mengedit artikel pembelajaran, serta mengedit butir soal kuis latihan secara visual.
-              </p>
-            </div>
-            <button 
-              onClick={() => router.push("/dashboard/materi")}
-              className="bg-white hover:bg-accent text-neutral-900 text-xs font-bold px-5 py-3 rounded-lg transition shrink-0"
-            >
-              Kelola Materi Teori →
-            </button>
-          </div>
           {/* Circular Progress Cards of School Summaries for Admin */}
           {currentUser?.role === "admin" && (
             <div className="space-y-4">

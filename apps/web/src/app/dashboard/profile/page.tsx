@@ -162,26 +162,22 @@ export default function ProfilePage() {
   const displayBirthDate = currentUser.tanggal_lahir 
     ? new Date(currentUser.tanggal_lahir).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' })
     : "-";
+  const currentDate = new Date();
+  const today = [
+    currentDate.getFullYear(),
+    String(currentDate.getMonth() + 1).padStart(2, "0"),
+    String(currentDate.getDate()).padStart(2, "0"),
+  ].join("-");
 
   return (
     <div className="px-6 py-8 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 leading-tight">
-            Profil Saya
-          </h1>
-          <p className="text-neutral-400 text-xs font-semibold mt-1">
-            Kelola informasi profil dan kredensial akun LMS Anda.
-          </p>
-        </div>
-        {!isEditing && (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold transition-all shadow-sm shadow-primary/10"
-          >
-            <Edit size={14} /> Edit Profil
-          </button>
-        )}
+      <div>
+        <h1 className="text-2xl font-bold text-neutral-900 leading-tight">
+          Profil Saya
+        </h1>
+        <p className="text-neutral-400 text-xs font-semibold mt-1">
+          Kelola informasi profil dan kredensial akun LMS Anda.
+        </p>
       </div>
 
       {successMsg && (
@@ -197,6 +193,17 @@ export default function ProfilePage() {
       )}
 
       <div className="bg-white rounded-xl border border-neutral-100 p-6 max-w-2xl space-y-6">
+        {!isEditing && (
+          <div className="flex justify-end -mb-2">
+            <button
+              onClick={() => setIsEditing(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold transition-all shadow-sm shadow-primary/10"
+            >
+              <Edit size={14} /> Edit Profil
+            </button>
+          </div>
+        )}
+
         {/* Profile Avatar Block */}
         <div className="flex flex-col sm:flex-row items-center gap-5 pb-5 border-b border-neutral-100">
           <div className="relative group select-none">
@@ -359,7 +366,9 @@ export default function ProfilePage() {
                 <input
                   type="tel"
                   value={noHp}
-                  onChange={(e) => setNoHp(e.target.value)}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  onChange={(e) => setNoHp(e.target.value.replace(/\D/g, ""))}
                   placeholder="Contoh: 08123456789"
                   className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-50 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
                 />
@@ -370,7 +379,7 @@ export default function ProfilePage() {
                 <input
                   type="text"
                   value={tempatLahir}
-                  onChange={(e) => setTempatLahir(e.target.value)}
+                  onChange={(e) => setTempatLahir(e.target.value.replace(/[^\p{L}\s]/gu, ""))}
                   placeholder="Contoh: Semarang, Jakarta"
                   className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-50 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
                 />
@@ -381,7 +390,12 @@ export default function ProfilePage() {
                 <input
                   type="date"
                   value={tanggalLahir}
-                  onChange={(e) => setTanggalLahir(e.target.value)}
+                  max={today}
+                  onChange={(e) => {
+                    if (!e.target.value || e.target.value <= today) {
+                      setTanggalLahir(e.target.value);
+                    }
+                  }}
                   className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-50 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
                 />
               </div>
@@ -390,8 +404,13 @@ export default function ProfilePage() {
                 <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">Tahun Angkatan / Pendaftaran</label>
                 <input
                   type="number"
+                  min="1"
+                  step="1"
                   value={tahunPendaftaran}
-                  onChange={(e) => setTahunPendaftaran(e.target.value === "" ? "" : Number(e.target.value))}
+                  onChange={(e) => {
+                    const digitsOnly = e.target.value.replace(/\D/g, "");
+                    setTahunPendaftaran(digitsOnly === "" ? "" : Number(digitsOnly));
+                  }}
                   placeholder="Contoh: 2026"
                   className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-50 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
                 />
