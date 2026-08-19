@@ -18,7 +18,9 @@ import {
   ChevronLeft, 
   ChevronRight, 
   X,
-  FileSpreadsheet
+  FileSpreadsheet,
+  KeyRound,
+  Send
 } from "lucide-react";
 
 interface UserType {
@@ -29,6 +31,29 @@ interface UserType {
   nis: string | null;
   nama_sekolah: string;
   created_at: string;
+  reset_password_expires?: string | null;
+  has_active_reset_token?: boolean;
+}
+
+interface ActiveResetUserType {
+  id: string;
+  nama: string;
+  email: string;
+  role: string;
+  nis: string | null;
+  nama_sekolah: string;
+  created_at: string;
+  reset_password_expires: string;
+  token?: string;
+}
+
+function formatTimeRemaining(dateStr: string) {
+  const diffMs = new Date(dateStr).getTime() - new Date().getTime();
+  if (diffMs <= 0) return "Kedaluwarsa";
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `Sisa ${hours} jam ${minutes} mnt`;
+  return `Sisa ${minutes} menit`;
 }
 
 interface InvitationType {
@@ -53,11 +78,12 @@ export default function AdminUsersPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   
   // Tabs
-  const [activeTab, setActiveTab] = useState<"active" | "pending">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "pending" | "resets">("active");
 
   // State Data
   const [users, setUsers] = useState<UserType[]>([]);
   const [invitations, setInvitations] = useState<InvitationType[]>([]);
+  const [activeResets, setActiveResets] = useState<ActiveResetUserType[]>([]);
   const [schools, setSchools] = useState<SchoolType[]>([]);
 
   // Filtering / Pagination Active Users
@@ -73,6 +99,11 @@ export default function AdminUsersPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [selectedEditUser, setSelectedEditUser] = useState<UserType | null>(null);
   const [resetTargetUser, setResetTargetUser] = useState<{ id: string; nama: string } | null>(null);
+  const [sendResetTargetUser, setSendResetTargetUser] = useState<UserType | ActiveResetUserType | null>(null);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [cancelResetTargetUser, setCancelResetTargetUser] = useState<UserType | ActiveResetUserType | null>(null);
+  const [cancelingReset, setCancelingReset] = useState(false);
+  const [loadingResets, setLoadingResets] = useState(false);
   const [editRoleValue, setEditRoleValue] = useState("");
   const [updatingRole, setUpdatingRole] = useState(false);
   const [inviteForm, setInviteForm] = useState({
@@ -117,6 +148,7 @@ export default function AdminUsersPage() {
     if (!isAdmin) return;
     fetchActiveUsers();
     fetchPendingInvitations();
+    fetchActiveResets();
     fetchSchools();
   }, [isAdmin, page, search, roleFilter]);
 
@@ -155,6 +187,25 @@ export default function AdminUsersPage() {
       }
     } catch (err) {
       console.error("Gagal mengambil data undangan pending", err);
+    }
+  };
+
+  // 2b. Fetch Active Password Resets
+  const fetchActiveResets = async () => {
+    setLoadingResets(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/users/active-resets`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActiveResets(data || []);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil data reset password aktif", err);
+    } finally {
+      setLoadingResets(false);
     }
   };
 
@@ -275,6 +326,61 @@ export default function AdminUsersPage() {
       fetchActiveUsers();
     } catch (err: any) {
       setErrorMsg(err.message);
+    }
+  };
+
+  // 4d. Handle send reset password email
+  const handleSendResetPasswordSubmit = async () => {
+    if (!sendResetTargetUser) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      setSendingReset(true);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/users/${sendResetTargetUser.id}/send-reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal mengirimkan email reset kata sandi");
+      setSuccessMsg(data.message || `Email petunjuk atur ulang kata sandi berhasil dikirim ke ${sendResetTargetUser.email}!`);
+      setSendResetTargetUser(null);
+      fetchActiveResets();
+      fetchActiveUsers();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
+  // 4e. Handle cancel reset password token
+  const handleCancelResetPasswordSubmit = async () => {
+    if (!cancelResetTargetUser) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      setCancelingReset(true);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/users/${cancelResetTargetUser.id}/cancel-reset-password`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal membatalkan tautan reset password");
+      setSuccessMsg(data.message || `Tautan atur ulang kata sandi berhasil dibatalkan.`);
+      setCancelResetTargetUser(null);
+      fetchActiveResets();
+      fetchActiveUsers();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setCancelingReset(false);
     }
   };
 
@@ -519,6 +625,17 @@ export default function AdminUsersPage() {
           <Mail size={16} />
           Undangan Tertunda ({invitations.length})
         </button>
+        <button
+          onClick={() => setActiveTab("resets")}
+          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
+            activeTab === "resets"
+              ? "bg-primary text-white shadow-sm"
+              : "text-neutral-400 hover:text-neutral-700 hover:bg-neutral-50"
+          }`}
+        >
+          <KeyRound size={16} />
+          Reset Sandi ({activeResets.length})
+        </button>
       </div>
 
       {/* Main Tab Content */}
@@ -620,7 +737,20 @@ export default function AdminUsersPage() {
                   ) : (
                     users.map((user) => (
                       <tr key={user.id} className="hover:bg-neutral-50/50 transition duration-150">
-                        <td className="px-6 py-4 font-bold text-neutral-900">{user.nama}</td>
+                        <td className="px-6 py-4 font-bold text-neutral-900">
+                          <div className="flex items-center gap-2">
+                            <span>{user.nama}</span>
+                            {user.has_active_reset_token && (
+                              <span 
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200"
+                                title={`Reset terkirim (aktif s.d. ${user.reset_password_expires ? new Date(user.reset_password_expires).toLocaleString("id-ID") : ""})`}
+                              >
+                                <KeyRound size={10} />
+                                Reset Terkirim
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 font-mono text-xs">{user.email}</td>
                         <td className="px-6 py-4 text-neutral-400">{user.nis || "-"}</td>
                         <td className="px-6 py-4">
@@ -642,35 +772,48 @@ export default function AdminUsersPage() {
                             day: "numeric"
                           })}
                         </td>
-                        <td className="px-6 py-4 text-right space-x-2">
-                           <button
-                             onClick={() => {
-                               setSelectedEditUser(user);
-                               setEditRoleValue(user.role);
-                             }}
-                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-100 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer"
-                           >
-                             Ubah Role
-                           </button>
-                           {user.role === "siswa" && (
-                             <button
-                               onClick={() => {
-                                 setResetTargetUser({ id: user.id, nama: user.nama });
-                               }}
-                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/20 hover:bg-warning/10 text-warning text-xs font-bold transition cursor-pointer"
-                               title="Reset progres belajar siswa"
-                             >
-                               Reset
-                             </button>
-                           )}
-                           {user.email !== "admin@nkgts.com" && user.id !== currentUser?.id && (
-                             <button
-                               onClick={() => handleDeleteUser(user.id, user.nama)}
-                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-50 text-red-650 text-xs font-bold transition cursor-pointer"
-                             >
-                               Hapus
-                             </button>
-                           )}
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={() => {
+                                setSelectedEditUser(user);
+                                setEditRoleValue(user.role);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer"
+                              title="Ubah peran / role pengguna"
+                            >
+                              Ubah Role
+                            </button>
+                            {user.role === "siswa" && (
+                              <button
+                                onClick={() => {
+                                  setResetTargetUser({ id: user.id, nama: user.nama });
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-warning/30 bg-warning/5 hover:bg-warning/15 text-warning-dark text-xs font-bold transition cursor-pointer"
+                                title="Reset progres belajar siswa"
+                              >
+                                Reset Progres
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setSendResetTargetUser(user)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition cursor-pointer"
+                              title="Kirim email petunjuk atur ulang kata sandi (berlaku 24 jam)"
+                            >
+                              <KeyRound size={12} />
+                              Kirim Link Reset
+                            </button>
+                            {user.email !== "admin@nkgts.com" && user.id !== currentUser?.id && (
+                              <button
+                                onClick={() => handleDeleteUser(user.id, user.nama)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-600 text-xs font-bold transition cursor-pointer"
+                                title="Hapus akun pengguna"
+                              >
+                                <Trash2 size={12} />
+                                Hapus
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -702,7 +845,7 @@ export default function AdminUsersPage() {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === "pending" ? (
           /* ================= TAMPILAN UNDANGAN TERTUNDA ================= */
           <div>
             <div className="overflow-x-auto">
@@ -753,25 +896,136 @@ export default function AdminUsersPage() {
                             })}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right space-x-2">
-                          <button
-                            onClick={() => handleResendInvite(invite.id, invite.email)}
-                            disabled={loading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-100 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer disabled:opacity-50"
-                            title="Kirim ulang email undangan"
-                          >
-                            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-                            Kirim Ulang
-                          </button>
-                          <button
-                            onClick={() => setDeleteTargetId(invite.id)}
-                            disabled={loading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-danger/10 hover:bg-danger/10 text-danger text-xs font-bold transition cursor-pointer disabled:opacity-50"
-                            title="Batalkan dan hapus undangan"
-                          >
-                            <Trash2 size={12} />
-                            Hapus
-                          </button>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={() => handleResendInvite(invite.id, invite.email)}
+                              disabled={loading}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                              title="Kirim ulang email undangan"
+                            >
+                              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+                              Kirim Ulang
+                            </button>
+                            <button
+                              onClick={() => setDeleteTargetId(invite.id)}
+                              disabled={loading}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-600 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                              title="Batalkan dan hapus undangan"
+                            >
+                              <Trash2 size={12} />
+                              Hapus
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          /* ================= TAMPILAN RESET SANDI AKTIF ================= */
+          <div>
+            <div className="p-5 border-b border-neutral-50 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-neutral-900 text-sm">Daftar Token Reset Sandi Aktif</h3>
+                <p className="text-xs text-neutral-400 mt-0.5">
+                  Pengguna yang saat ini memiliki tautan atur ulang kata sandi aktif (berlaku 24 jam).
+                </p>
+              </div>
+              <button
+                onClick={fetchActiveResets}
+                disabled={loadingResets}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 text-neutral-600 text-xs font-semibold transition cursor-pointer"
+              >
+                <RefreshCw size={12} className={loadingResets ? "animate-spin" : ""} />
+                Segarkan
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-neutral-50/50 text-neutral-400 text-xs font-extrabold uppercase tracking-wider border-b border-neutral-50">
+                    <th className="px-6 py-4">Nama</th>
+                    <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">NIS</th>
+                    <th className="px-6 py-4">Role</th>
+                    <th className="px-6 py-4">Sekolah</th>
+                    <th className="px-6 py-4">Kedaluwarsa</th>
+                    <th className="px-6 py-4 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-50 text-sm text-neutral-700">
+                  {loadingResets ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-neutral-400">
+                        <div className="flex items-center justify-center gap-2.5">
+                          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-primary"></div>
+                          Memuat data token aktif...
+                        </div>
+                      </td>
+                    </tr>
+                  ) : activeResets.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-neutral-400">
+                        Tidak ada token reset password yang sedang aktif saat ini.
+                      </td>
+                    </tr>
+                  ) : (
+                    activeResets.map((user) => (
+                      <tr key={user.id} className="hover:bg-neutral-50/50 transition duration-150">
+                        <td className="px-6 py-4 font-bold text-neutral-900">{user.nama}</td>
+                        <td className="px-6 py-4 font-mono text-xs">{user.email}</td>
+                        <td className="px-6 py-4 text-neutral-400">{user.nis || "-"}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
+                            user.role === "admin" 
+                              ? "bg-purple-100 text-purple-700" 
+                              : user.role === "guru"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-green-100 text-green-700"
+                          }`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">{user.nama_sekolah}</td>
+                        <td className="px-6 py-4 text-xs">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-amber-700">
+                              {new Date(user.reset_password_expires).toLocaleDateString("id-ID", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })}
+                            </span>
+                            <span className="text-[11px] text-neutral-400">
+                              {formatTimeRemaining(user.reset_password_expires)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={() => setSendResetTargetUser(user)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition cursor-pointer"
+                              title="Kirim ulang email reset kata sandi (perpanjang 24 jam)"
+                            >
+                              <RefreshCw size={12} />
+                              Kirim Ulang
+                            </button>
+                            <button
+                              onClick={() => setCancelResetTargetUser(user)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-600 text-xs font-bold transition cursor-pointer"
+                              title="Batalkan tautan token reset sandi"
+                            >
+                              <X size={12} />
+                              Batalkan
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1110,6 +1364,123 @@ export default function AdminUsersPage() {
             fetchActiveUsers();
           }}
         />
+      )}
+
+      {/* Modal Konfirmasi Kirim Link Reset Password */}
+      {sendResetTargetUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                <KeyRound size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-neutral-900 text-base">Kirim Link Reset Password</h3>
+                <p className="text-xs text-neutral-400">Instruksi atur ulang sandi via email resmi</p>
+              </div>
+            </div>
+
+            <div className="py-4 space-y-3 text-xs">
+              <p className="text-neutral-600 leading-relaxed">
+                Apakah Anda yakin ingin mengirimkan email instruksi atur ulang kata sandi ke akun berikut?
+              </p>
+              <div className="p-3.5 bg-neutral-50 border border-neutral-100 rounded-xl space-y-1">
+                <p className="font-bold text-neutral-900 text-sm">{sendResetTargetUser.nama}</p>
+                <p className="text-neutral-500 font-mono text-xs">{sendResetTargetUser.email}</p>
+                <p className="text-neutral-400 text-[11px] font-semibold">{sendResetTargetUser.nama_sekolah}</p>
+              </div>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] font-medium leading-relaxed">
+                * Tautan pada email ini berlaku selama <strong>24 jam</strong>. Pengguna dapat membuka tautan tersebut untuk membuat kata sandi baru secara mandiri.
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-neutral-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={sendingReset}
+                onClick={() => setSendResetTargetUser(null)}
+                className="px-4 py-2 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition cursor-pointer disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={sendingReset}
+                onClick={handleSendResetPasswordSubmit}
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-light text-white rounded-xl text-xs font-bold shadow-sm shadow-primary/10 transition cursor-pointer disabled:opacity-50"
+              >
+                {sendingReset ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Mengirim Email...
+                  </>
+                ) : (
+                  <>
+                    <Send size={14} />
+                    Ya, Kirim Email
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Batalkan Token Reset */}
+      {cancelResetTargetUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
+              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+                <X size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-neutral-900 text-base">Batalkan Tautan Reset</h3>
+                <p className="text-xs text-neutral-400">Nonaktifkan token atur ulang sandi</p>
+              </div>
+            </div>
+
+            <div className="py-4 space-y-3 text-xs">
+              <p className="text-neutral-600 leading-relaxed">
+                Apakah Anda yakin ingin membatalkan tautan reset kata sandi untuk akun berikut?
+              </p>
+              <div className="p-3.5 bg-neutral-50 border border-neutral-100 rounded-xl space-y-1">
+                <p className="font-bold text-neutral-900 text-sm">{cancelResetTargetUser.nama}</p>
+                <p className="text-neutral-500 font-mono text-xs">{cancelResetTargetUser.email}</p>
+                <p className="text-neutral-400 text-[11px] font-semibold">{cancelResetTargetUser.nama_sekolah}</p>
+              </div>
+              <p className="text-neutral-500 text-[11px] leading-relaxed">
+                Setelah dibatalkan, tautan yang sebelumnya dikirim ke email pengguna tidak akan dapat digunakan lagi.
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-neutral-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={cancelingReset}
+                onClick={() => setCancelResetTargetUser(null)}
+                className="px-4 py-2 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition cursor-pointer disabled:opacity-50"
+              >
+                Kembali
+              </button>
+              <button
+                type="button"
+                disabled={cancelingReset}
+                onClick={handleCancelResetPasswordSubmit}
+                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer disabled:opacity-50"
+              >
+                {cancelingReset ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Membatalkan...
+                  </>
+                ) : (
+                  "Ya, Batalkan Tautan"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

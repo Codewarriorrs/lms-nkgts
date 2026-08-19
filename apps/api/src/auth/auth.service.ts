@@ -1,8 +1,9 @@
-import { Injectable, ConflictException, UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 
@@ -63,6 +64,38 @@ export class AuthService {
     }
 
     return this.buildAuthResponse(user);
+  }
+
+  async resetPasswordWithToken(dto: ResetPasswordDto) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        reset_password_token: dto.token,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Tautan atur ulang kata sandi tidak valid atau telah digunakan.');
+    }
+
+    if (!user.reset_password_expires || user.reset_password_expires < new Date()) {
+      throw new BadRequestException('Tautan atur ulang kata sandi telah kedaluwarsa (lebih dari 24 jam). Silakan minta tautan baru kepada Admin.');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(dto.newPassword, salt);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password_hash: hashedPassword,
+        reset_password_token: null,
+        reset_password_expires: null,
+      },
+    });
+
+    return {
+      message: 'Kata sandi berhasil diperbarui! Silakan masuk menggunakan kata sandi baru Anda.',
+    };
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {

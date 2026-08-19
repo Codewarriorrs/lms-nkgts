@@ -72,7 +72,7 @@ export class InvitationService {
 
     // 1. Coba Mengirim Lewat Brevo API (HTTPS Port 443, gratis 300 email/hari & mendukung verifikasi satu email Gmail/Sekolah tanpa domain kustom)
     if (hasBrevo) {
-      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Platform N-KGTS LMS';
+      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
       try {
         const response = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
@@ -87,7 +87,7 @@ export class InvitationService {
               email: brevoSenderEmail,
             },
             to: [{ email, name: nama }],
-            subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
+            subject: 'Undangan Aktivasi Akun - Kaizenesia',
             htmlContent: mailHtmlContent,
           }),
           signal: AbortSignal.timeout(5000), // Timeout 5 detik
@@ -131,9 +131,9 @@ export class InvitationService {
       });
 
       const mailOptions = {
-        from: `"Platform N-KGTS LMS" <${gmailUser}>`,
+        from: `"Kaizenesia" <${gmailUser}>`,
         to: email,
-        subject: 'Undangan Aktivasi Akun Platform N-KGTS LMS',
+        subject: 'Undangan Aktivasi Akun - Kaizenesia',
         html: mailHtmlContent,
       };
 
@@ -305,15 +305,25 @@ export class InvitationService {
     ]);
 
     return {
-      users: users.map(user => ({
-        id: user.id,
-        nama: user.nama,
-        email: user.email,
-        role: user.role,
-        nis: user.nis,
-        nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
-        created_at: user.created_at,
-      })),
+      users: users.map(user => {
+        const hasActiveResetToken = Boolean(
+          user.reset_password_token &&
+          user.reset_password_expires &&
+          user.reset_password_expires > new Date()
+        );
+
+        return {
+          id: user.id,
+          nama: user.nama,
+          email: user.email,
+          role: user.role,
+          nis: user.nis,
+          nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
+          created_at: user.created_at,
+          reset_password_expires: user.reset_password_expires,
+          has_active_reset_token: hasActiveResetToken,
+        };
+      }),
       pagination: {
         total,
         page,
@@ -687,5 +697,227 @@ export class InvitationService {
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     return buffer;
   }
+
+  // 13. Template & Pengirim Email Atur Ulang Kata Sandi
+  private async sendPasswordResetEmailTemplate(
+    email: string,
+    nama: string,
+    token: string,
+    namaSekolah: string,
+  ): Promise<string | undefined> {
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    const brevoSenderEmail = process.env.BREVO_SENDER_EMAIL;
+
+    const hasBrevo = !!brevoApiKey && !!brevoSenderEmail;
+    const hasGmail = gmailUser && gmailPass && !gmailUser.includes('placeholder') && !gmailPass.includes('placeholder');
+
+    if (!hasBrevo && !hasGmail) {
+      return 'Konfigurasi email (Brevo API Key atau Gmail SMTP) belum diatur di server.';
+    }
+
+    const cpNameSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_name' } });
+    const cpWaSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_whatsapp' } });
+
+    const cpName = cpNameSettings?.value || 'Admin N-KGTS';
+    const cpWa = cpWaSettings?.value || '6281234567890';
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+
+    const mailHtmlContent = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #0d8abc; margin: 0;">N-KGTS LMS Platform</h2>
+          <p style="color: #777; margin: 5px 0 0 0;">Pembelajaran Budaya Kaizen & 5R</p>
+        </div>
+        <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;" />
+        <p>Halo, <strong>${nama}</strong>!</p>
+        <p>Admin platform LMS N-KGTS (${namaSekolah}) telah mengirimkan instruksi untuk mengatur ulang kata sandi akun Anda.</p>
+        <p>Silakan klik tombol di bawah ini untuk membuat kata sandi baru Anda:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetLink}" style="background-color: #0d8abc; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Atur Ulang Kata Sandi</a>
+        </div>
+        <p style="color: #555; font-size: 13px;">Tautan ini berlaku selama <strong>24 jam</strong>. Jika Anda tidak merasa meminta atur ulang kata sandi, silakan abaikan email ini atau hubungi Admin Sekolah Anda.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin-top: 30px; margin-bottom: 15px;" />
+        <div style="font-size: 12px; color: #777;">
+          <p>Butuh bantuan? Hubungi Contact Person kami:</p>
+          <p>Nama: <strong>${cpName}</strong><br />WhatsApp: <a href="https://wa.me/${cpWa}" style="color: #0d8abc; text-decoration: none;">+${cpWa}</a></p>
+        </div>
+      </div>
+    `;
+
+    // 1. Coba Brevo API
+    if (hasBrevo) {
+      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: {
+              name: brevoSenderName,
+              email: brevoSenderEmail,
+            },
+            to: [{ email, name: nama }],
+            subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
+            htmlContent: mailHtmlContent,
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+
+        if (response.ok) {
+          console.log('Email reset password berhasil dikirim via Brevo API ke:', email);
+          return undefined;
+        } else {
+          const errData = await response.json();
+          const errMsg = errData.message || 'Error API Brevo';
+          console.error('Gagal mengirim email reset via Brevo API:', errData);
+          if (!hasGmail) {
+            return `Brevo API: ${errMsg}`;
+          }
+        }
+      } catch (err: any) {
+        console.error('Error saat menghubungi API Brevo:', err);
+        if (!hasGmail) {
+          return `Brevo API: ${err.message || 'Koneksi timeout'}`;
+        }
+      }
+    }
+
+    // 2. Fallback Gmail SMTP
+    if (hasGmail) {
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: gmailUser,
+          pass: gmailPass,
+        },
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 5000,
+        tls: {
+          rejectUnauthorized: false
+        }
+      });
+
+      const mailOptions = {
+        from: `"Kaizenesia" <${gmailUser}>`,
+        to: email,
+        subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
+        html: mailHtmlContent,
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log('Email reset password berhasil dikirim via Gmail SMTP ke:', email);
+        return undefined;
+      } catch (err: any) {
+        console.error('Gagal mengirim email reset via Gmail SMTP ke:', email, err);
+        return `Gmail SMTP: ${err.message || 'Koneksi timeout'}`;
+      }
+    }
+
+    return 'Gagal memproses pengiriman email.';
+  }
+
+  // 14. Kirim Email Reset Password Terpandu Admin (Token 24 Jam)
+  async sendResetPasswordEmail(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { sekolah: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Pengguna tidak ditemukan!');
+    }
+
+    // Generate token acak (32 bytes hex)
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000); // 24 jam
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        reset_password_token: token,
+        reset_password_expires: expiresAt,
+      },
+    });
+
+    const emailError = await this.sendPasswordResetEmailTemplate(
+      user.email,
+      user.nama,
+      token,
+      user.sekolah?.nama_sekolah || 'N-KGTS',
+    );
+
+    if (emailError) {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      return {
+        message: `Token reset password berhasil dibuat, namun email gagal dikirim otomatis (${emailError}). Anda dapat membagikan tautan reset secara manual.`,
+        resetLink: `${frontendUrl}/reset-password?token=${token}`,
+      };
+    }
+
+    return {
+      message: `Email instruksi atur ulang kata sandi berhasil dikirim ke ${user.email} (berlaku 24 jam)!`,
+    };
+  }
+
+  // 15. Ambil Daftar Pengguna dengan Token Reset Password Aktif (Admin Only)
+  async getActiveResetPasswordUsers() {
+    const now = new Date();
+    const users = await this.prisma.user.findMany({
+      where: {
+        reset_password_token: { not: null },
+        reset_password_expires: { gt: now },
+      },
+      orderBy: { reset_password_expires: 'desc' },
+      include: { sekolah: true },
+    });
+
+    return users.map((user) => ({
+      id: user.id,
+      nama: user.nama,
+      email: user.email,
+      role: user.role,
+      nis: user.nis,
+      nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
+      created_at: user.created_at,
+      reset_password_expires: user.reset_password_expires,
+      token: user.reset_password_token,
+    }));
+  }
+
+  // 16. Batalkan Tautan Reset Password Pengguna (Admin Only)
+  async cancelResetPasswordToken(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Pengguna tidak ditemukan!');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        reset_password_token: null,
+        reset_password_expires: null,
+      },
+    });
+
+    return {
+      message: `Tautan atur ulang kata sandi untuk akun ${user.nama} (${user.email}) berhasil dibatalkan.`,
+    };
+  }
 }
+
 
