@@ -22,7 +22,7 @@ RUN npm run build --workspace=apps/api
 # 2. Production Runner Stage
 FROM node:20-alpine AS runner
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl curl
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -38,6 +38,7 @@ COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "npx prisma db push --schema=apps/api/prisma/schema.prisma --accept-data-loss && node apps/api/dist/main.js"]
+CMD ["node", "apps/api/dist/main.js"]
+
 
 
