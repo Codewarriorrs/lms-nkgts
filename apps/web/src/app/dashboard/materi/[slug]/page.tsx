@@ -466,7 +466,7 @@ export default function MateriDetailPage() {
   const quizList = dbModule.soal_latihan || [];
 
   return (
-    <div className="px-6 py-8 space-y-6">
+    <div className="px-3 sm:px-6 py-4 sm:py-8 space-y-6">
       {/* Header navigasi */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Link href="/dashboard/materi" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary-light">
@@ -514,18 +514,18 @@ export default function MateriDetailPage() {
       </div>
 
       <div className={`grid gap-5 transition-all duration-300 ${showSidebar ? "lg:grid-cols-[2fr_0.6fr]" : "grid-cols-1"}`}>
-        <div className="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm flex flex-col min-w-0">
+        <div className="rounded-2xl border border-neutral-100 bg-white p-4 sm:p-6 shadow-sm flex flex-col min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-neutral-400">Modul Teori</p>
-              <h1 className="text-2xl font-bold text-neutral-900 mt-1">{dbModule.judul}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 mt-1 break-words">{dbModule.judul}</h1>
             </div>
             <div className={`rounded-full px-3 py-1 text-xs font-semibold ${progress.completed ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
               {completionLabel}
             </div>
           </div>
 
-          <div className="self-start mt-6 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
+          <div className="w-full sm:self-start mt-6 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
             <div className="flex items-center justify-between text-sm font-semibold text-neutral-700">
               <span>Progress belajar Anda</span>
               <span>{Math.max(progress.scrollProgress, progress.score ?? 0)}%</span>
@@ -674,7 +674,7 @@ export default function MateriDetailPage() {
             /* Ruangguru / Zenius Style flowing article view */
             <div
               id="module-content"
-              className="mt-6 max-h-[600px] overflow-y-auto pr-2 space-y-6 prose max-w-none text-neutral-700 leading-8"
+              className="mt-6 space-y-6 prose max-w-none text-neutral-700 leading-8 overflow-hidden"
             >
               {/* Render Rich HTML Artikel */}
               <div
@@ -686,7 +686,7 @@ export default function MateriDetailPage() {
                   prose-ul:list-disc prose-ul:pl-6 prose-ul:space-y-2
                   prose-ol:list-decimal prose-ol:pl-6 prose-ol:space-y-2
                   prose-li:text-neutral-600
-                  prose-img:mx-auto prose-img:rounded-2xl prose-img:shadow-sm"
+                  prose-img:mx-auto prose-img:max-w-full prose-img:h-auto prose-img:rounded-2xl prose-img:shadow-sm"
               />
 
               {/* Section Kuis */}

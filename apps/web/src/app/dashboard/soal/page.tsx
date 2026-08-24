@@ -314,13 +314,13 @@ export default function SoalPage() {
 
                       {/* Question Image */}
                       {q.image_url && (
-                        <div className="pl-6">
-                          <img src={q.image_url} alt="Ilustrasi Soal" className="max-h-48 rounded-xl border border-neutral-100 object-contain bg-neutral-50/50 p-2" />
+                        <div className="pl-0 sm:pl-6">
+                          <img src={q.image_url} alt="Ilustrasi Soal" className="max-h-48 max-w-full rounded-xl border border-neutral-100 object-contain bg-neutral-50/50 p-2" />
                         </div>
                       )}
 
                       {/* Options List */}
-                      <div className="pl-6 space-y-2.5">
+                      <div className="pl-0 sm:pl-6 space-y-2.5">
                         {q.pilihan.map((opsi, oIdx) => {
                           const isSelected = selectedOpt === oIdx;
                           const isCorrectKey = oIdx === q.jawaban_benar;
@@ -353,7 +353,7 @@ export default function SoalPage() {
                             <div 
                               key={oIdx}
                               onClick={isReviewMode ? undefined : () => handleSelectAnswer(q.id, oIdx)}
-                              className={`flex min-w-0 items-start gap-3 p-3 rounded-xl border text-xs cursor-pointer select-none transition ${containerStyle}`}
+                              className={`flex flex-wrap sm:flex-nowrap min-w-0 items-start gap-2.5 p-3 rounded-xl border text-xs cursor-pointer select-none transition ${containerStyle}`}
                             >
                               <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 text-[10px] font-bold ${badgeStyle}`}>
                                 {String.fromCharCode(65 + oIdx)}
@@ -380,9 +380,9 @@ export default function SoalPage() {
                       </div>
 
                       {isReviewMode && q.pembahasan && (
-                        <div className="mt-4 p-3.5 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-600 pl-6 ml-6">
+                        <div className="mt-4 p-3.5 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-600 pl-3 sm:pl-6 ml-0 sm:ml-6">
                           <p className="font-bold text-neutral-800 mb-1">Pembahasan:</p>
-                          <p className="leading-relaxed">{q.pembahasan}</p>
+                          <p className="leading-relaxed break-words">{q.pembahasan}</p>
                         </div>
                       )}
                     </div>
@@ -395,7 +395,7 @@ export default function SoalPage() {
                     <button
                       onClick={handleSubmitExam}
                       disabled={submitting}
-                      className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-8 py-3 rounded-xl transition shadow-md shadow-primary/10 disabled:opacity-50"
+                      className="w-full sm:w-auto bg-primary hover:bg-primary-light text-white text-xs font-bold px-8 py-3 rounded-xl transition shadow-md shadow-primary/10 disabled:opacity-50"
                     >
                       {submitting ? "Mengirim Jawaban..." : "Submit Ujian"}
                     </button>
@@ -411,7 +411,7 @@ export default function SoalPage() {
 
   // ── RENDER MODE 2: DAFTAR MODUL LATSOL (MODULES LIST) ──
   return (
-    <div className="px-6 py-8 space-y-6 w-full max-w-4xl mx-auto">
+    <div className="px-3 sm:px-6 py-4 sm:py-8 space-y-6 w-full max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold text-neutral-900 leading-tight">
           Soal Latihan Evaluasi

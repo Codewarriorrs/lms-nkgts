@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -99,13 +99,20 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Pengguna tidak ditemukan');
+    }
+
     const dataToUpdate: any = {};
 
     if (dto.nama !== undefined) dataToUpdate.nama = dto.nama;
-    if (dto.kelas !== undefined) dataToUpdate.kelas = dto.kelas;
+    if (user.role === 'admin') {
+      if (dto.kelas !== undefined) dataToUpdate.kelas = dto.kelas;
+      if (dto.tahun_pendaftaran !== undefined) dataToUpdate.tahun_pendaftaran = dto.tahun_pendaftaran;
+    }
     if (dto.no_hp !== undefined) dataToUpdate.no_hp = dto.no_hp;
     if (dto.tempat_lahir !== undefined) dataToUpdate.tempat_lahir = dto.tempat_lahir;
-    if (dto.tahun_pendaftaran !== undefined) dataToUpdate.tahun_pendaftaran = dto.tahun_pendaftaran;
     if (dto.foto_profil !== undefined) dataToUpdate.foto_profil = dto.foto_profil;
 
     if (dto.tanggal_lahir !== undefined) {

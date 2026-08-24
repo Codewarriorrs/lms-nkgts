@@ -122,9 +122,11 @@ export default function ProfilePage() {
         tempat_lahir: tempatLahir.trim() || null,
       };
 
-      if (isSiswa) {
-        payload.kelas = kelas.trim() || null;
-        payload.tahun_pendaftaran = tahunPendaftaran !== "" ? Number(tahunPendaftaran) : null;
+      if (currentUser?.role === "admin") {
+        if (isSiswa) {
+          payload.kelas = kelas.trim() || null;
+          payload.tahun_pendaftaran = tahunPendaftaran !== "" ? Number(tahunPendaftaran) : null;
+        }
       }
 
       if (tanggalLahir) {
@@ -409,14 +411,21 @@ export default function ProfilePage() {
 
               {isSiswa && (
                 <div>
-                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">Kelas</label>
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">
+                    Kelas {currentUser?.role !== "admin" ? "(Read Only)" : ""}
+                  </label>
                   <input
                     type="text"
                     maxLength={20}
+                    disabled={currentUser?.role !== "admin"}
                     value={kelas}
                     onChange={(e) => setKelas(e.target.value)}
                     placeholder="Contoh: X TKR 1, XII TKJ"
-                    className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-50 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                    className={`w-full px-4 py-2.5 rounded-lg border border-neutral-100 text-sm transition ${
+                      currentUser?.role !== "admin"
+                        ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                        : "bg-neutral-50 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    }`}
                   />
                 </div>
               )}
@@ -465,19 +474,26 @@ export default function ProfilePage() {
               {isSiswa && (
                 <>
                   <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">Tahun Angkatan / Pendaftaran</label>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">
+                      Tahun Angkatan / Pendaftaran {currentUser?.role !== "admin" ? "(Read Only)" : ""}
+                    </label>
                     <input
                       type="number"
                       min="2000"
                       max={new Date().getFullYear() + 1}
                       step="1"
+                      disabled={currentUser?.role !== "admin"}
                       value={tahunPendaftaran}
                       onChange={(e) => {
                         const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 4);
                         setTahunPendaftaran(digitsOnly === "" ? "" : Number(digitsOnly));
                       }}
                       placeholder="Contoh: 2026"
-                      className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-50 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                      className={`w-full px-4 py-2.5 rounded-lg border border-neutral-100 text-sm transition ${
+                        currentUser?.role !== "admin"
+                          ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                          : "bg-neutral-50 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      }`}
                     />
                   </div>
 

@@ -515,7 +515,7 @@ export default function GaleriPage() {
                         <div className="space-y-1 text-xs">
                           <p className="leading-relaxed">
                             <span className="font-extrabold text-neutral-800 mr-2">{post.uploader?.nama}</span>
-                            <span className="font-bold text-neutral-850 bg-neutral-50 px-1.5 py-0.5 rounded border border-neutral-100">{post.judul}</span>
+                            <span className="font-bold text-neutral-850">{post.judul}</span>
                           </p>
                           {post.deskripsi && (
                             <p className="text-neutral-600 leading-relaxed pl-0">{post.deskripsi}</p>
