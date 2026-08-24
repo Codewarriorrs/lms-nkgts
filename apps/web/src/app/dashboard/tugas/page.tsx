@@ -1723,13 +1723,13 @@ export default function TugasPage() {
                   }
 
                   const KATEGORI_WASTE = [
-                    "Gerak Berlebihan",
-                    "Mengangkut",
-                    "Menunggu",
-                    "Produksi Berlebihan",
-                    "Persediaan Berlebihan",
-                    "Proses Berlebih",
-                    "Perbaikan Ulang"
+                    "Motion",
+                    "Transportation",
+                    "Waiting",
+                    "Over Production",
+                    "Inventory",
+                    "Extra Process",
+                    "Defect"
                   ];
 
                   const renderFormWaste = (list: any[], setList: any) => {
