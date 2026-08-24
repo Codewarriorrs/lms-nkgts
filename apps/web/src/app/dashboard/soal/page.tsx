@@ -221,11 +221,11 @@ export default function SoalPage() {
           </div>
         </div>
 
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 leading-tight">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-neutral-900 leading-tight break-words">
             {isReviewMode ? "Kunci & Pembahasan Latsol" : "Latihan Soal"}: {activeModuleJudul}
           </h1>
-          <p className="text-neutral-400 text-xs font-semibold mt-1">
+          <p className="text-neutral-400 text-xs font-semibold mt-1 break-words">
             {isReviewMode 
               ? "Ulas kembali pembahasan dan kunci jawaban modul ini." 
               : "Isi lembar kuis evaluasi di bawah ini dengan memilih satu jawaban paling tepat."}
@@ -304,10 +304,10 @@ export default function SoalPage() {
                     <div key={q.id} className="bg-white border border-neutral-100 rounded-2xl p-5 md:p-6 space-y-4 shadow-2xs">
                       
                       {/* Question Text */}
-                      <div className="flex items-start gap-3 text-sm">
+                      <div className="flex min-w-0 items-start gap-3 text-sm">
                         <span className="font-bold text-neutral-400 shrink-0">{idx + 1}.</span>
-                        <div className="space-y-1">
-                          <p className="font-bold text-neutral-850 leading-relaxed">{q.pertanyaan}</p>
+                        <div className="min-w-0 space-y-1">
+                          <p className="font-bold text-neutral-850 leading-relaxed break-words">{q.pertanyaan}</p>
                           <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Nilai: {q.poin} Poin</p>
                         </div>
                       </div>
@@ -353,24 +353,24 @@ export default function SoalPage() {
                             <div 
                               key={oIdx}
                               onClick={isReviewMode ? undefined : () => handleSelectAnswer(q.id, oIdx)}
-                              className={`flex items-center gap-3 p-3 rounded-xl border text-xs cursor-pointer select-none transition ${containerStyle}`}
+                              className={`flex min-w-0 items-start gap-3 p-3 rounded-xl border text-xs cursor-pointer select-none transition ${containerStyle}`}
                             >
                               <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 text-[10px] font-bold ${badgeStyle}`}>
                                 {String.fromCharCode(65 + oIdx)}
                               </div>
-                              <span className="leading-snug flex-1">{opsi}</span>
+                              <span className="min-w-0 flex-1 leading-snug break-words">{opsi}</span>
                               {isReviewMode && isUserCorrectChoice && (
-                                <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">
+                                <span className="max-w-full text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0 break-words">
                                   ✓ Jawaban Anda (Benar)
                                 </span>
                               )}
                               {isReviewMode && isCorrectKey && !isSelected && (
-                                <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">
+                                <span className="max-w-full text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0 break-words">
                                   Kunci Benar
                                 </span>
                               )}
                               {isReviewMode && isUserWrongChoice && (
-                                <span className="text-[10px] font-black uppercase text-rose-700 bg-rose-100 px-2 py-0.5 rounded shrink-0">
+                                <span className="max-w-full text-[10px] font-black uppercase text-rose-700 bg-rose-100 px-2 py-0.5 rounded shrink-0 break-words">
                                   ✗ Jawaban Anda (Salah)
                                 </span>
                               )}
@@ -439,12 +439,12 @@ export default function SoalPage() {
                   </span>
                 )}
               </div>
-              <h3 className="font-bold text-neutral-900 text-base truncate">{m.judul}</h3>
+              <h3 className="font-bold text-neutral-900 text-base break-words">{m.judul}</h3>
               
               {!m.unlocked && m.alasan_terkunci && (
-                <div className="inline-flex items-center gap-1.5 p-2 rounded bg-danger/5 border border-danger/10 text-[10px] font-semibold text-danger leading-snug">
+                <div className="flex max-w-full items-start gap-1.5 p-2 rounded bg-danger/5 border border-danger/10 text-[10px] font-semibold text-danger leading-snug">
                   <AlertCircle size={12} className="shrink-0" />
-                  <span>{m.alasan_terkunci}</span>
+                  <span className="min-w-0 break-words">{m.alasan_terkunci}</span>
                 </div>
               )}
             </div>
@@ -460,25 +460,25 @@ export default function SoalPage() {
 
               {m.unlocked ? (
                 m.completed ? (
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 flex-col items-stretch gap-1.5 sm:items-end sm:flex-none">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <button
                         onClick={() => handleStartExam(m.modul_id, m.judul, true, m.nilai ?? 0, m.poin ?? 0)}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-neutral-100 hover:bg-neutral-250 text-neutral-700 transition"
+                        className="inline-flex w-full items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-neutral-100 hover:bg-neutral-250 text-neutral-700 transition sm:w-auto"
                       >
                         Lihat Pembahasan
                       </button>
                       {m.bisa_ulang || m.latsol_bisa_ulang ? (
                         <button
                           onClick={() => handleStartExam(m.modul_id, m.judul, false)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-primary hover:bg-primary-light text-white transition shadow-md shadow-primary/10"
+                          className="inline-flex w-full items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-primary hover:bg-primary-light text-white transition shadow-md shadow-primary/10 sm:w-auto"
                         >
                           Ulangi Latsol <ArrowRight size={13} />
                         </button>
                       ) : (
                         <button
                           disabled
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed opacity-60"
+                          className="inline-flex w-full items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed opacity-60 sm:w-auto"
                           title="Menunggu izin guru untuk mengulang"
                         >
                           Ulangi Latsol
@@ -486,7 +486,7 @@ export default function SoalPage() {
                       )}
                     </div>
                     {!(m.bisa_ulang || m.latsol_bisa_ulang) && (
-                      <span className="text-[9px] text-neutral-400 font-semibold italic">Butuh izin guru untuk mengulang</span>
+                      <span className="max-w-full text-right text-[9px] text-neutral-400 font-semibold italic break-words">Butuh izin guru untuk mengulang</span>
                     )}
                   </div>
                 ) : (
