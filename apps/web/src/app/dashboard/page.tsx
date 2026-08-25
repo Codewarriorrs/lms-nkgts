@@ -197,12 +197,18 @@ export default function DashboardPage() {
       ([key, p]: [string, any]) => validIds.has(key) && (p.scrollProgress > 0 || (p.score !== null && p.score > 0))
     ).length;
 
+    const latsolCompletedCount = Object.entries(progressMap).filter(
+      ([key, p]: [string, any]) => validIds.has(key) && p.score !== null
+    ).length;
+
+    const projectCompletedCount = projectFiles.filter((p: any) => p.file_url).length;
+
     return [
       { label: "Materi Diakses", value: accessedCount, total: 5, icon: BookOpen, color: "text-primary" },
-      { label: "Tugas Selesai", value: 0, total: 0, icon: ClipboardList, color: "text-success" },
-      { label: "Laporan Progress", value: accessedCount >= 5 ? 100 : Math.round((accessedCount / 5) * 100), total: null, icon: FolderKanban, color: "text-accent-dark" },
+      { label: "Latihan Soal", value: latsolCompletedCount, total: 5, icon: ClipboardList, color: "text-success" },
+      { label: "Project Kaizen", value: projectCompletedCount, total: 2, icon: FolderKanban, color: "text-accent-dark" },
     ];
-  }, [progressMap]);
+  }, [progressMap, projectFiles]);
 
   // Compute real-time Materi Lanjutkan (first 4 modules)
   const materiLanjutkan = useMemo(() => {

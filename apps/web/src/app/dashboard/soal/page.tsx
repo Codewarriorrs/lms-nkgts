@@ -322,8 +322,10 @@ export default function SoalPage() {
                       {/* Options List */}
                       <div className="pl-0 sm:pl-6 space-y-2.5">
                         {q.pilihan.map((opsi, oIdx) => {
-                          const isSelected = selectedOpt === oIdx;
-                          const isCorrectKey = oIdx === q.jawaban_benar;
+                          const rawSelected = (answers as Record<string | number, number>)[q.id];
+                          const selectedOpt = rawSelected !== undefined && rawSelected !== null ? Number(rawSelected) : undefined;
+                          const isSelected = selectedOpt !== undefined && selectedOpt === oIdx;
+                          const isCorrectKey = q.jawaban_benar !== undefined && q.jawaban_benar !== null && Number(q.jawaban_benar) === oIdx;
                           const isUserCorrectChoice = isSelected && isCorrectKey;
                           const isUserWrongChoice = isSelected && !isCorrectKey;
                           const isNormalSelected = !isReviewMode && isSelected;
@@ -333,13 +335,13 @@ export default function SoalPage() {
 
                           if (isReviewMode) {
                             if (isUserCorrectChoice) {
-                              containerStyle = "bg-emerald-50 border-emerald-500 text-emerald-800 font-bold shadow-xs ring-1 ring-emerald-400";
+                              containerStyle = "bg-emerald-50 border-emerald-500 text-emerald-900 font-bold shadow-xs ring-1 ring-emerald-400";
                               badgeStyle = "border-emerald-600 bg-emerald-600 text-white";
                             } else if (isCorrectKey) {
-                              containerStyle = "bg-emerald-50/70 border-emerald-300 text-emerald-800 font-semibold";
+                              containerStyle = "bg-emerald-50/80 border-emerald-400 text-emerald-900 font-bold shadow-2xs";
                               badgeStyle = "border-emerald-500 bg-emerald-500 text-white";
                             } else if (isUserWrongChoice) {
-                              containerStyle = "bg-rose-50 border-rose-400 text-rose-800 font-bold shadow-xs ring-1 ring-rose-300";
+                              containerStyle = "bg-rose-50 border-rose-400 text-rose-900 font-bold shadow-xs ring-1 ring-rose-300";
                               badgeStyle = "border-rose-500 bg-rose-500 text-white";
                             } else {
                               containerStyle = "border-neutral-100 text-neutral-400 opacity-60 pointer-events-none";
@@ -360,17 +362,17 @@ export default function SoalPage() {
                               </div>
                               <span className="min-w-0 flex-1 leading-snug break-words">{opsi}</span>
                               {isReviewMode && isUserCorrectChoice && (
-                                <span className="max-w-full text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0 break-words">
+                                <span className="max-w-full text-[10px] font-black uppercase text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded shrink-0 break-words">
                                   ✓ Jawaban Anda (Benar)
                                 </span>
                               )}
                               {isReviewMode && isCorrectKey && !isSelected && (
-                                <span className="max-w-full text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0 break-words">
-                                  Kunci Benar
+                                <span className="max-w-full text-[10px] font-black uppercase text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded shrink-0 break-words">
+                                  ✓ Kunci Jawaban Benar
                                 </span>
                               )}
                               {isReviewMode && isUserWrongChoice && (
-                                <span className="max-w-full text-[10px] font-black uppercase text-rose-700 bg-rose-100 px-2 py-0.5 rounded shrink-0 break-words">
+                                <span className="max-w-full text-[10px] font-black uppercase text-rose-800 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded shrink-0 break-words">
                                   ✗ Jawaban Anda (Salah)
                                 </span>
                               )}
