@@ -1411,31 +1411,29 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       {/* ── TAB: REKAP LATIHAN SOAL SISWA ── */}
       {tab === "latsol" && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-neutral-100 pb-5">
+          <div className="space-y-4">
             <div>
               <h1 className="text-2xl font-bold text-neutral-900 leading-tight">Rekap Nilai Latihan Soal</h1>
               <p className="text-neutral-400 text-xs font-semibold mt-1">
                 Pantau daftar nilai Latihan Soal (Latsol) mandiri siswa per-modul secara instan dan rapi.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Module Selector */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-neutral-400 uppercase">Modul:</span>
-                <select
-                  value={selectedLatsolModuleId}
-                  onChange={(e) => setSelectedLatsolModuleId(e.target.value ? Number(e.target.value) : "")}
-                  className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none font-bold text-neutral-750 cursor-pointer"
-                >
-                  {modules.map((m) => (
-                    <option key={m.id} value={m.id}>{m.urutan}. {m.judul}</option>
-                  ))}
-                </select>
-              </div>
+
+            {/* Equalized Responsive Filter Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-center w-full">
+              <select
+                value={selectedLatsolModuleId}
+                onChange={(e) => setSelectedLatsolModuleId(e.target.value ? Number(e.target.value) : "")}
+                className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white focus:outline-none font-semibold text-neutral-700 cursor-pointer truncate"
+              >
+                {modules.map((m) => (
+                  <option key={m.id} value={m.id}>{m.urutan}. {m.judul}</option>
+                ))}
+              </select>
 
               {renderSchoolFilter()}
               
-              <div className="relative">
+              <div className="relative w-full">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400">
                   <Search size={14} />
                 </span>
@@ -1444,14 +1442,14 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari siswa..."
-                  className="pl-8 pr-4 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none"
+                  className="w-full pl-8 pr-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white focus:outline-none"
                 />
               </div>
 
               <select
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none font-bold text-neutral-700 cursor-pointer"
+                className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white focus:outline-none font-semibold text-neutral-700 cursor-pointer"
               >
                 {classesList.map((cls) => (
                   <option key={cls} value={cls}>{cls === "Semua" ? "Semua Kelas" : `Kelas ${cls}`}</option>
@@ -1460,12 +1458,12 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
             </div>
           </div>
 
-          {/* Global Retry Toggle - Admin Only */}
+          {/* Global Retry Toggle - Admin Only (Mustard Yellow Box) */}
           {currentUser?.role === "admin" && activeLatsolModule && (
-            <div className="bg-neutral-50 border border-neutral-150 rounded-xl p-3 flex items-center justify-between gap-4 text-xs max-w-xl shadow-xs">
+            <div className="bg-amber-50/80 border border-amber-200/90 rounded-xl p-3.5 flex items-center justify-between gap-4 text-xs max-w-xl shadow-xs">
               <div className="space-y-0.5">
-                <p className="font-bold text-neutral-850">Izin Mengulang Latsol (Semua Siswa)</p>
-                <p className="text-[10px] text-neutral-400">Aktifkan agar seluruh siswa bisa mengulang Latihan Soal untuk modul <strong>"{activeLatsolModule.judul}"</strong> kapan saja.</p>
+                <p className="font-extrabold text-amber-950">Izin Mengulang Latsol (Semua Siswa)</p>
+                <p className="text-[11px] text-amber-900/80 leading-snug">Aktifkan agar seluruh siswa bisa mengulang Latihan Soal untuk modul <strong>"{activeLatsolModule.judul}"</strong> kapan saja.</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
                 <input
@@ -1480,13 +1478,12 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
           )}
 
           <div className="bg-white rounded-xl border border-neutral-100 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-neutral-50/50 text-neutral-400 font-extrabold uppercase border-b border-neutral-100">
-                    <th className="px-6 py-4">Nama Siswa</th>
-                    {currentUser?.role === "admin" && <th className="px-6 py-4">Sekolah</th>}
-                    <th className="px-6 py-4">Kelas</th>
+                  <tr className="bg-neutral-50/50 text-neutral-400 font-extrabold uppercase border-b border-neutral-100 text-[11px]">
+                    <th className="px-6 py-4">Siswa (Kelas & Sekolah)</th>
                     <th className="px-6 py-4">Skor Latsol</th>
                     <th className="px-6 py-4 text-right">Poin</th>
                     {currentUser?.role === "admin" && (
@@ -1497,7 +1494,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                 <tbody className="divide-y divide-neutral-100 text-neutral-700">
                   {filteredStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={currentUser?.role === "admin" ? 6 : 5} className="px-6 py-8 text-center text-neutral-400 italic">Siswa tidak ditemukan.</td>
+                      <td colSpan={currentUser?.role === "admin" ? 4 : 3} className="px-6 py-8 text-center text-neutral-400 italic">Siswa tidak ditemukan.</td>
                     </tr>
                   ) : (
                     filteredStudents.map((student) => {
@@ -1508,27 +1505,30 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
 
                       return (
                         <tr key={student.id} className="hover:bg-neutral-50/30 transition">
-                          <td className="px-6 py-4 font-bold text-neutral-900">{student.nama}</td>
-                          {currentUser?.role === "admin" && (
-                            <td className="px-6 py-4 font-semibold text-neutral-600">{student.sekolah_nama || "-"}</td>
-                          )}
-                          <td className="px-6 py-4 text-neutral-500 font-semibold">{student.kelas || "-"}</td>
-                          <td className="px-6 py-4 font-semibold">
+                          <td className="px-6 py-3.5">
+                            <div>
+                              <p className="font-extrabold text-neutral-900 text-xs">{student.nama}</p>
+                              <p className="text-[11px] text-neutral-500 font-medium mt-0.5">
+                                {student.kelas ? `Kelas ${student.kelas}` : "Kelas -"} • {student.sekolah_nama || "N-KGTS Pusat"}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3.5 font-semibold">
                             {hasTaken ? (
-                              <span className={`px-2 py-1 rounded-md text-[10px] font-black ${
+                              <span className={`px-2.5 py-1 rounded-md text-[10px] font-black ${
                                 score >= 70 ? "bg-success/10 text-success border border-success/20" : "bg-warning/10 text-warning border border-warning/20"
                               }`}>
                                 {score}%
                               </span>
                             ) : (
-                              <span className="text-neutral-400 italic">Belum ujian</span>
+                              <span className="text-neutral-400 italic text-[11px]">Belum ujian</span>
                             )}
                           </td>
-                          <td className="px-6 py-4 text-right font-extrabold text-neutral-800">
+                          <td className="px-6 py-3.5 text-right font-extrabold text-neutral-800">
                             {hasTaken ? `${poin ?? 0} Poin` : "-"}
                           </td>
                           {currentUser?.role === "admin" && (
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-6 py-3.5 text-right">
                               {hasTaken && activeLatsolModule ? (
                                 <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
                                   <input
@@ -1543,7 +1543,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                                   </span>
                                 </label>
                               ) : (
-                                <span className="text-neutral-400">-</span>
+                                <span className="text-[10px] text-neutral-350 italic">-</span>
                               )}
                             </td>
                           )}
@@ -1553,6 +1553,58 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Cards View (< md) */}
+            <div className="block md:hidden divide-y divide-neutral-100">
+              {filteredStudents.length === 0 ? (
+                <div className="p-8 text-center text-neutral-400 text-xs italic">Siswa tidak ditemukan.</div>
+              ) : (
+                filteredStudents.map((student) => {
+                  const studentModProgress = student.modules.find((m: any) => m.id === selectedLatsolModuleId);
+                  const hasTaken = studentModProgress?.latsol_score !== undefined && studentModProgress?.latsol_score !== null;
+                  const score = studentModProgress?.latsol_score;
+                  const poin = studentModProgress?.latsol_poin;
+
+                  return (
+                    <div key={student.id} className="p-4 space-y-2.5 bg-white">
+                      <div>
+                        <h4 className="font-extrabold text-neutral-900 text-xs">{student.nama}</h4>
+                        <p className="text-[11px] text-neutral-500 font-medium leading-tight mt-0.5">
+                          {student.kelas ? `Kelas ${student.kelas}` : "Kelas -"} • {student.sekolah_nama || "N-KGTS Pusat"}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs border-t border-neutral-100 pt-2">
+                        <div>
+                          {hasTaken ? (
+                            <span className="font-extrabold text-emerald-700 text-xs">
+                              Skor: {score}% ({poin ?? 0} Poin)
+                            </span>
+                          ) : (
+                            <span className="text-neutral-400 italic text-[11px]">Belum ujian</span>
+                          )}
+                        </div>
+
+                        {currentUser?.role === "admin" && hasTaken && activeLatsolModule && (
+                          <label className="inline-flex items-center gap-1.5 cursor-pointer select-none bg-neutral-50 border border-neutral-200 px-2 py-1 rounded-lg">
+                            <input
+                              type="checkbox"
+                              checked={studentModProgress?.latsol_bisa_ulang || activeLatsolModule?.latsol_bisa_ulang || false}
+                              disabled={activeLatsolModule?.latsol_bisa_ulang}
+                              onChange={() => handleToggleStudentLatsolRepeat(student.id, activeLatsolModule.id, !studentModProgress?.latsol_bisa_ulang)}
+                              className="h-3 w-3 accent-primary rounded"
+                            />
+                            <span className="text-[10px] font-bold text-neutral-700">
+                              {activeLatsolModule?.latsol_bisa_ulang ? "Aktif (Global)" : "Izin Ulang"}
+                            </span>
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
