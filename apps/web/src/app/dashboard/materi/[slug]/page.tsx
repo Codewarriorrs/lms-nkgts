@@ -689,16 +689,18 @@ export default function MateriDetailPage() {
                   prose-img:mx-auto prose-img:max-w-full prose-img:h-auto prose-img:rounded-2xl prose-img:shadow-sm"
               />
 
-              {/* Section Kuis */}
+              {/* Section Kuis - Clean Flat Layout (Tanpa Nested Box) */}
               {quizList.length > 0 && (
-                <section className="rounded-2xl border border-neutral-100 bg-neutral-50/50 p-5 mt-10 space-y-4">
-                  <div className="flex items-center gap-2 text-primary">
-                    <BrainCircuit size={18} />
-                    <h2 className="text-lg font-bold text-neutral-900">Kuis Pemahaman</h2>
+                <section className="mt-10 space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2 text-primary">
+                      <BrainCircuit size={18} />
+                      <h2 className="text-lg font-bold text-neutral-900">Kuis Pemahaman</h2>
+                    </div>
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Selesaikan kuis pemahaman berikut ini untuk menguji pemahaman Anda. Anda dianggap lulus jika skor mencapai minimal 70.
+                    </p>
                   </div>
-                  <p className="text-sm text-neutral-600">
-                    Selesaikan kuis pemahaman berikut ini untuk menguji pemahaman Anda. Anda dianggap lulus jika skor mencapai minimal 70.
-                  </p>
                   
                   {/* Banner Hasil jika Kuis Sudah Disubmit */}
                   {submitted && progress.score !== null && (
@@ -728,15 +730,15 @@ export default function MateriDetailPage() {
                     </div>
                   )}
 
-                  {/* Daftar Soal (Tampil jika Belum Submit ATAU Jika Siswa Membuka Pembahasan) */}
+                  {/* Daftar Soal - Clean Flat List */}
                   {true && (
-                    <div className="space-y-5 mt-4">
+                    <div className="space-y-6 divide-y divide-neutral-100">
                       {quizList.map((quiz: any, quizIndex: number) => {
                         const options = [quiz.pilihan_a, quiz.pilihan_b, quiz.pilihan_c, quiz.pilihan_d];
                         return (
-                          <div key={`${quiz.id}-${quizIndex}`} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+                          <div key={`${quiz.id}-${quizIndex}`} className="pt-4 space-y-3">
                             <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm font-bold text-neutral-800">{quizIndex + 1}. {quiz.pertanyaan}</p>
+                              <p className="text-sm font-extrabold text-neutral-900">{quizIndex + 1}. {quiz.pertanyaan}</p>
                               {submitted && (
                                 <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                                   answers[quizIndex] === quiz.jawaban_benar

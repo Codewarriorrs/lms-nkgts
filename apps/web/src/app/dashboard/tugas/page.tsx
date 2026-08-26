@@ -581,8 +581,38 @@ export default function TugasPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_3.5fr] gap-6 items-start">
-          {/* Sidebar Menu Tahapan */}
-          <div className="bg-white rounded-2xl border border-neutral-100 p-4 space-y-2 flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible shrink-0 gap-2 lg:gap-0">
+          {/* Mobile Dropdown Select Menu (< lg) */}
+          <div className="block lg:hidden w-full">
+            <label className="block text-[11px] font-bold text-neutral-400 uppercase mb-1">Pilih Tahapan Tugas Praktik:</label>
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(Number(e.target.value))}
+              className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-xl text-xs font-extrabold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-xs cursor-pointer"
+            >
+              {[
+                { id: 1, label: "1. Ringkas 1 - Memilah" },
+                { id: 2, label: "2. Ringkas 2 - Memilah" },
+                { id: 3, label: "3. Checklist 5R" },
+                { id: 4, label: "4. Potensi Bahaya" },
+                { id: 5, label: "5. Mencari Pemborosan" }
+              ].map((tab) => {
+                const locked = isTabLocked(tab.id);
+                const statusLabel = getTabStatusLabel(tab.id);
+                return (
+                  <option 
+                    key={tab.id} 
+                    value={tab.id} 
+                    disabled={locked && activeTab !== tab.id}
+                  >
+                    {tab.label} {statusLabel ? `• (${statusLabel})` : ""}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* Desktop Sidebar Menu (>= lg) */}
+          <div className="hidden lg:flex flex-col bg-white rounded-2xl border border-neutral-100 p-4 space-y-2 shrink-0">
             {[
               { id: 1, label: "1. Ringkas 1 - Memilah" },
               { id: 2, label: "2. Ringkas 2 - Memilah" },
@@ -597,7 +627,7 @@ export default function TugasPage() {
                   key={tab.id}
                   disabled={locked && activeTab !== tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-xl transition text-xs font-bold whitespace-nowrap lg:whitespace-normal group ${
+                  className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-xl transition text-xs font-bold ${
                     active 
                       ? "bg-primary text-white" 
                       : locked 
@@ -614,8 +644,8 @@ export default function TugasPage() {
             })}
           </div>
 
-          {/* Form Content Area */}
-          <div className="bg-white rounded-2xl border border-neutral-100 p-6 space-y-6">
+          {/* Form Content Area - Flat Clean Container */}
+          <div className="bg-white rounded-2xl border border-neutral-100 p-4 sm:p-6 space-y-6">
             {/* SUBMENU 1: RINGKAS 1 - MEMILAH */}
             {activeTab === 1 && (
               <div className="space-y-5">
@@ -1434,8 +1464,8 @@ export default function TugasPage() {
                             else if (score >= 5) { label = "Sedang"; color = "text-warning bg-warning/10 border-warning/30"; }
 
                             return (
-                              <div key={i} className="bg-neutral-50/75 border border-neutral-200/80 rounded-xl p-3.5 space-y-3">
-                                <div className="flex items-center justify-between border-b border-neutral-200/60 pb-2">
+                              <div key={i} className="py-3.5 border-b border-neutral-100 space-y-3">
+                                <div className="flex items-center justify-between pb-1">
                                   <span className="font-extrabold text-neutral-900 text-xs">Temuan #{i + 1}</span>
                                   <span className={`inline-block font-black px-2.5 py-0.5 rounded-full text-[10px] border ${color}`}>
                                     Skor: {score} ({label})
@@ -1635,15 +1665,15 @@ export default function TugasPage() {
                         </div>
                       </div>
 
-                      {/* Form 1: Rumah */}
-                      <div className="border rounded-2xl p-4 bg-white space-y-3">
-                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Potensi Bahaya: Rumah / Diperjalanan <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
+                      {/* Form 1: Rumah - Clean Flat Container */}
+                      <div className="space-y-3 pt-2">
+                        <h4 className="text-xs font-extrabold text-neutral-900 uppercase">Potensi Bahaya: Rumah / Diperjalanan <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
                         {renderFormTable(bahayaRumahS4, setBahayaRumahS4)}
                       </div>
 
-                      {/* Form 2: Sekolah */}
-                      <div className="border rounded-2xl p-4 bg-white space-y-3">
-                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Potensi Bahaya: Aktivitas di Sekolah <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
+                      {/* Form 2: Sekolah - Clean Flat Container */}
+                      <div className="space-y-3 pt-4 border-t border-neutral-100">
+                        <h4 className="text-xs font-extrabold text-neutral-900 uppercase">Potensi Bahaya: Aktivitas di Sekolah <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
                         {renderFormTable(bahayaSekolahS4, setBahayaSekolahS4)}
                       </div>
 
