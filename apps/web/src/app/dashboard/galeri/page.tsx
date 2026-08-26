@@ -370,7 +370,7 @@ export default function GaleriPage() {
                   <Loader2 className="animate-spin text-primary" size={28} />
                 </div>
               ) : pendingPosts.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-neutral-200 p-8 text-center text-neutral-400">
+                <div className="py-8 text-center text-neutral-400">
                   <p className="font-bold text-xs">Tidak ada antrean foto baru.</p>
                   <p className="text-[11px]">Semua postingan galeri sudah ditinjau.</p>
                 </div>

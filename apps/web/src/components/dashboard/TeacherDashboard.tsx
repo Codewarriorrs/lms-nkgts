@@ -82,6 +82,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
   // Selected details
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
   const [selectedTaskSubmisi, setSelectedTaskSubmisi] = useState<any | null>(null);
+  const [selectedStudentTaskGroupModal, setSelectedStudentTaskGroupModal] = useState<any | null>(null);
   const [selectedProjectSubmisi, setSelectedProjectSubmisi] = useState<any | null>(null);
 
   // Document preview modal state
@@ -960,16 +961,19 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
       {/* ── TAB 2: TUGAS PRAKTIKUM ── */}
       {tab === "tugas" && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-4">
             <div>
               <h1 className="text-2xl font-bold text-neutral-900 leading-tight">Daftar Tugas Praktikum Siswa</h1>
               <p className="text-neutral-400 text-xs font-semibold mt-1">
                 Tinjau laporan dan berikan nilai observasi area praktikum siswa.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            
+            {/* Equalized Filter Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center w-full">
               {renderSchoolFilter()}
-              <div className="relative">
+
+              <div className="relative w-full">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400">
                   <Search size={14} />
                 </span>
@@ -978,27 +982,27 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari siswa..."
-                  className="pl-8 pr-4 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none"
+                  className="w-full pl-8 pr-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white focus:outline-none"
                 />
               </div>
 
               <select 
                 value={selectedTaskModuleId}
                 onChange={(e) => setSelectedTaskModuleId(e.target.value)}
-                className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold text-neutral-700"
+                className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white focus:outline-none cursor-pointer font-semibold text-neutral-700 truncate"
               >
                 <option value="Semua">Semua Modul Tugas</option>
-                <option value="1">Tugas Modul 1 (Ringkas 1 - Memilah)</option>
-                <option value="2">Tugas Modul 2 (Ringkas 2 - Pemilahan)</option>
-                <option value="3">Tugas Modul 3 (Checklist Evaluasi 5R)</option>
-                <option value="4">Tugas Modul 4 (Potensi Bahaya)</option>
-                <option value="5">Tugas Modul 5 (Mencari Pemborosan)</option>
+                <option value="1">Modul 1 (Ringkas 1)</option>
+                <option value="2">Modul 2 (Ringkas 2)</option>
+                <option value="3">Modul 3 (Checklist 5R)</option>
+                <option value="4">Modul 4 (Potensi Bahaya)</option>
+                <option value="5">Modul 5 (Mencari Pemborosan)</option>
               </select>
 
               <select
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold text-neutral-700"
+                className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white focus:outline-none cursor-pointer font-semibold text-neutral-700"
               >
                 {classesList.map((cls) => (
                   <option key={cls} value={cls}>{cls === "Semua" ? "Semua Kelas" : `Kelas ${cls}`}</option>
@@ -1008,7 +1012,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold text-neutral-700"
+                className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white focus:outline-none cursor-pointer font-semibold text-neutral-700"
               >
                 <option value="Semua">Semua Status</option>
                 <option value="Belum Dinilai">Belum Dinilai</option>
@@ -1017,87 +1021,138 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-neutral-100 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-neutral-50/50 text-neutral-400 font-extrabold uppercase border-b border-neutral-100">
-                    <th className="px-6 py-4">Siswa</th>
-                    <th className="px-6 py-4">Tugas</th>
-                    <th className="px-6 py-4">Nilai</th>
-                    <th className="px-6 py-4">Tanggal Kumpul</th>
-                    <th className="px-6 py-4 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100 text-neutral-700">
-                  {filteredTasks.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-neutral-400 italic">Tidak ada berkas tugas ditemukan.</td>
-                    </tr>
-                  ) : (
-                    filteredTasks.map((item) => (
-                      <tr key={item.id} className="hover:bg-neutral-50/30 transition">
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-bold text-neutral-900">{item.siswa.nama}</p>
-                            <p className="text-[10px] text-neutral-400">{item.siswa.email}</p>
-                            {currentUser?.role === "admin" && (
-                              <p className="text-[9px] font-bold text-primary bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5 inline-block mt-1">
-                                {item.siswa.sekolah?.nama_sekolah || item.siswa.sekolah_nama || "N-KGTS Pusat"}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 font-bold text-neutral-800">{item.tugas_praktek.judul}</td>
-                        <td className="px-6 py-4">
-                          {item.nilai !== null ? (
-                            <span className="px-2.5 py-0.5 rounded-full font-bold bg-success/10 text-success text-[10px]">
-                              {item.nilai} / 100
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-0.5 rounded-full font-bold bg-warning/10 text-warning text-[10px]">
-                              Belum Dinilai
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-neutral-400">
-                          {new Date(item.submitted_at).toLocaleString("id-ID")}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => {
-                              setSelectedTaskSubmisi(item);
-                              setGradingScore(item.nilai ?? "");
-                              setGradingFeedback(item.catatan_guru ?? "");
-                            }}
-                            className="text-primary hover:underline font-bold"
-                          >
-                            Tinjau & Beri Nilai
-                          </button>
-                        </td>
+          {/* Group Tasks by Student */}
+          {(() => {
+            const studentTaskGroupsMap = new Map<string, { student: any; items: any[] }>();
+            filteredTasks.forEach((item) => {
+              const key = item.siswa.id || item.siswa.email;
+              if (!studentTaskGroupsMap.has(key)) {
+                studentTaskGroupsMap.set(key, { student: item.siswa, items: [] });
+              }
+              studentTaskGroupsMap.get(key)!.items.push(item);
+            });
+            const studentTaskGroups = Array.from(studentTaskGroupsMap.values());
+
+            return (
+              <div className="bg-white rounded-xl border border-neutral-100 overflow-hidden shadow-xs">
+                {/* Desktop Table View (>= md) */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-neutral-50/50 text-neutral-400 font-extrabold uppercase border-b border-neutral-100 text-[11px]">
+                        <th className="px-6 py-4">Siswa (Kelas & Sekolah)</th>
+                        <th className="px-6 py-4">Ringkasan Pengumpulan</th>
+                        <th className="px-6 py-4 text-right">Aksi</th>
                       </tr>
-                    ))
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100 text-neutral-700">
+                      {studentTaskGroups.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="px-6 py-8 text-center text-neutral-400 italic">Tidak ada berkas tugas siswa ditemukan.</td>
+                        </tr>
+                      ) : (
+                        studentTaskGroups.map((group) => {
+                          const gradedCount = group.items.filter((i) => i.nilai !== null).length;
+                          const pendingCount = group.items.filter((i) => i.nilai === null).length;
+                          const studentClass = group.student.kelas ? `Kelas ${group.student.kelas}` : "";
+                          const studentSchool = group.student.sekolah?.nama_sekolah || group.student.sekolah_nama || "N-KGTS Pusat";
+
+                          return (
+                            <tr key={group.student.id || group.student.email} className="hover:bg-neutral-50/30 transition">
+                              <td className="px-6 py-4">
+                                <div>
+                                  <p className="font-extrabold text-neutral-900 text-xs">{group.student.nama}</p>
+                                  <p className="text-[11px] text-neutral-500 font-medium mt-0.5">
+                                    {group.student.email} {studentClass ? `• ${studentClass}` : ""} • {studentSchool}
+                                  </p>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="space-y-0.5">
+                                  <p className="font-bold text-neutral-800 text-xs">{group.items.length} Tugas Dikumpulkan</p>
+                                  <p className="text-[11px] text-neutral-500">
+                                    <span className="text-emerald-700 font-bold">{gradedCount} Dinilai</span>
+                                    {pendingCount > 0 && <span className="text-amber-700 font-bold ml-2">• {pendingCount} Belum Dinilai</span>}
+                                  </p>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <button
+                                  onClick={() => setSelectedStudentTaskGroupModal(group)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition cursor-pointer"
+                                >
+                                  Tinjau Tugas ({group.items.length}) <ChevronRight size={13} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards View (< md) */}
+                <div className="block md:hidden divide-y divide-neutral-100">
+                  {studentTaskGroups.length === 0 ? (
+                    <div className="p-8 text-center text-neutral-400 text-xs italic">Tidak ada berkas tugas siswa ditemukan.</div>
+                  ) : (
+                    studentTaskGroups.map((group) => {
+                      const gradedCount = group.items.filter((i) => i.nilai !== null).length;
+                      const pendingCount = group.items.filter((i) => i.nilai === null).length;
+                      const studentClass = group.student.kelas ? `Kelas ${group.student.kelas}` : "";
+                      const studentSchool = group.student.sekolah?.nama_sekolah || group.student.sekolah_nama || "N-KGTS Pusat";
+
+                      return (
+                        <div key={group.student.id || group.student.email} className="p-4 space-y-3 bg-white">
+                          <div>
+                            <h4 className="font-extrabold text-neutral-900 text-xs">{group.student.nama}</h4>
+                            <p className="text-[11px] text-neutral-500 leading-tight mt-0.5">
+                              {group.student.email} {studentClass ? `• ${studentClass}` : ""} • {studentSchool}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs border-t border-neutral-100 pt-2.5">
+                            <div>
+                              <span className="font-bold text-neutral-800">{group.items.length} Tugas</span>
+                              <p className="text-[10px] text-neutral-500">
+                                <span className="text-emerald-700 font-bold">{gradedCount} Dinilai</span>
+                                {pendingCount > 0 && <span className="text-amber-700 font-bold ml-1.5">• {pendingCount} Belum</span>}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setSelectedStudentTaskGroupModal(group)}
+                              className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                            >
+                              Tinjau ({group.items.length})
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
       {/* ── TAB 3: PROJECT KAIZEN ── */}
       {tab === "project" && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-4">
             <div>
               <h1 className="text-2xl font-bold text-neutral-900 leading-tight">Pengumpulan Proyek Kaizen</h1>
               <p className="text-neutral-400 text-xs font-semibold mt-1">
                 Tinjau berkas proposal kelompok & laporan proyek siswa di bawah sekolah Anda.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-center w-full">
               {renderSchoolFilter()}
-              <div className="relative">
+
+              <div className="relative w-full">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400">
                   <Search size={14} />
                 </span>
@@ -1106,14 +1161,14 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari siswa..."
-                  className="pl-8 pr-4 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none"
+                  className="w-full pl-8 pr-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white focus:outline-none"
                 />
               </div>
 
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none cursor-pointer font-bold"
+                className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white focus:outline-none cursor-pointer font-semibold text-neutral-700"
               >
                 <option value="Semua">Semua Status</option>
                 <option value="Belum Dinilai">Belum Dinilai</option>
@@ -1123,11 +1178,12 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
           </div>
 
           <div className="bg-white rounded-xl border border-neutral-100 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-neutral-50/50 text-neutral-400 font-extrabold uppercase border-b border-neutral-100">
-                    <th className="px-6 py-4">Siswa / Pengirim</th>
+                  <tr className="bg-neutral-50/50 text-neutral-400 font-extrabold uppercase border-b border-neutral-100 text-[11px]">
+                    <th className="px-6 py-4">Siswa (Kelas & Sekolah)</th>
                     <th className="px-6 py-4">Tipe Berkas</th>
                     <th className="px-6 py-4">Nama Dokumen</th>
                     <th className="px-6 py-4">Nilai</th>
@@ -1144,13 +1200,10 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                       <tr key={item.id} className="hover:bg-neutral-50/30 transition">
                         <td className="px-6 py-4">
                           <div>
-                            <p className="font-bold text-neutral-900">{item.siswa.nama}</p>
-                            <p className="text-[10px] text-neutral-400">{item.siswa.email}</p>
-                            {currentUser?.role === "admin" && (
-                              <p className="text-[9px] font-bold text-primary bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5 inline-block mt-1">
-                                {item.siswa.sekolah?.nama_sekolah || item.siswa.sekolah_nama || "N-KGTS Pusat"}
-                              </p>
-                            )}
+                            <p className="font-extrabold text-neutral-900 text-xs">{item.siswa.nama}</p>
+                            <p className="text-[11px] text-neutral-500 font-medium mt-0.5">
+                              {item.siswa.email} {item.siswa.kelas ? `• Kelas ${item.siswa.kelas}` : ""} • {item.siswa.sekolah?.nama_sekolah || item.siswa.sekolah_nama || "N-KGTS Pusat"}
+                            </p>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -1204,6 +1257,66 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Cards View (< md) */}
+            <div className="block md:hidden divide-y divide-neutral-100">
+              {filteredProjects.length === 0 ? (
+                <div className="p-8 text-center text-neutral-400 text-xs italic">Belum ada pengumpulan berkas proyek Kaizen.</div>
+              ) : (
+                filteredProjects.map((item) => (
+                  <div key={item.id} className="p-4 space-y-3 bg-white">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-extrabold text-neutral-900 text-xs">{item.siswa.nama}</h4>
+                        <p className="text-[11px] text-neutral-500 leading-tight mt-0.5">
+                          {item.siswa.email} {item.siswa.kelas ? `• Kelas ${item.siswa.kelas}` : ""} • {item.siswa.sekolah?.nama_sekolah || item.siswa.sekolah_nama || "N-KGTS"}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[9px] shrink-0 ${
+                        item.tipe === "proposal" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {item.tipe}
+                      </span>
+                    </div>
+
+                    <div className="text-xs">
+                      <p className="font-bold text-neutral-800 truncate">{item.file_name}</p>
+                      <div className="mt-1">
+                        {item.nilai !== null ? (
+                          <span className="text-emerald-700 font-bold text-[11px]">Nilai: {item.nilai} / 100</span>
+                        ) : (
+                          <span className="text-amber-700 font-bold text-[11px]">Menunggu Review</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+                      {item.file_url && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPreviewModal(item.file_url, item.file_name)}
+                          className="inline-flex items-center gap-1 bg-white text-neutral-700 border border-neutral-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition"
+                        >
+                          <Eye size={12} className="text-primary" /> Preview
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedProjectSubmisi(item);
+                          setGradingScore(item.nilai ?? "");
+                          setGradingFeedback(item.catatan_guru ?? "");
+                          setGradingRevisiFile(item.file_revisi_name ? { name: item.file_revisi_name, url: item.file_revisi_url || "" } : null);
+                        }}
+                        className="inline-flex items-center gap-1 bg-primary text-white px-3 py-1.5 rounded-lg text-xs font-bold transition"
+                      >
+                        <Edit3 size={12} /> Review & Nilai
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -2120,7 +2233,79 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
         </div>
       )}
 
-      {/* ── DETAIL MODAL: PENILAIAN TUGAS PRAKTIKUM ── */}
+      {/* ── DETAIL MODAL 1: DAFTAR SUBMISI TUGAS PER-SISWA ── */}
+      {selectedStudentTaskGroupModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl border border-neutral-100 flex flex-col space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-neutral-900 text-sm">
+                  Daftar Tugas Praktik: {selectedStudentTaskGroupModal.student.nama}
+                </h3>
+                <p className="text-[11px] text-neutral-500 font-medium mt-0.5">
+                  {selectedStudentTaskGroupModal.student.email} • {selectedStudentTaskGroupModal.student.sekolah?.nama_sekolah || selectedStudentTaskGroupModal.student.sekolah_nama || "N-KGTS Pusat"}
+                </p>
+              </div>
+              <button 
+                onClick={() => setSelectedStudentTaskGroupModal(null)}
+                className="p-1 hover:bg-neutral-50 rounded-lg text-neutral-400"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-neutral-800">Tugas Yang Dikumpulkan ({selectedStudentTaskGroupModal.items.length}):</p>
+              <div className="divide-y divide-neutral-100 border border-neutral-100 rounded-xl overflow-hidden">
+                {selectedStudentTaskGroupModal.items.map((item: any) => (
+                  <div key={item.id} className="p-3.5 flex items-center justify-between gap-3 bg-white hover:bg-neutral-50/50 transition">
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <p className="font-bold text-neutral-900 text-xs truncate">{item.tugas_praktek?.judul}</p>
+                      <p className="text-[10px] text-neutral-400">
+                        Dikumpul: {new Date(item.submitted_at).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      {item.nilai !== null ? (
+                        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                          Nilai: {item.nilai}/100
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                          Belum Dinilai
+                        </span>
+                      )}
+                      
+                      <button
+                        onClick={() => {
+                          setSelectedTaskSubmisi(item);
+                          setGradingScore(item.nilai ?? "");
+                          setGradingFeedback(item.catatan_guru ?? "");
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold transition cursor-pointer"
+                      >
+                        Tinjau & Nilai
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button 
+                onClick={() => setSelectedStudentTaskGroupModal(null)}
+                className="px-4 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-xs font-bold text-neutral-700"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DETAIL MODAL 2: PENILAIAN TUGAS PRAKTIKUM ── */}
       {selectedTaskSubmisi && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-neutral-100 flex flex-col space-y-4 max-h-[90vh]">

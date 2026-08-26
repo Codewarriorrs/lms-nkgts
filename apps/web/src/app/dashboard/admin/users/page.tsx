@@ -547,19 +547,19 @@ export default function AdminUsersPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full md:w-auto">
           <button
             onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-neutral-100 bg-white text-neutral-700 shadow-xs hover:bg-neutral-50 transition duration-200 cursor-pointer"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border border-neutral-200 bg-white text-neutral-700 shadow-xs hover:bg-neutral-50 transition duration-200 cursor-pointer w-full"
           >
-            <Upload size={16} />
+            <Upload size={15} />
             Import CSV/Excel
           </button>
           <button
             onClick={() => setIsInviteModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-primary hover:bg-primary-light text-white shadow-md shadow-primary/20 transition duration-200 cursor-pointer"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-primary hover:bg-primary-light text-white shadow-md shadow-primary/20 transition duration-200 cursor-pointer w-full"
           >
-            <UserPlus size={16} />
+            <UserPlus size={15} />
             Undang Manual
           </button>
         </div>
@@ -644,68 +644,114 @@ export default function AdminUsersPage() {
           /* ================= TAMPILAN PENGGUNA AKTIF ================= */
           <div>
             {/* Filter & Search Bar */}
-            <div className="p-5 border-b border-neutral-50 flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="relative w-full md:w-80">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
-                  <Search size={18} />
+            <div className="p-4 sm:p-5 border-b border-neutral-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-center">
+              <div className="relative w-full">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-neutral-400">
+                  <Search size={16} />
                 </span>
                 <input
                   type="text"
-                  placeholder="Cari nama, email, atau NIS..."
+                  placeholder="Cari nama, email, NIS..."
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full pl-10 pr-4 py-2 border border-neutral-100 rounded-xl text-sm focus:outline-none focus:border-primary transition duration-200"
+                  className="w-full pl-9 pr-3 py-2 border border-neutral-200 rounded-xl text-xs focus:outline-none focus:border-primary transition"
                 />
               </div>
 
-              <div className="w-full md:w-auto flex flex-wrap gap-3 self-end md:self-auto items-center">
-                <select
-                  value={roleFilter}
-                  onChange={(e) => {
-                    setRoleFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="px-4 py-2 border border-neutral-100 rounded-xl text-sm bg-white text-neutral-700 focus:outline-none focus:border-primary transition duration-200 cursor-pointer"
-                >
-                  <option value="">Semua Role</option>
-                  <option value="admin">Admin</option>
-                  <option value="guru">Guru</option>
-                  <option value="siswa">Siswa</option>
-                </select>
+              <select
+                value={roleFilter}
+                onChange={(e) => {
+                  setRoleFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white text-neutral-700 focus:outline-none focus:border-primary transition cursor-pointer font-semibold"
+              >
+                <option value="">Semua Role</option>
+                <option value="admin">Admin</option>
+                <option value="guru">Guru</option>
+                <option value="siswa">Siswa</option>
+              </select>
 
-                {/* Export Excel Controls */}
-                <div className="flex items-center gap-2 border-l border-neutral-100 pl-3">
-                  <select
-                    value={exportSekolahId}
-                    onChange={(e) => setExportSekolahId(e.target.value)}
-                    className="px-3.5 py-2 border border-neutral-100 rounded-xl text-sm bg-white text-neutral-700 focus:outline-none focus:border-primary transition duration-200 cursor-pointer max-w-[200px] truncate"
-                  >
-                    <option value="">Semua Sekolah</option>
-                    {schools.map((s) => (
-                      <option key={s.id} value={s.id.toString()}>
-                        {s.nama_sekolah}
-                      </option>
-                    ))}
-                  </select>
+              <select
+                value={exportSekolahId}
+                onChange={(e) => setExportSekolahId(e.target.value)}
+                className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white text-neutral-700 focus:outline-none focus:border-primary transition cursor-pointer truncate font-semibold"
+              >
+                <option value="">Semua Sekolah</option>
+                {schools.map((s) => (
+                  <option key={s.id} value={s.id.toString()}>
+                    {s.nama_sekolah}
+                  </option>
+                ))}
+              </select>
 
-                  <button
-                    onClick={handleExportExcel}
-                    disabled={isExporting}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white shadow-xs transition duration-200 cursor-pointer"
-                    title="Tarik Rekapitulasi Nilai Siswa Ke Format Excel"
-                  >
-                    <FileSpreadsheet size={16} />
-                    {isExporting ? "Mengekspor..." : "Export Excel Nilai"}
-                  </button>
-                </div>
-              </div>
+              <button
+                onClick={handleExportExcel}
+                disabled={isExporting}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white shadow-xs transition cursor-pointer"
+                title="Tarik Rekapitulasi Nilai Siswa Ke Format Excel"
+              >
+                <FileSpreadsheet size={15} />
+                {isExporting ? "Mengekspor..." : "Export Excel Nilai"}
+              </button>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
+            {/* Mobile Cards (< md) */}
+            <div className="block md:hidden divide-y divide-neutral-100">
+              {loading ? (
+                <div className="p-8 text-center text-neutral-400 text-xs">Memuat data pengguna...</div>
+              ) : users.length === 0 ? (
+                <div className="p-8 text-center text-neutral-400 text-xs">Tidak ada pengguna aktif ditemukan.</div>
+              ) : (
+                users.map((user) => (
+                  <div key={user.id} className="p-4 space-y-2.5 bg-white">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-extrabold text-neutral-900 text-xs">{user.nama}</h4>
+                        <p className="text-[11px] text-neutral-500 font-mono leading-tight">{user.email}</p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                        user.role === "admin" ? "bg-purple-100 text-purple-700" : user.role === "guru" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+                      }`}>
+                        {user.role}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-neutral-500 space-y-0.5">
+                      <p>Sekolah: <strong className="text-neutral-700 font-semibold">{user.nama_sekolah || "N-KGTS"}</strong></p>
+                      {user.nis && <p>NIS: <strong className="font-mono text-neutral-700">{user.nis}</strong></p>}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-end gap-1.5 pt-2 border-t border-neutral-100">
+                      <button
+                        onClick={() => setSendResetTargetUser(user)}
+                        className="px-2 py-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg"
+                      >
+                        Reset Sandi
+                      </button>
+                      <button
+                        onClick={() => { setSelectedEditUser(user); setEditRoleValue(user.role); }}
+                        className="px-2 py-1 text-[10px] font-bold text-primary bg-primary/5 border border-primary/20 rounded-lg"
+                      >
+                        Ubah Role
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.id, user.nama)}
+                        className="px-2 py-1 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-neutral-50/50 text-neutral-400 text-xs font-extrabold uppercase tracking-wider border-b border-neutral-50">
