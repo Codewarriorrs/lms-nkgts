@@ -20,7 +20,8 @@ import {
   Underline,
   List,
   ListOrdered,
-  Sidebar
+  Sidebar,
+  Lock
 } from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { API_URL } from "@/lib/api";
@@ -82,6 +83,8 @@ export default function MateriDetailPage() {
   const lastSavedProgressRef = useRef<number>(0);
   const editorRef = useRef<HTMLDivElement>(null);
 
+  const [lockedError, setLockedError] = useState<string | null>(null);
+
   // 1. Memuat Info User dari LocalStorage
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -100,6 +103,7 @@ export default function MateriDetailPage() {
       if (!slug) return;
       try {
         setLoading(true);
+        setLockedError(null);
         const token = localStorage.getItem("token");
         if (!token) return;
         const res = await fetch(`${API_URL}/materi/modules/${slug}`, {
@@ -109,6 +113,11 @@ export default function MateriDetailPage() {
           const data = await res.json();
           setDbModule(data);
           setHtmlContent(data.deskripsi || "");
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          if (res.status === 403) {
+            setLockedError(errData.message || "Modul ini masih terkunci. Harap selesaikan modul sebelumnya terlebih dahulu.");
+          }
         }
       } catch (err) {
         console.error("Gagal memuat detail modul dari database:", err);
@@ -447,6 +456,28 @@ export default function MateriDetailPage() {
     );
   }
 
+  if (lockedError) {
+    return (
+      <div className="px-6 py-12 max-w-lg mx-auto text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+          <Lock size={32} />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-neutral-900">Modul Masih Terkunci</h2>
+          <p className="text-sm text-neutral-600 leading-relaxed">{lockedError}</p>
+        </div>
+        <div className="pt-2">
+          <Link
+            href="/dashboard/materi"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-light transition shadow-sm"
+          >
+            <ArrowLeft size={14} /> Kembali ke Daftar Materi
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!dbModule) {
     return (
       <div className="px-6 py-8 text-center text-neutral-500">
@@ -463,7 +494,7 @@ export default function MateriDetailPage() {
   const quizList = dbModule.soal_latihan || [];
 
   return (
-    <div className="px-6 py-8 space-y-6">
+    <div className="px-3 sm:px-6 py-4 sm:py-8 space-y-6">
       {/* Header navigasi */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Link href="/dashboard/materi" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary-light">
@@ -511,18 +542,18 @@ export default function MateriDetailPage() {
       </div>
 
       <div className={`grid gap-5 transition-all duration-300 ${showSidebar ? "lg:grid-cols-[2fr_0.6fr]" : "grid-cols-1"}`}>
-        <div className="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm flex flex-col min-w-0">
+        <div className="rounded-2xl border border-neutral-100 bg-white p-4 sm:p-6 shadow-sm flex flex-col min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-neutral-400">Modul Teori</p>
-              <h1 className="text-2xl font-bold text-neutral-900 mt-1">{dbModule.judul}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 mt-1 break-words">{dbModule.judul}</h1>
             </div>
             <div className={`rounded-full px-3 py-1 text-xs font-semibold ${progress.completed ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
               {completionLabel}
             </div>
           </div>
 
-          <div className="self-start mt-6 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
+          <div className="w-full sm:self-start mt-6 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
             <div className="flex items-center justify-between text-sm font-semibold text-neutral-700">
               <span>Progress belajar Anda</span>
               <span>{Math.max(progress.scrollProgress, progress.score ?? 0)}%</span>
@@ -671,7 +702,7 @@ export default function MateriDetailPage() {
             /* Ruangguru / Zenius Style flowing article view */
             <div
               id="module-content"
-              className="mt-6 max-h-[600px] overflow-y-auto pr-2 space-y-6 prose max-w-none text-neutral-700 leading-8"
+              className="mt-6 space-y-6 prose max-w-none text-neutral-700 leading-8 overflow-hidden"
             >
               {/* Render Rich HTML Artikel */}
               <div
@@ -683,19 +714,21 @@ export default function MateriDetailPage() {
                   prose-ul:list-disc prose-ul:pl-6 prose-ul:space-y-2
                   prose-ol:list-decimal prose-ol:pl-6 prose-ol:space-y-2
                   prose-li:text-neutral-600
-                  prose-img:mx-auto prose-img:rounded-2xl prose-img:shadow-sm"
+                  prose-img:mx-auto prose-img:max-w-full prose-img:h-auto prose-img:rounded-2xl prose-img:shadow-sm"
               />
 
-              {/* Section Kuis */}
+              {/* Section Kuis - Clean Flat Layout (Tanpa Nested Box) */}
               {quizList.length > 0 && (
-                <section className="rounded-2xl border border-neutral-100 bg-neutral-50/50 p-5 mt-10 space-y-4">
-                  <div className="flex items-center gap-2 text-primary">
-                    <BrainCircuit size={18} />
-                    <h2 className="text-lg font-bold text-neutral-900">Kuis Pemahaman</h2>
+                <section className="mt-10 space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2 text-primary">
+                      <BrainCircuit size={18} />
+                      <h2 className="text-lg font-bold text-neutral-900">Kuis Pemahaman</h2>
+                    </div>
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Selesaikan kuis pemahaman berikut ini untuk menguji pemahaman Anda. Anda dianggap lulus jika skor mencapai minimal 70.
+                    </p>
                   </div>
-                  <p className="text-sm text-neutral-600">
-                    Selesaikan kuis pemahaman berikut ini untuk menguji pemahaman Anda. Anda dianggap lulus jika skor mencapai minimal 70.
-                  </p>
                   
                   {/* Banner Hasil jika Kuis Sudah Disubmit */}
                   {submitted && progress.score !== null && (
@@ -725,15 +758,15 @@ export default function MateriDetailPage() {
                     </div>
                   )}
 
-                  {/* Daftar Soal (Tampil jika Belum Submit ATAU Jika Siswa Membuka Pembahasan) */}
+                  {/* Daftar Soal - Clean Flat List */}
                   {true && (
-                    <div className="space-y-5 mt-4">
+                    <div className="space-y-6 divide-y divide-neutral-100">
                       {quizList.map((quiz: any, quizIndex: number) => {
                         const options = [quiz.pilihan_a, quiz.pilihan_b, quiz.pilihan_c, quiz.pilihan_d];
                         return (
-                          <div key={`${quiz.id}-${quizIndex}`} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+                          <div key={`${quiz.id}-${quizIndex}`} className="pt-4 space-y-3">
                             <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm font-bold text-neutral-800">{quizIndex + 1}. {quiz.pertanyaan}</p>
+                              <p className="text-sm font-extrabold text-neutral-900">{quizIndex + 1}. {quiz.pertanyaan}</p>
                               {submitted && (
                                 <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                                   answers[quizIndex] === quiz.jawaban_benar
@@ -780,14 +813,19 @@ export default function MateriDetailPage() {
                                       className="h-4 w-4 accent-primary"
                                     />
                                     <span className="flex-1">{option}</span>
-                                    {submitted && isCorrectAnswer && (
+                                    {submitted && isCorrectAnswer && selected && (
                                       <span className="text-success text-xs font-bold bg-success/20 px-2.5 py-0.5 rounded flex-shrink-0">
-                                        ✓ Jawaban Benar
+                                        ✓ Jawaban Anda (Benar)
+                                      </span>
+                                    )}
+                                    {submitted && isCorrectAnswer && !selected && (
+                                      <span className="text-success text-xs font-bold bg-success/20 px-2.5 py-0.5 rounded flex-shrink-0">
+                                        ✓ Kunci Jawaban Benar
                                       </span>
                                     )}
                                     {submitted && selected && !isCorrectAnswer && (
                                       <span className="text-danger text-xs font-bold bg-danger/20 px-2.5 py-0.5 rounded flex-shrink-0">
-                                        ✗ Pilihan Anda
+                                        ✗ Jawaban Anda (Salah)
                                       </span>
                                     )}
                                   </label>

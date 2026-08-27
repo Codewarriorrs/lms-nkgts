@@ -581,8 +581,38 @@ export default function TugasPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_3.5fr] gap-6 items-start">
-          {/* Sidebar Menu Tahapan */}
-          <div className="bg-white rounded-2xl border border-neutral-100 p-4 space-y-2 flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible shrink-0 gap-2 lg:gap-0">
+          {/* Mobile Dropdown Select Menu (< lg) */}
+          <div className="block lg:hidden w-full">
+            <label className="block text-[11px] font-bold text-neutral-400 uppercase mb-1">Pilih Tahapan Tugas Praktik:</label>
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(Number(e.target.value))}
+              className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-xl text-xs font-extrabold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-xs cursor-pointer"
+            >
+              {[
+                { id: 1, label: "1. Ringkas 1 - Memilah" },
+                { id: 2, label: "2. Ringkas 2 - Memilah" },
+                { id: 3, label: "3. Checklist 5R" },
+                { id: 4, label: "4. Potensi Bahaya" },
+                { id: 5, label: "5. Mencari Pemborosan" }
+              ].map((tab) => {
+                const locked = isTabLocked(tab.id);
+                const statusLabel = getTabStatusLabel(tab.id);
+                return (
+                  <option 
+                    key={tab.id} 
+                    value={tab.id} 
+                    disabled={locked && activeTab !== tab.id}
+                  >
+                    {tab.label} {statusLabel ? `• (${statusLabel})` : ""}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* Desktop Sidebar Menu (>= lg) */}
+          <div className="hidden lg:flex flex-col bg-white rounded-2xl border border-neutral-100 p-4 space-y-2 shrink-0">
             {[
               { id: 1, label: "1. Ringkas 1 - Memilah" },
               { id: 2, label: "2. Ringkas 2 - Memilah" },
@@ -597,7 +627,7 @@ export default function TugasPage() {
                   key={tab.id}
                   disabled={locked && activeTab !== tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-xl transition text-xs font-bold whitespace-nowrap lg:whitespace-normal group ${
+                  className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-xl transition text-xs font-bold ${
                     active 
                       ? "bg-primary text-white" 
                       : locked 
@@ -614,8 +644,8 @@ export default function TugasPage() {
             })}
           </div>
 
-          {/* Form Content Area */}
-          <div className="bg-white rounded-2xl border border-neutral-100 p-6 space-y-6">
+          {/* Form Content Area - Flat Clean Container */}
+          <div className="bg-white rounded-2xl border border-neutral-100 p-4 sm:p-6 space-y-6">
             {/* SUBMENU 1: RINGKAS 1 - MEMILAH */}
             {activeTab === 1 && (
               <div className="space-y-5">
@@ -1423,91 +1453,181 @@ export default function TugasPage() {
                     };
 
                     return (
-                        <div className="overflow-x-auto rounded-xl border border-neutral-100 shadow-2xs">
-                        <table className="w-full text-xs text-left border-collapse min-w-[1000px]">
-                          <thead>
-                            <tr className="bg-neutral-50/75 text-neutral-450 font-black uppercase text-[9px] border-b border-neutral-100">
-                              <th className="py-3 px-4 w-12 text-center">No</th>
-                              <th className="py-3 px-3">Deskripsi Temuan (Esai)</th>
-                              <th className="py-3 px-3 w-40">Kategori</th>
-                              <th className="py-3 px-2 w-20 text-center">F</th>
-                              <th className="py-3 px-2 w-20 text-center">K</th>
-                              <th className="py-3 px-3 w-32 text-center">Skor (Risiko)</th>
-                              <th className="py-3 px-3">Penyebab</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-neutral-50 bg-white">
-                            {list.map((row, i) => {
-                              const score = row.frekuensi * row.dampak;
-                              let label = "Rendah";
-                              let color = "text-success bg-success/5 border-success/15";
-                              if (score >= 10) { label = "Tinggi"; color = "text-danger bg-danger/5 border-danger/15"; }
-                              else if (score >= 5) { label = "Sedang"; color = "text-warning bg-warning/5 border-warning/15"; }
+                      <div className="space-y-4">
+                        {/* Mobile Card View (< md) */}
+                        <div className="block md:hidden space-y-3">
+                          {list.map((row, i) => {
+                            const score = row.frekuensi * row.dampak;
+                            let label = "Rendah";
+                            let color = "text-success bg-success/10 border-success/30";
+                            if (score >= 10) { label = "Tinggi"; color = "text-danger bg-danger/10 border-danger/30"; }
+                            else if (score >= 5) { label = "Sedang"; color = "text-warning bg-warning/10 border-warning/30"; }
 
-                              return (
-                                <tr key={i} className="hover:bg-neutral-50/30 transition-colors">
-                                  <td className="py-4 px-4 font-bold text-center text-neutral-400">{i + 1}</td>
-                                  <td className="py-3 px-3">
+                            return (
+                              <div key={i} className="py-3.5 border-b border-neutral-100 space-y-3">
+                                <div className="flex items-center justify-between pb-1">
+                                  <span className="font-extrabold text-neutral-900 text-xs">Temuan #{i + 1}</span>
+                                  <span className={`inline-block font-black px-2.5 py-0.5 rounded-full text-[10px] border ${color}`}>
+                                    Skor: {score} ({label})
+                                  </span>
+                                </div>
+
+                                <div className="space-y-2.5">
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Deskripsi Temuan (Esai)</label>
                                     <input 
                                       type="text" 
                                       value={row.temuan}
                                       onChange={(e) => updateRow(i, "temuan", e.target.value)}
-                                      className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition" 
+                                      className="border border-neutral-200 bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition" 
                                       placeholder="Contoh: Kabel terkelupas di lantai"
                                     />
-                                  </td>
-                                  <td className="py-3 px-3">
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Kategori Bahaya</label>
                                     <select
                                       value={row.kategori}
                                       onChange={(e) => updateRow(i, "kategori", e.target.value)}
-                                      className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition bg-white cursor-pointer"
+                                      className="border border-neutral-200 bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition cursor-pointer"
                                     >
                                       {KATEGORI_BAHAYA.map((kb) => <option key={kb} value={kb}>{kb}</option>)}
                                     </select>
-                                  </td>
-                                  <td className="py-3 px-2">
-                                    <select
-                                      value={row.frekuensi}
-                                      onChange={(e) => updateRow(i, "frekuensi", parseInt(e.target.value))}
-                                      className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-2 py-2 w-full text-xs text-center font-bold outline-none transition bg-white cursor-pointer"
-                                    >
-                                      <option value="5">5</option>
-                                      <option value="4">4</option>
-                                      <option value="3">3</option>
-                                      <option value="2">2</option>
-                                      <option value="1">1</option>
-                                    </select>
-                                  </td>
-                                  <td className="py-3 px-2">
-                                    <select
-                                      value={row.dampak}
-                                      onChange={(e) => updateRow(i, "dampak", parseInt(e.target.value))}
-                                      className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-2 py-2 w-full text-xs text-center font-bold outline-none transition bg-white cursor-pointer"
-                                    >
-                                      <option value="3">3</option>
-                                      <option value="2">2</option>
-                                      <option value="1">1</option>
-                                    </select>
-                                  </td>
-                                  <td className="py-3 px-3 text-center">
-                                    <span className={`inline-block font-black px-2.5 py-1 rounded-full text-[10px] border ${color}`}>
-                                      {score} ({label})
-                                    </span>
-                                  </td>
-                                  <td className="py-3 px-3">
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">F (Frekuensi)</label>
+                                      <select
+                                        value={row.frekuensi}
+                                        onChange={(e) => updateRow(i, "frekuensi", parseInt(e.target.value))}
+                                        className="border border-neutral-200 bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-2 py-2 w-full text-xs font-bold outline-none transition cursor-pointer text-center"
+                                      >
+                                        <option value="5">5 - Sangat Sering</option>
+                                        <option value="4">4 - Sering</option>
+                                        <option value="3">3 - Jarang</option>
+                                        <option value="2">2 - Sangat Jarang</option>
+                                        <option value="1">1 - Hampir Tidak Pernah</option>
+                                      </select>
+                                    </div>
+
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">K (Konsekuensi)</label>
+                                      <select
+                                        value={row.dampak}
+                                        onChange={(e) => updateRow(i, "dampak", parseInt(e.target.value))}
+                                        className="border border-neutral-200 bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-2 py-2 w-full text-xs font-bold outline-none transition cursor-pointer text-center"
+                                      >
+                                        <option value="3">3 - Tinggi/Fatal</option>
+                                        <option value="2">2 - Sedang</option>
+                                        <option value="1">1 - Ringan</option>
+                                      </select>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Penyebab</label>
                                     <input 
                                       type="text" 
                                       value={row.penyebab}
                                       onChange={(e) => updateRow(i, "penyebab", e.target.value)}
-                                      className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition" 
+                                      className="border border-neutral-200 bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition" 
                                       placeholder="Contoh: Gesekan pintu / umur kabel"
                                     />
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Desktop Table View (>= md) */}
+                        <div className="hidden md:block overflow-x-auto rounded-xl border border-neutral-100 shadow-2xs">
+                          <table className="w-full text-xs text-left border-collapse min-w-[900px]">
+                            <thead>
+                              <tr className="bg-neutral-50/75 text-neutral-450 font-black uppercase text-[9px] border-b border-neutral-100">
+                                <th className="py-3 px-4 w-12 text-center">No</th>
+                                <th className="py-3 px-3">Deskripsi Temuan (Esai)</th>
+                                <th className="py-3 px-3 w-40">Kategori</th>
+                                <th className="py-3 px-2 w-20 text-center">F</th>
+                                <th className="py-3 px-2 w-20 text-center">K</th>
+                                <th className="py-3 px-3 w-32 text-center">Skor (Risiko)</th>
+                                <th className="py-3 px-3">Penyebab</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-50 bg-white">
+                              {list.map((row, i) => {
+                                const score = row.frekuensi * row.dampak;
+                                let label = "Rendah";
+                                let color = "text-success bg-success/5 border-success/15";
+                                if (score >= 10) { label = "Tinggi"; color = "text-danger bg-danger/5 border-danger/15"; }
+                                else if (score >= 5) { label = "Sedang"; color = "text-warning bg-warning/5 border-warning/15"; }
+
+                                return (
+                                  <tr key={i} className="hover:bg-neutral-50/30 transition-colors">
+                                    <td className="py-4 px-4 font-bold text-center text-neutral-400">{i + 1}</td>
+                                    <td className="py-3 px-3">
+                                      <input 
+                                        type="text" 
+                                        value={row.temuan}
+                                        onChange={(e) => updateRow(i, "temuan", e.target.value)}
+                                        className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition" 
+                                        placeholder="Contoh: Kabel terkelupas di lantai"
+                                      />
+                                    </td>
+                                    <td className="py-3 px-3">
+                                      <select
+                                        value={row.kategori}
+                                        onChange={(e) => updateRow(i, "kategori", e.target.value)}
+                                        className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition bg-white cursor-pointer"
+                                      >
+                                        {KATEGORI_BAHAYA.map((kb) => <option key={kb} value={kb}>{kb}</option>)}
+                                      </select>
+                                    </td>
+                                    <td className="py-3 px-2">
+                                      <select
+                                        value={row.frekuensi}
+                                        onChange={(e) => updateRow(i, "frekuensi", parseInt(e.target.value))}
+                                        className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-2 py-2 w-full text-xs text-center font-bold outline-none transition bg-white cursor-pointer"
+                                      >
+                                        <option value="5">5</option>
+                                        <option value="4">4</option>
+                                        <option value="3">3</option>
+                                        <option value="2">2</option>
+                                        <option value="1">1</option>
+                                      </select>
+                                    </td>
+                                    <td className="py-3 px-2">
+                                      <select
+                                        value={row.dampak}
+                                        onChange={(e) => updateRow(i, "dampak", parseInt(e.target.value))}
+                                        className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-2 py-2 w-full text-xs text-center font-bold outline-none transition bg-white cursor-pointer"
+                                      >
+                                        <option value="3">3</option>
+                                        <option value="2">2</option>
+                                        <option value="1">1</option>
+                                      </select>
+                                    </td>
+                                    <td className="py-3 px-3 text-center">
+                                      <span className={`inline-block font-black px-2.5 py-1 rounded-full text-[10px] border ${color}`}>
+                                        {score} ({label})
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-3">
+                                      <input 
+                                        type="text" 
+                                        value={row.penyebab}
+                                        onChange={(e) => updateRow(i, "penyebab", e.target.value)}
+                                        className="border border-neutral-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-3 py-2 w-full text-xs outline-none transition" 
+                                        placeholder="Contoh: Gesekan pintu / umur kabel"
+                                      />
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     );
                   };
@@ -1515,45 +1635,45 @@ export default function TugasPage() {
                   return (
                     <div className="space-y-5">
                       {/* Legend Keterangan F & K */}
-                      <div className="bg-neutral-50/50 border border-neutral-100 rounded-2xl p-4 text-xs text-neutral-600 space-y-2.5">
-                        <span className="font-bold text-neutral-800 block text-xs">Panduan Penilaian Risiko (Skor = F x K)</span>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 leading-relaxed">
-                          <div className="space-y-1">
+                      <div className="bg-neutral-50 border border-neutral-200/80 rounded-2xl p-4 sm:p-5 text-xs text-neutral-700 space-y-3 shadow-xs">
+                        <span className="font-extrabold text-neutral-900 block text-sm">Panduan Penilaian Risiko (Skor = F x K)</span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 leading-relaxed text-xs">
+                          <div className="space-y-1 bg-white p-3 rounded-xl border border-neutral-100">
                             <span className="font-bold text-primary block">F = Frekuensi (Seberapa Sering Kejadian):</span>
-                            <ul className="list-disc pl-4 space-y-0.5 text-neutral-500">
-                              <li><span className="font-semibold text-neutral-700">5</span>: Sangat Sering / Tinggi</li>
-                              <li><span className="font-semibold text-neutral-700">4</span>: Sering / Sedang</li>
-                              <li><span className="font-semibold text-neutral-700">3</span>: Jarang / Rendah</li>
-                              <li><span className="font-semibold text-neutral-700">2</span>: Sangat Jarang / Sangat Rendah</li>
-                              <li><span className="font-semibold text-neutral-700">1</span>: Hampir Tidak Pernah</li>
+                            <ul className="list-disc pl-4 space-y-1 text-neutral-650">
+                              <li><span className="font-bold text-neutral-900">5</span>: Sangat Sering / Tinggi</li>
+                              <li><span className="font-bold text-neutral-900">4</span>: Sering / Sedang</li>
+                              <li><span className="font-bold text-neutral-900">3</span>: Jarang / Rendah</li>
+                              <li><span className="font-bold text-neutral-900">2</span>: Sangat Jarang / Sangat Rendah</li>
+                              <li><span className="font-bold text-neutral-900">1</span>: Hampir Tidak Pernah</li>
                             </ul>
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-1 bg-white p-3 rounded-xl border border-neutral-100">
                             <span className="font-bold text-primary block">K = Konsekuensi (Tingkat Dampak Cedera):</span>
-                            <ul className="list-disc pl-4 space-y-0.5 text-neutral-500">
-                              <li><span className="font-semibold text-neutral-700">3</span>: Tinggi / Fatal (Cacat, Meninggal)</li>
-                              <li><span className="font-semibold text-neutral-700">2</span>: Sedang (Cedera Sedang, Butuh Medis)</li>
-                              <li><span className="font-semibold text-neutral-700">1</span>: Ringan (Cedera Ringan, P3K)</li>
+                            <ul className="list-disc pl-4 space-y-1 text-neutral-650">
+                              <li><span className="font-bold text-neutral-900">3</span>: Tinggi / Fatal (Cacat, Meninggal)</li>
+                              <li><span className="font-bold text-neutral-900">2</span>: Sedang (Cedera Sedang, Butuh Medis)</li>
+                              <li><span className="font-bold text-neutral-900">1</span>: Ringan (Cedera Ringan, P3K)</li>
                             </ul>
                           </div>
                         </div>
-                        <div className="border-t pt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-neutral-400">
-                          <div><span className="font-bold text-neutral-500">Skor Risiko (F x K):</span></div>
-                          <div><span className="text-success font-semibold">1 - 4</span>: Risiko Rendah</div>
-                          <div><span className="text-warning font-semibold">5 - 9</span>: Risiko Sedang</div>
-                          <div><span className="text-danger font-semibold">≥ 10</span>: Risiko Tinggi</div>
+                        <div className="border-t border-neutral-200/60 pt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs font-semibold text-neutral-600">
+                          <div><span className="font-bold text-neutral-800">Skor Risiko (F x K):</span></div>
+                          <div><span className="text-success font-extrabold">1 - 4</span>: Risiko Rendah</div>
+                          <div><span className="text-warning font-extrabold">5 - 9</span>: Risiko Sedang</div>
+                          <div><span className="text-danger font-extrabold">≥ 10</span>: Risiko Tinggi</div>
                         </div>
                       </div>
 
-                      {/* Form 1: Rumah */}
-                      <div className="border rounded-2xl p-4 bg-white space-y-3">
-                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Potensi Bahaya: Rumah / Diperjalanan <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
+                      {/* Form 1: Rumah - Clean Flat Container */}
+                      <div className="space-y-3 pt-2">
+                        <h4 className="text-xs font-extrabold text-neutral-900 uppercase">Potensi Bahaya: Rumah / Diperjalanan <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
                         {renderFormTable(bahayaRumahS4, setBahayaRumahS4)}
                       </div>
 
-                      {/* Form 2: Sekolah */}
-                      <div className="border rounded-2xl p-4 bg-white space-y-3">
-                        <h4 className="text-xs font-bold text-neutral-800 uppercase">Potensi Bahaya: Aktivitas di Sekolah <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
+                      {/* Form 2: Sekolah - Clean Flat Container */}
+                      <div className="space-y-3 pt-4 border-t border-neutral-100">
+                        <h4 className="text-xs font-extrabold text-neutral-900 uppercase">Potensi Bahaya: Aktivitas di Sekolah <span className="text-red-600 font-semibold">(Wajib 5 baris)</span></h4>
                         {renderFormTable(bahayaSekolahS4, setBahayaSekolahS4)}
                       </div>
 
@@ -1723,13 +1843,13 @@ export default function TugasPage() {
                   }
 
                   const KATEGORI_WASTE = [
-                    "Gerak Berlebihan",
-                    "Mengangkut",
-                    "Menunggu",
-                    "Produksi Berlebihan",
-                    "Persediaan Berlebihan",
-                    "Proses Berlebih",
-                    "Perbaikan Ulang"
+                    "Motion",
+                    "Transportation",
+                    "Waiting",
+                    "Over Production",
+                    "Inventory",
+                    "Extra Process",
+                    "Defect"
                   ];
 
                   const renderFormWaste = (list: any[], setList: any) => {

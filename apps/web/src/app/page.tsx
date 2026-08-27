@@ -133,7 +133,7 @@ const moduls = [
 const faqs = [
   {
     q: "Siapa yang bisa menggunakan platform ini?",
-    a: "Platform ini hanya dapat diakses oleh peserta resmi program N-KGTS 2026 — yaitu Guru Praktisi Kaizen dan Siswa SMK terpilih dari 7 sekolah peserta.",
+    a: "Platform ini hanya dapat diakses oleh peserta resmi program N-KGTS 2026 — yaitu Guru Praktisi Kaizen dan Siswa SMA, SMK, dan MA/Sederajat terpilih dari 7 sekolah peserta.",
   },
   {
     q: "Bagaimana cara mendaftar akun?",
@@ -497,7 +497,7 @@ function Hero() {
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.08] mb-5">
               Platform Pelatihan{" "}
               <span className="text-accent">Kaizen</span>{" "}
-              untuk Guru & Siswa SMK
+              untuk Guru & Siswa SMA, SMK, dan MA/Sederajat
             </h1>
             <p className="text-white/70 text-base sm:text-lg leading-relaxed mb-8 max-w-lg">
               N-KGTS adalah program PT Toyota-Astra Motor untuk mengembangkan generasi
@@ -657,7 +657,7 @@ function TentangSection() {
             </p>
             <p className="text-neutral-700 text-base leading-relaxed mb-6">
               Program ini menularkan praktik terbaik Toyota dalam penerapan budaya Kaizen kepada guru
-              dan siswa SMK, untuk membentuk generasi yang memiliki karakter{" "}
+              dan siswa SMA, SMK, dan MA/Sederajat, untuk membentuk generasi yang memiliki karakter{" "}
               <span className="font-semibold text-primary">DEKKI</span> (Disiplin, Empati, Kritis,
               Kreatif, dan Inovatif).
             </p>
@@ -1001,15 +1001,24 @@ function Footer() {
           <div>
             <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-4">Navigasi</p>
             <div className="space-y-2.5">
-              {["Tentang Program", "Modul", "FAQ", "Masuk"].map((l) => (
-                <a
-                  key={l}
-                  href={l === "Masuk" ? "/login" : `#${l.toLowerCase().replace(" ", "")}`}
-                  className="block text-sm text-white/60 hover:text-accent transition-colors duration-200"
-                >
-                  {l}
-                </a>
-              ))}
+              {["Tentang Program", "Modul", "Galeri", "FAQ", "Masuk"].map((l) => {
+                const anchorMap: Record<string, string> = {
+                  "Tentang Program": "#tentang",
+                  "Modul": "#modul",
+                  "Galeri": "#galeri",
+                  "FAQ": "#faq",
+                };
+                const href = l === "Masuk" ? "/login" : anchorMap[l];
+                return (
+                  <a
+                    key={l}
+                    href={href}
+                    className="block text-sm text-white/60 hover:text-accent transition-colors duration-200"
+                  >
+                    {l}
+                  </a>
+                );
+              })}
             </div>
           </div>
 

@@ -156,14 +156,15 @@ export default function DashboardPage() {
     fetchProgress();
   }, []);
 
-  // Fetch real tasks status and project files from database
+  const [latsolStatusList, setLatsolStatusList] = useState<any[]>([]);
+
+  // Fetch real tasks status, project files, and latsol status from database
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        // Skip fetching student data if the logged-in user is not a student
         if (currentUser && currentUser.role !== "siswa") {
           return;
         }
@@ -183,6 +184,14 @@ export default function DashboardPage() {
         if (projRes.ok) {
           setProjectFiles(await projRes.json());
         }
+
+        // Fetch latsol status
+        const latsolRes = await fetch(`${API_URL}/latsol/status-siswa`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (latsolRes.ok) {
+          setLatsolStatusList(await latsolRes.json());
+        }
       } catch (err) {
         console.error("Gagal mengambil data dashboard:", err);
       }
@@ -197,12 +206,19 @@ export default function DashboardPage() {
       ([key, p]: [string, any]) => validIds.has(key) && (p.scrollProgress > 0 || (p.score !== null && p.score > 0))
     ).length;
 
+    // Real latsol count from backend status
+    const latsolCompletedCount = latsolStatusList.filter(
+      (m: any) => m.sudah_mengerjakan || (m.nilai !== undefined && m.nilai !== null) || (m.latsol_score !== undefined && m.latsol_score !== null)
+    ).length;
+
+    const projectCompletedCount = projectFiles.filter((p: any) => p.file_url).length;
+
     return [
       { label: "Materi Diakses", value: accessedCount, total: 5, icon: BookOpen, color: "text-primary" },
-      { label: "Tugas Selesai", value: 0, total: 0, icon: ClipboardList, color: "text-success" },
-      { label: "Laporan Progress", value: accessedCount >= 5 ? 100 : Math.round((accessedCount / 5) * 100), total: null, icon: FolderKanban, color: "text-accent-dark" },
+      { label: "Latihan Soal", value: latsolCompletedCount, total: 5, icon: ClipboardList, color: "text-success" },
+      { label: "Project Kaizen", value: projectCompletedCount, total: 2, icon: FolderKanban, color: "text-accent-dark" },
     ];
-  }, [progressMap]);
+  }, [progressMap, latsolStatusList, projectFiles]);
 
   // Compute real-time Materi Lanjutkan (first 4 modules)
   const materiLanjutkan = useMemo(() => {

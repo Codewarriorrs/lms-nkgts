@@ -224,10 +224,8 @@ export default function PenilaianPklPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-100 text-neutral-500 font-bold text-xs uppercase">
-                <th className="px-6 py-4">Nama Siswa</th>
+                <th className="px-6 py-4">Siswa (Kelas & Sekolah)</th>
                 <th className="px-6 py-4">NIS</th>
-                <th className="px-6 py-4">Kelas</th>
-                <th className="px-6 py-4">Asal Sekolah</th>
                 <th className="px-6 py-4">Status Penilaian</th>
                 <th className="px-6 py-4 text-center">Aksi</th>
               </tr>
@@ -235,7 +233,7 @@ export default function PenilaianPklPage() {
             <tbody className="divide-y divide-neutral-100 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-neutral-400">
+                  <td colSpan={4} className="text-center py-12 text-neutral-400">
                     <div className="flex flex-col items-center gap-3">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                       <span>Sedang memuat data siswa...</span>
@@ -244,7 +242,7 @@ export default function PenilaianPklPage() {
                 </tr>
               ) : students.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-neutral-400 italic">
+                  <td colSpan={4} className="text-center py-12 text-neutral-400 italic">
                     Tidak ditemukan data siswa dalam PKL.
                   </td>
                 </tr>
@@ -259,16 +257,14 @@ export default function PenilaianPklPage() {
                             {student.nama.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <span className="font-bold text-neutral-800 block leading-tight">{student.nama}</span>
-                            <span className="text-xs text-neutral-400">{student.email}</span>
+                            <span className="font-extrabold text-neutral-900 block leading-tight text-xs">{student.nama}</span>
+                            <span className="text-[11px] text-neutral-500 font-medium">
+                              {student.email} {student.kelas ? `• Kelas ${student.kelas}` : ""} • {student.sekolah?.nama_sekolah || "N-KGTS"}
+                            </span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-neutral-600 font-medium">{student.nis || "-"}</td>
-                      <td className="px-6 py-4 text-neutral-600 font-medium">{student.kelas || "-"}</td>
-                      <td className="px-6 py-4 text-neutral-500 font-semibold">
-                        {student.sekolah?.nama_sekolah || "PT Toyota-Astra Motor (TAM)"}
-                      </td>
+                      <td className="px-6 py-4 text-neutral-600 font-mono text-xs">{student.nis || "-"}</td>
                       <td className="px-6 py-4">
                         {hasGrade ? (
                           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold text-xs border border-emerald-100">

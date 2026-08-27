@@ -34,7 +34,7 @@ export class MateriController {
   }
 
   @Get('modules/:slug')
-  async getModuleDetails(@Param('slug') slug: string, @Req() req: any) {
+  async getModuleDetails(@Req() req: any, @Param('slug') slug: string) {
     return this.materiService.getModuleDetails(slug, req.user?.id, req.user?.role);
   }
 
