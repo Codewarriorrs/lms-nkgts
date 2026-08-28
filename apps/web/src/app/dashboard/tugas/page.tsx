@@ -521,6 +521,16 @@ export default function TugasPage() {
     );
   };
 
+  const getTabStatusText = (id: number): string => {
+    const task = tasks.find((t) => t.id === id);
+    const hasSubmisi = task?.submisi && task.submisi.length > 0;
+    if (hasSubmisi) return "Selesai";
+    const idx = tasks.findIndex((t) => t.id === id);
+    const locked = idx > 0 && !(tasks[idx - 1]?.submisi && tasks[idx - 1].submisi.length > 0);
+    if (locked) return "Terkunci";
+    return "Terbuka";
+  };
+
   const isTabLocked = (id: number) => {
     const idx = tasks.findIndex((t) => t.id === id);
     if (idx === 0) return false;
@@ -597,14 +607,14 @@ export default function TugasPage() {
                 { id: 5, label: "5. Mencari Pemborosan" }
               ].map((tab) => {
                 const locked = isTabLocked(tab.id);
-                const statusLabel = getTabStatusLabel(tab.id);
+                const statusText = getTabStatusText(tab.id);
                 return (
                   <option 
                     key={tab.id} 
                     value={tab.id} 
                     disabled={locked && activeTab !== tab.id}
                   >
-                    {tab.label} {statusLabel ? `• (${statusLabel})` : ""}
+                    {tab.label} • ({statusText})
                   </option>
                 );
               })}

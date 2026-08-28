@@ -157,6 +157,7 @@ export class InvitationService {
     role: RoleEnum,
     sekolahId: number,
     nis?: string,
+    kelas?: string,
   ) {
     const emailLower = email.toLowerCase();
 
@@ -190,6 +191,7 @@ export class InvitationService {
         role,
         nama,
         nis: nis || null,
+        kelas: kelas || null,
         sekolah_id: sekolahId,
         expires_at: expiresAt,
       },
@@ -206,7 +208,7 @@ export class InvitationService {
 
   // 3. Undang Pengguna Secara Manual
   async inviteManual(dto: InviteUserDto) {
-    return this.createTokenAndInvite(dto.email, dto.nama, dto.role, dto.sekolah_id, dto.nis);
+    return this.createTokenAndInvite(dto.email, dto.nama, dto.role, dto.sekolah_id, dto.nis, dto.kelas);
   }
 
   // 4. Pengunggahan Pengguna Massal via File (Excel / CSV)
@@ -247,6 +249,7 @@ export class InvitationService {
       const nama = row.Nama || row.nama || row.NAMA || row.Name || row.name;
       let roleRaw = row.Role || row.role || row.ROLE || 'siswa';
       const nis = row.Nis || row.nis || row.NIS || row['Nomor Induk Siswa'] || null;
+      const kelas = row.Kelas || row.kelas || row.KELAS || row.Class || row.class || null;
 
       const lineNumber = index + 2; // Baris Excel biasanya 1-based header = baris 1
 
@@ -263,7 +266,14 @@ export class InvitationService {
       else if (roleRaw === 'guru') role = RoleEnum.guru;
 
       try {
-        await this.createTokenAndInvite(email, nama, role, sekolahId, nis?.toString());
+        await this.createTokenAndInvite(
+          email,
+          nama,
+          role,
+          sekolahId,
+          nis ? nis.toString().trim() : undefined,
+          kelas ? kelas.toString().trim() : undefined
+        );
         summary.success++;
       } catch (err: any) {
         summary.failed++;
@@ -318,6 +328,7 @@ export class InvitationService {
           email: user.email,
           role: user.role,
           nis: user.nis,
+          kelas: user.kelas,
           nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
           created_at: user.created_at,
           reset_password_expires: user.reset_password_expires,
@@ -333,20 +344,21 @@ export class InvitationService {
     };
   }
 
-  // 6. Ambil Daftar Undangan Belum Aktif (Tertunda)
+  // 6. Lihat Daftar Undangan Tertunda (Pending)
   async getPendingInvitations() {
-    const invitations = await this.prisma.invitationToken.findMany({
+    const invites = await this.prisma.invitationToken.findMany({
       where: { is_used: false },
       orderBy: { created_at: 'desc' },
       include: { sekolah: true },
     });
 
-    return invitations.map(invite => ({
+    return invites.map(invite => ({
       id: invite.id,
       nama: invite.nama,
       email: invite.email,
       role: invite.role,
       nis: invite.nis,
+      kelas: invite.kelas,
       nama_sekolah: invite.sekolah.nama_sekolah,
       created_at: invite.created_at,
       expires_at: invite.expires_at,
@@ -468,6 +480,7 @@ export class InvitationService {
       nama: invite.nama,
       role: invite.role,
       nis: invite.nis,
+      kelas: invite.kelas,
       id_sekolah: invite.sekolah_id,
       nama_sekolah: invite.sekolah.nama_sekolah,
     };
@@ -492,6 +505,7 @@ export class InvitationService {
           role: tokenInfo.role,
           sekolah_id: tokenInfo.id_sekolah,
           nis: tokenInfo.nis,
+          kelas: tokenInfo.kelas,
         },
         include: { sekolah: true },
       });
@@ -514,17 +528,26 @@ export class InvitationService {
     };
   }
 
-  // 11. Memperbarui role pengguna aktif (admin, guru, siswa)
-  async updateUserRole(userId: string, role: RoleEnum) {
+  // 11. Memperbarui role dan data pengguna aktif (admin, guru, siswa)
+  async updateUserRole(userId: string, role?: RoleEnum, kelas?: string | null) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
     if (!user) {
       throw new NotFoundException('Pengguna tidak ditemukan!');
     }
+
+    const updateData: any = {};
+    if (role) {
+      updateData.role = role;
+    }
+    if (kelas !== undefined) {
+      updateData.kelas = kelas && kelas.trim() !== '' ? kelas.trim() : null;
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
-      data: { role },
+      data: updateData,
     });
   }
 
@@ -889,6 +912,7 @@ export class InvitationService {
       email: user.email,
       role: user.role,
       nis: user.nis,
+      kelas: user.kelas,
       nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
       created_at: user.created_at,
       reset_password_expires: user.reset_password_expires,

@@ -29,6 +29,7 @@ interface UserType {
   email: string;
   role: string;
   nis: string | null;
+  kelas?: string | null;
   nama_sekolah: string;
   created_at: string;
   reset_password_expires?: string | null;
@@ -41,6 +42,7 @@ interface ActiveResetUserType {
   email: string;
   role: string;
   nis: string | null;
+  kelas?: string | null;
   nama_sekolah: string;
   created_at: string;
   reset_password_expires: string;
@@ -62,6 +64,7 @@ interface InvitationType {
   email: string;
   role: string;
   nis: string | null;
+  kelas?: string | null;
   nama_sekolah: string;
   created_at: string;
   expires_at: string;
@@ -105,13 +108,15 @@ export default function AdminUsersPage() {
   const [cancelingReset, setCancelingReset] = useState(false);
   const [loadingResets, setLoadingResets] = useState(false);
   const [editRoleValue, setEditRoleValue] = useState("");
+  const [editKelasValue, setEditKelasValue] = useState("");
   const [updatingRole, setUpdatingRole] = useState(false);
   const [inviteForm, setInviteForm] = useState({
     email: "",
     nama: "",
     role: "siswa",
     sekolah_id: "",
-    nis: ""
+    nis: "",
+    kelas: ""
   });
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importSekolahId, setImportSekolahId] = useState("");
@@ -249,7 +254,8 @@ export default function AdminUsersPage() {
           nama: inviteForm.nama,
           role: inviteForm.role,
           sekolah_id: parseInt(inviteForm.sekolah_id, 10),
-          nis: inviteForm.nis || undefined
+          nis: inviteForm.nis || undefined,
+          kelas: inviteForm.kelas?.trim() || undefined
         })
       });
       const data = await res.json();
@@ -266,7 +272,8 @@ export default function AdminUsersPage() {
         nama: "",
         role: "siswa",
         sekolah_id: schools[0]?.id.toString() || "",
-        nis: ""
+        nis: "",
+        kelas: ""
       });
       fetchPendingInvitations();
     } catch (err: any) {
@@ -276,7 +283,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  // 4b. Handle role update submit
+  // 4b. Handle role & user update submit
   const handleUpdateRoleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEditUser || !editRoleValue) return;
@@ -291,11 +298,14 @@ export default function AdminUsersPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ role: editRoleValue })
+        body: JSON.stringify({ 
+          role: editRoleValue,
+          kelas: editKelasValue.trim() || null
+        })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Gagal mengubah role pengguna");
-      setSuccessMsg(`Role ${selectedEditUser.nama} berhasil diubah menjadi ${editRoleValue}`);
+      if (!res.ok) throw new Error(data.message || "Gagal memperbarui data pengguna");
+      setSuccessMsg(`Data ${selectedEditUser.nama} berhasil diperbarui.`);
       setSelectedEditUser(null);
       fetchActiveUsers();
     } catch (err: any) {
@@ -476,7 +486,11 @@ export default function AdminUsersPage() {
 
   // Download CSV Template Helper
   const downloadTemplate = () => {
-    const templateContent = "Email,Nama,Role,Nis\nsiswa.contoh@nkgts.sch.id,Budi Utomo,siswa,123456\nguru.contoh@nkgts.sch.id,Siti Aminah,guru,\n";
+    const templateContent =
+      "Email,Nama,Role,Nis,Kelas\n" +
+      "siswa.contoh@nkgts.sch.id,Budi Utomo,siswa,123456,XII TKJ 1\n" +
+      "guru.contoh@nkgts.sch.id,Siti Aminah,guru,,\n" +
+      "admin.sekolah@nkgts.sch.id,Ahmad Fauzi,admin,,";
     const blob = new Blob([templateContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -485,6 +499,7 @@ export default function AdminUsersPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // 8. Handle Export Excel Nilai Siswa
@@ -723,6 +738,7 @@ export default function AdminUsersPage() {
                     <div className="text-[11px] text-neutral-500 space-y-0.5">
                       <p>Sekolah: <strong className="text-neutral-700 font-semibold">{user.nama_sekolah || "N-KGTS"}</strong></p>
                       {user.nis && <p>NIS: <strong className="font-mono text-neutral-700">{user.nis}</strong></p>}
+                      {user.kelas && <p>Kelas: <strong className="text-primary font-bold">{user.kelas}</strong></p>}
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-1.5 pt-2 border-t border-neutral-100">
@@ -733,10 +749,14 @@ export default function AdminUsersPage() {
                         Reset Sandi
                       </button>
                       <button
-                        onClick={() => { setSelectedEditUser(user); setEditRoleValue(user.role); }}
+                        onClick={() => { 
+                          setSelectedEditUser(user); 
+                          setEditRoleValue(user.role); 
+                          setEditKelasValue(user.kelas || ""); 
+                        }}
                         className="px-2 py-1 text-[10px] font-bold text-primary bg-primary/5 border border-primary/20 rounded-lg"
                       >
-                        Ubah Role
+                        Edit Data
                       </button>
                       <button
                         onClick={() => handleDeleteUser(user.id, user.nama)}
@@ -757,7 +777,7 @@ export default function AdminUsersPage() {
                   <tr className="bg-neutral-50/50 text-neutral-400 text-xs font-extrabold uppercase tracking-wider border-b border-neutral-50">
                     <th className="px-6 py-4">Nama</th>
                     <th className="px-6 py-4">Email</th>
-                    <th className="px-6 py-4">NIS</th>
+                    <th className="px-6 py-4">NIS / Kelas</th>
                     <th className="px-6 py-4">Role</th>
                     <th className="px-6 py-4">Sekolah</th>
                     <th className="px-6 py-4">Bergabung</th>
@@ -798,7 +818,14 @@ export default function AdminUsersPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 font-mono text-xs">{user.email}</td>
-                        <td className="px-6 py-4 text-neutral-400">{user.nis || "-"}</td>
+                        <td className="px-6 py-4 text-xs text-neutral-600">
+                          <div>{user.nis || "-"}</div>
+                          {user.kelas && (
+                            <span className="inline-block mt-1 px-2 py-0.5 rounded bg-primary/10 text-primary font-bold text-[10px]">
+                              {user.kelas}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-6 py-4">
                           <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
                             user.role === "admin" 
@@ -824,11 +851,12 @@ export default function AdminUsersPage() {
                               onClick={() => {
                                 setSelectedEditUser(user);
                                 setEditRoleValue(user.role);
+                                setEditKelasValue(user.kelas || "");
                               }}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer"
-                              title="Ubah peran / role pengguna"
+                              title="Ubah peran & kelas pengguna"
                             >
-                              Ubah Role
+                              Edit / Role
                             </button>
                             {user.role === "siswa" && (
                               <button
@@ -1199,6 +1227,21 @@ export default function AdminUsersPage() {
                 </select>
               </div>
 
+              {inviteForm.role === "siswa" && (
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+                    Kelas Siswa (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={inviteForm.kelas}
+                    onChange={(e) => setInviteForm(prev => ({ ...prev, kelas: e.target.value }))}
+                    placeholder="Contoh: XII TKJ 1"
+                    className="w-full px-4 py-2 border border-neutral-100 rounded-xl text-sm focus:outline-none focus:border-primary transition"
+                  />
+                </div>
+              )}
+
               <div className="pt-4 border-t border-neutral-50 flex items-center justify-end gap-3">
                 <button
                   type="button"
@@ -1345,7 +1388,7 @@ export default function AdminUsersPage() {
           <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden border border-neutral-100 animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-neutral-50 flex items-center justify-between">
               <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
-                Ubah Peran (Role)
+                Edit Pengguna / Ubah Role
               </h2>
               <button 
                 onClick={() => setSelectedEditUser(null)}
@@ -1357,7 +1400,7 @@ export default function AdminUsersPage() {
             
             <form onSubmit={handleUpdateRoleSubmit} className="p-6 space-y-4 text-xs">
               <div>
-                <p className="text-neutral-400 font-semibold mb-2">Mengubah peran untuk pengguna berikut:</p>
+                <p className="text-neutral-400 font-semibold mb-2">Mengubah data untuk pengguna berikut:</p>
                 <div className="p-3 bg-neutral-50 border border-neutral-100 rounded-xl space-y-1">
                   <p className="font-bold text-neutral-900 text-sm">{selectedEditUser.nama}</p>
                   <p className="text-neutral-400 font-semibold">{selectedEditUser.email}</p>
@@ -1375,6 +1418,20 @@ export default function AdminUsersPage() {
                   <option value="guru">Guru (Guru Praktisi Kaizen)</option>
                   <option value="admin">Admin (Administrator TAM)</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">
+                  Kelas Siswa {editRoleValue === "siswa" ? "(Opsional)" : "(Hanya untuk Siswa)"}
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: XII TKJ 1"
+                  value={editKelasValue}
+                  onChange={(e) => setEditKelasValue(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-neutral-100 rounded-xl text-xs bg-white text-neutral-700 focus:outline-none focus:border-primary transition"
+                />
+                <p className="text-[10px] text-neutral-400 mt-1">Kosongkan jika bukan siswa atau belum ditentukan.</p>
               </div>
 
               <div className="pt-4 border-t border-neutral-50 flex items-center justify-end gap-3">

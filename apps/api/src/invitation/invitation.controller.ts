@@ -135,22 +135,46 @@ export class InvitationController {
     return this.invitationService.activateAccount(activateAccountDto);
   }
 
-  // 11. Perbarui role user (Admin only)
+  // 11. Perbarui role dan kelas user (Admin only)
   @Patch('admin/users/:id/role')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async updateRole(
     @Param('id') id: string,
-    @Body('role') role: string
+    @Body('role') role?: string,
+    @Body('kelas') kelas?: string,
   ) {
-    let roleEnum: RoleEnum;
-    if (role === 'admin') roleEnum = RoleEnum.admin;
-    else if (role === 'guru') roleEnum = RoleEnum.guru;
-    else if (role === 'siswa') roleEnum = RoleEnum.siswa;
-    else {
-      throw new BadRequestException('Role tidak valid');
+    let roleEnum: RoleEnum | undefined;
+    if (role) {
+      if (role === 'admin') roleEnum = RoleEnum.admin;
+      else if (role === 'guru') roleEnum = RoleEnum.guru;
+      else if (role === 'siswa') roleEnum = RoleEnum.siswa;
+      else {
+        throw new BadRequestException('Role tidak valid');
+      }
     }
-    return this.invitationService.updateUserRole(id, roleEnum);
+    return this.invitationService.updateUserRole(id, roleEnum, kelas);
+  }
+
+  // 11b. Update data user langsung (Admin only)
+  @Patch('admin/users/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async updateUser(
+    @Param('id') id: string,
+    @Body('role') role?: string,
+    @Body('kelas') kelas?: string,
+  ) {
+    let roleEnum: RoleEnum | undefined;
+    if (role) {
+      if (role === 'admin') roleEnum = RoleEnum.admin;
+      else if (role === 'guru') roleEnum = RoleEnum.guru;
+      else if (role === 'siswa') roleEnum = RoleEnum.siswa;
+      else {
+        throw new BadRequestException('Role tidak valid');
+      }
+    }
+    return this.invitationService.updateUserRole(id, roleEnum, kelas);
   }
 
   // 12. Hapus pengguna (Admin only)

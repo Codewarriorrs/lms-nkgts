@@ -113,16 +113,16 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
   }
 
   return (
-    <div className="bg-white rounded-xl border border-neutral-100 p-6 shadow-sm w-full space-y-6">
-      <div className="flex flex-col md:flex-row gap-6">
+    <div className="bg-white rounded-xl border border-neutral-100 p-4 sm:p-6 shadow-sm w-full max-w-full overflow-hidden space-y-6">
+      <div className="flex flex-col md:flex-row gap-6 w-full max-w-full overflow-hidden">
         {/* Left Column: Sample File */}
         <div className="w-full md:w-56 flex-shrink-0">
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-4 h-full flex flex-col items-start justify-center gap-3">
             <div className="w-full text-xs font-bold text-neutral-400 uppercase tracking-[0.1em]">Unduh Template</div>
             {sample ? (
-              <a href={sample.url} download={sample.name} className="w-full text-xs font-bold inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-neutral-200 text-neutral-700 hover:bg-[#FABF24]/10 hover:text-amber-600 hover:border-amber-300 rounded-lg transition mt-1.5">
+              <a href={sample.url} download={sample.name} className="w-full text-xs font-bold inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-neutral-200 text-neutral-700 hover:bg-[#FABF24]/10 hover:text-amber-600 hover:border-amber-300 rounded-lg transition mt-1.5 min-w-0">
                 <Download size={13} className="text-primary shrink-0" />
-                <span>{sample.name}</span>
+                <span className="truncate">{sample.name}</span>
               </a>
             ) : (
               <div className="text-xs text-neutral-400">Belum ada contoh</div>
@@ -131,7 +131,7 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
         </div>
 
         {/* Right Column: Upload form and Status info */}
-        <div className="flex-1 space-y-4">
+        <div className="flex-1 min-w-0 w-full max-w-full space-y-4 overflow-hidden">
           <div className="flex items-center justify-between">
             <h3 className="text-neutral-900 font-bold text-base">Unggah Berkas {title}</h3>
             <span className="text-xs text-neutral-400">Format PDF / Dokumen</span>
@@ -139,11 +139,13 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
 
           {/* Submission status alert if exists */}
           {dbSubmission && (
-            <div className="p-4 rounded-xl border border-success/20 bg-success/5 text-xs text-success-dark flex items-start gap-2.5">
+            <div className="p-4 rounded-xl border border-success/20 bg-success/5 text-xs text-success-dark flex items-start gap-2.5 w-full max-w-full overflow-hidden">
               <CheckCircle2 size={16} className="text-success shrink-0 mt-0.5" />
-              <div>
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="font-bold text-neutral-850">Berkas Berhasil Terkirim</p>
-                <p className="text-neutral-500 mt-0.5">Nama: <strong className="font-semibold text-neutral-700">{dbSubmission.file_name}</strong></p>
+                <p className="text-neutral-500 mt-0.5 break-all break-words leading-relaxed">
+                  Nama: <strong className="font-semibold text-neutral-700 break-all break-words">{dbSubmission.file_name}</strong>
+                </p>
                 <p className="text-neutral-400 text-[10px] mt-1">Dikirim pada: {new Date(dbSubmission.submitted_at).toLocaleString("id-ID")}</p>
               </div>
             </div>
