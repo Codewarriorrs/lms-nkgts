@@ -184,12 +184,12 @@ function RegisterContent() {
       {/* Activation Form */}
       {tokenInfo && !successMsg && (
         <div>
-          {/* User Details Box */}
-          <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-100 mb-6 space-y-2.5 text-xs text-neutral-600">
+          {/* User Details */}
+          <div className="mb-6 space-y-2 text-xs text-neutral-600">
             <div className="flex items-center gap-2">
               <User size={14} className="text-neutral-400" />
               <span className="text-neutral-900 font-bold">{tokenInfo.nama}</span>
-              <span className="px-1.5 py-0.5 rounded bg-neutral-200 text-neutral-600 font-semibold text-[9px] uppercase">{tokenInfo.role}</span>
+              <span className="px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 font-semibold text-[9px] uppercase">{tokenInfo.role}</span>
             </div>
             <div className="flex items-center gap-2">
               <Mail size={14} className="text-neutral-400" />
@@ -200,7 +200,7 @@ function RegisterContent() {
               <span>{tokenInfo.nama_sekolah}</span>
             </div>
             {tokenInfo.nis && (
-              <div className="pt-1.5 border-t border-neutral-200/50 text-neutral-400">
+              <div className="pt-1 text-neutral-400">
                 Nomor Induk Siswa (NIS): <strong className="text-neutral-700">{tokenInfo.nis}</strong>
               </div>
             )}
