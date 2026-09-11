@@ -79,6 +79,7 @@ model InvitationToken {
   sekolah    Sekolah  @relation(fields: [sekolah_id], references: [id], onDelete: Cascade)
   nama       String   @db.VarChar(150)
   nis        String?  @db.VarChar(50)
+  kelas      String?  @db.VarChar(20)
   is_used    Boolean  @default(false)
   expires_at DateTime
   created_at DateTime @default(now())

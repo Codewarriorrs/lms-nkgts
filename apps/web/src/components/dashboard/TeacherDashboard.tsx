@@ -2464,28 +2464,117 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                 }
 
                 if (taskId === 3) {
+                  const checklistGroups = [
+                    {
+                      key: "ringkas",
+                      title: "1. Seiri (Ringkas)",
+                      items: [
+                        { key: "ringkas_sampah", label: "Ditemukan adanya sampah dan/potensi bahaya" },
+                        { key: "ringkas_barang", label: "Ada barang-barang yang tidak diperlukan" },
+                        { key: "ringkas_alat", label: "Adanya perlengkapan atau peralatan yang tidak diperlukan" }
+                      ]
+                    },
+                    {
+                      key: "rapi",
+                      title: "2. Seiton (Rapi)",
+                      items: [
+                        { key: "rapi_lokasi", label: "Tidak ada kejelasan penempatan barang" },
+                        { key: "rapi_kuantitas", label: "Kuantitas minimum dan maksimum barang tidak jelas" },
+                        { key: "rapi_penempatan", label: "Barang-barang tidak ditempatkan sesuai lokasinya" },
+                        { key: "rapi_label", label: "Tidak ada penanda (label) untuk tempat kerja, ruangan, dan perlengkapan" }
+                      ]
+                    },
+                    {
+                      key: "resik",
+                      title: "3. Seiso (Resik)",
+                      items: [
+                        { key: "resik_alat", label: "Perlengkapan dan peralatan kebersihan tidak mudah didapat" },
+                        { key: "resik_kotor", label: "Peralatan tidak bersih, berdebu dan kotor" },
+                        { key: "resik_perbaikan", label: "Peralatan yang membutuhkan perbaikan tidak diberi tanda" },
+                        { key: "resik_debu", label: "Tempat kerja berdebu dan kotoran menempel" },
+                        { key: "resik_visual", label: "Alat kontrol visual tidak bersih dan/rusak" },
+                        { key: "resik_lain", label: "Permasalahan kebersihan lainya masih ada" }
+                      ]
+                    },
+                    {
+                      key: "rawat",
+                      title: "4. Seiketsu (Rawat)",
+                      items: [
+                        { key: "rawat_checklist", label: "Cek list kebersihan tidak ada" },
+                        { key: "rawat_standard_view", label: "Standard tidak diketahui atau tidak terlihat" },
+                        { key: "rawat_kuantitas_limit", label: "Standard atau batasan kuantitas tidak jelas atau tidak ada" },
+                        { key: "rawat_visual_info", label: "Alat kontrol visual tidak memadai informasinya" },
+                        { key: "rawat_cari_barang", label: "Barang tidak bisa ditemukan dalam waktu 30 detik" }
+                      ]
+                    },
+                    {
+                      key: "rajin",
+                      title: "5. Shitsuke (Rajin)",
+                      items: [
+                        { key: "rajin_standard", label: "Ada kondisi tidak konsisten dengan standard yang ada" },
+                        { key: "rajin_kuantitas", label: "Ada jumlah item yang tidak lengkap sesuai standard kuantitasnya" },
+                        { key: "rajin_perintah", label: "Tidak melakukan jika tidak diperintahkan untuk ringkas, rapi dan resik" }
+                      ]
+                    }
+                  ];
+
+                  const checklistData = detail.checklist || {};
+
                   return (
                     <div className="space-y-3">
-                      <div className="bg-neutral-50/50 p-3.5 rounded-xl border border-neutral-150 space-y-2">
-                        <p className="text-xs font-bold text-neutral-550 uppercase tracking-wider">Detail Observasi Seiso (Pembersihan)</p>
-                        <p className="text-neutral-700"><strong>Ruang yang Dibersihkan:</strong> {detail.ruang || "-"}</p>
-                        <div className="p-2.5 bg-white border border-neutral-200 rounded-lg">
-                          <span className="font-bold text-neutral-700 block mb-1">Aktivitas Pembersihan yang Dilakukan:</span>
-                          <ul className="list-disc pl-4 space-y-1 text-neutral-750">
-                            {Array.isArray(detail.checklist) && detail.checklist.length > 0 ? (
-                              detail.checklist.map((c: any, idx: number) => (
-                                <li key={idx}>{c}</li>
-                              ))
-                            ) : (
-                              <li>Tidak ada aktivitas yang dipilih.</li>
-                            )}
-                          </ul>
+                      <div className="bg-neutral-50/50 p-3.5 rounded-xl border border-neutral-150 space-y-3">
+                        <div className="flex items-center justify-between flex-wrap gap-2 border-b border-neutral-200 pb-2">
+                          <p className="text-xs font-bold text-neutral-800 uppercase tracking-wider">Rekapitulasi Checklist 5R Siswa</p>
+                          <p className="text-xs text-neutral-600"><strong>Area / Ruangan:</strong> <span className="text-primary font-bold">{detail.ruang || "-"}</span></p>
+                        </div>
+
+                        {/* List Checklist 5R Groups */}
+                        <div className="space-y-3">
+                          {checklistGroups.map((group) => (
+                            <div key={group.key} className="bg-white border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
+                              <div className="bg-neutral-50 px-3 py-1.5 border-b border-neutral-200 text-xs font-bold text-neutral-800">
+                                {group.title}
+                              </div>
+                              <div className="divide-y divide-neutral-100 p-2 text-xs">
+                                {group.items.map((item) => {
+                                  const itemEntry = checklistData[item.key] || {};
+                                  const isAda = itemEntry.status === "ADA";
+                                  const catatan = itemEntry.catatan || "";
+
+                                  return (
+                                    <div key={item.key} className="py-2 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                      <div className="flex-1 pr-2">
+                                        <p className="text-neutral-750 font-medium leading-snug">{item.label}</p>
+                                        {catatan && (
+                                          <p className="text-[11px] text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 mt-1">
+                                            <strong className="font-bold">Temuan:</strong> {catatan}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="shrink-0">
+                                        {isAda ? (
+                                          <span className="inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-800 border border-amber-300">
+                                            ADA TEMUAN
+                                          </span>
+                                        ) : (
+                                          <span className="inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            TIDAK ADA
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
+
                       {detail.foto_url && (
                         <div className="space-y-1">
-                          <p className="font-bold text-neutral-500">Foto Bukti Pembersihan:</p>
-                          <img src={detail.foto_url} alt="Foto Pembersihan" className="max-h-56 w-full object-contain rounded-lg border border-neutral-200 mt-1 bg-neutral-50 p-1" />
+                          <p className="font-bold text-neutral-500 text-xs">Foto Bukti Observasi 5R:</p>
+                          <img src={detail.foto_url} alt="Foto 5R" className="max-h-56 w-full object-contain rounded-lg border border-neutral-200 mt-1 bg-neutral-50 p-1" />
                         </div>
                       )}
                     </div>
@@ -2493,49 +2582,104 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                 }
 
                 if (taskId === 4) {
-                  const renderRiskTable = (rows: any[], title: string) => (
-                    <div className="space-y-1.5 pt-1">
-                      <p className="font-bold text-neutral-750">{title}:</p>
-                      <div className="border border-neutral-150 rounded-lg overflow-hidden bg-white text-[10px]">
-                        <table className="w-full border-collapse text-left">
-                          <thead>
-                            <tr className="bg-neutral-50 border-b border-neutral-150 text-neutral-500 font-extrabold uppercase text-[8px] tracking-wider">
-                              <th className="px-2.5 py-1.5">Kategori</th>
-                              <th className="px-2.5 py-1.5">Deskripsi</th>
-                              <th className="px-2.5 py-1.5">Mitigasi</th>
-                              <th className="px-2.5 py-1.5 text-center">Risiko</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-neutral-100 text-neutral-750">
-                            {rows && rows.length > 0 ? (
-                              rows.map((row: any, idx: number) => (
-                                <tr key={idx} className="hover:bg-neutral-50/50">
-                                  <td className="px-2.5 py-1.5 font-bold uppercase">{row.kategori}</td>
-                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap">{row.deskripsi}</td>
-                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap">{row.tindakan}</td>
-                                  <td className="px-2.5 py-1.5 text-center">
-                                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                      row.risiko?.includes("Tinggi")
-                                        ? "bg-danger/10 text-danger"
-                                        : row.risiko?.includes("Sedang")
-                                        ? "bg-warning/10 text-warning-dark"
-                                        : "bg-success/10 text-success"
-                                    }`}>
-                                      {row.risiko || "Rendah"} ({row.skor})
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan={4} className="px-2.5 py-2 text-center text-neutral-400 italic">Belum ada data diinput.</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                  const renderRiskTable = (rows: any[], title: string) => {
+                    const validRows = Array.isArray(rows) ? rows.filter(r => r && (r.temuan || r.deskripsi || r.penyebab || r.tindakan)) : [];
+
+                    return (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-neutral-800 text-xs">{title}:</p>
+                          <span className="text-[10px] text-neutral-400 font-medium">Total: {validRows.length} temuan</span>
+                        </div>
+
+                        {validRows.length === 0 ? (
+                          <div className="p-3 text-center text-xs text-neutral-400 italic bg-white border border-neutral-200 rounded-lg">
+                            Belum ada data potensi bahaya yang diinput.
+                          </div>
+                        ) : (
+                          <>
+                            {/* Desktop View (Table) */}
+                            <div className="hidden md:block border border-neutral-150 rounded-lg overflow-hidden bg-white text-[10px]">
+                              <table className="w-full border-collapse text-left">
+                                <thead>
+                                  <tr className="bg-neutral-50 border-b border-neutral-150 text-neutral-500 font-extrabold uppercase text-[8px] tracking-wider">
+                                    <th className="px-2.5 py-1.5 w-24">Kategori</th>
+                                    <th className="px-2.5 py-1.5">Deskripsi Temuan</th>
+                                    <th className="px-2.5 py-1.5">Mitigasi / Tindakan</th>
+                                    <th className="px-2.5 py-1.5 text-center w-28">Tingkat Risiko</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-100 text-neutral-750">
+                                  {validRows.map((row: any, idx: number) => {
+                                    const temuan = row.temuan || row.deskripsi || "-";
+                                    const mitigasi = row.penyebab || row.tindakan || "-";
+                                    const risiko = row.risiko || (row.skor >= 10 ? "Resiko Tinggi" : row.skor >= 5 ? "Resiko Sedang" : "Resiko Rendah");
+                                    const skor = row.skor || (row.frekuensi && row.dampak ? row.frekuensi * row.dampak : null);
+
+                                    return (
+                                      <tr key={idx} className="hover:bg-neutral-50/50">
+                                        <td className="px-2.5 py-1.5 font-bold uppercase">{row.kategori || "-"}</td>
+                                        <td className="px-2.5 py-1.5 whitespace-pre-wrap">{temuan}</td>
+                                        <td className="px-2.5 py-1.5 whitespace-pre-wrap">{mitigasi}</td>
+                                        <td className="px-2.5 py-1.5 text-center">
+                                          <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                                            risiko.includes("Tinggi")
+                                              ? "bg-danger/10 text-danger border border-danger/30"
+                                              : risiko.includes("Sedang")
+                                              ? "bg-warning/10 text-warning-dark border border-warning/30"
+                                              : "bg-success/10 text-success border border-success/30"
+                                          }`}>
+                                            {risiko} {skor ? `(${skor})` : ""}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Mobile View (Card List) */}
+                            <div className="block md:hidden space-y-2">
+                              {validRows.map((row: any, idx: number) => {
+                                const temuan = row.temuan || row.deskripsi || "-";
+                                const mitigasi = row.penyebab || row.tindakan || "-";
+                                const risiko = row.risiko || (row.skor >= 10 ? "Resiko Tinggi" : row.skor >= 5 ? "Resiko Sedang" : "Resiko Rendah");
+                                const skor = row.skor || (row.frekuensi && row.dampak ? row.frekuensi * row.dampak : null);
+
+                                return (
+                                  <div key={idx} className="bg-white border border-neutral-200 rounded-xl p-3 space-y-2 shadow-2xs text-xs">
+                                    <div className="flex items-center justify-between gap-2 border-b border-neutral-100 pb-1.5">
+                                      <span className="font-extrabold text-[10px] uppercase bg-neutral-100 text-neutral-800 px-2 py-0.5 rounded">
+                                        {row.kategori || "-"}
+                                      </span>
+                                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                                        risiko.includes("Tinggi")
+                                          ? "bg-danger/10 text-danger"
+                                          : risiko.includes("Sedang")
+                                          ? "bg-warning/10 text-warning-dark"
+                                          : "bg-success/10 text-success"
+                                      }`}>
+                                        {risiko} {skor ? `(${skor})` : ""}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] font-bold uppercase text-neutral-400">Deskripsi / Temuan:</p>
+                                      <p className="text-neutral-800 font-medium leading-relaxed whitespace-pre-wrap mt-0.5">{temuan}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] font-bold uppercase text-neutral-400">Mitigasi / Penyebab:</p>
+                                      <p className="text-neutral-700 leading-relaxed whitespace-pre-wrap mt-0.5">{mitigasi}</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
                       </div>
-                    </div>
-                  );
+                    );
+                  };
 
                   return (
                     <div className="space-y-4">
@@ -2543,7 +2687,7 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                       {renderRiskTable(detail.bahaya_rumah, "Daftar Potensi Bahaya K3 di Rumah")}
                       {detail.foto_url && (
                         <div className="space-y-1">
-                          <p className="font-bold text-neutral-500">Foto Temuan Potensi Bahaya:</p>
+                          <p className="font-bold text-neutral-500 text-xs">Foto Temuan Potensi Bahaya:</p>
                           <img src={detail.foto_url} alt="Foto K3" className="max-h-56 w-full object-contain rounded-lg border border-neutral-200 mt-1 bg-neutral-50 p-1" />
                         </div>
                       )}
@@ -2552,49 +2696,94 @@ export default function TeacherDashboard({ tab = "ringkasan" }: TeacherDashboard
                 }
 
                 if (taskId === 5) {
-                  const renderWasteTable = (rows: any[], title: string) => (
-                    <div className="space-y-1.5 pt-1">
-                      <p className="font-bold text-neutral-750">{title}:</p>
-                      <div className="border border-neutral-150 rounded-lg overflow-hidden bg-white text-[10px]">
-                        <table className="w-full border-collapse text-left">
-                          <thead>
-                            <tr className="bg-neutral-50 border-b border-neutral-150 text-neutral-500 font-extrabold uppercase text-[8px] tracking-wider">
-                              <th className="px-2.5 py-1.5">Jenis Waste</th>
-                              <th className="px-2.5 py-1.5">Kondisi Aktual</th>
-                              <th className="px-2.5 py-1.5">Situasi Ideal</th>
-                              <th className="px-2.5 py-1.5">Masalah / Gap</th>
-                              <th className="px-2.5 py-1.5">Rencana Kaizen</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-neutral-100 text-neutral-750">
-                            {rows && rows.length > 0 ? (
-                              rows.map((row: any, idx: number) => (
-                                <tr key={idx} className="hover:bg-neutral-50/50">
-                                  <td className="px-2.5 py-1.5 font-bold uppercase">{row.jenis}</td>
-                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap">{row.aktual}</td>
-                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap">{row.ideal}</td>
-                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap text-danger font-semibold">{row.gap}</td>
-                                  <td className="px-2.5 py-1.5 whitespace-pre-wrap text-primary font-semibold">{row.rencana}</td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan={5} className="px-2.5 py-2 text-center text-neutral-400 italic">Belum ada data diinput.</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                  const renderWasteTable = (rows: any[], title: string) => {
+                    const validRows = Array.isArray(rows) ? rows.filter(r => r && (r.temuan || r.aktual || r.kategori || r.jenis)) : [];
+
+                    return (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-neutral-800 text-xs">{title}:</p>
+                          <span className="text-[10px] text-neutral-400 font-medium">Total: {validRows.length} item</span>
+                        </div>
+
+                        {validRows.length === 0 ? (
+                          <div className="p-3 text-center text-xs text-neutral-400 italic bg-white border border-neutral-200 rounded-lg">
+                            Belum ada data pemborosan yang diinput.
+                          </div>
+                        ) : (
+                          <>
+                            {/* Desktop View (Table) */}
+                            <div className="hidden md:block border border-neutral-150 rounded-lg overflow-hidden bg-white text-[10px]">
+                              <table className="w-full border-collapse text-left">
+                                <thead>
+                                  <tr className="bg-neutral-50 border-b border-neutral-150 text-neutral-500 font-extrabold uppercase text-[8px] tracking-wider">
+                                    <th className="px-2 py-1.5 w-8">No</th>
+                                    <th className="px-2.5 py-1.5 w-32">Kategori 7 Waste</th>
+                                    <th className="px-2.5 py-1.5">Deskripsi Temuan / Kondisi Aktual</th>
+                                    <th className="px-2.5 py-1.5">Keterangan / Rencana</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-100 text-neutral-750">
+                                  {validRows.map((row: any, idx: number) => {
+                                    const kategori = row.kategori || row.jenis || "-";
+                                    const temuan = row.temuan || row.aktual || row.deskripsi || "-";
+                                    const extra = row.rencana || row.gap || row.ideal || "-";
+
+                                    return (
+                                      <tr key={idx} className="hover:bg-neutral-50/50">
+                                        <td className="px-2 py-1.5 font-bold text-neutral-400">{idx + 1}</td>
+                                        <td className="px-2.5 py-1.5 font-bold uppercase text-primary">{kategori}</td>
+                                        <td className="px-2.5 py-1.5 whitespace-pre-wrap">{temuan}</td>
+                                        <td className="px-2.5 py-1.5 whitespace-pre-wrap text-neutral-600">{extra}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Mobile View (Card List) */}
+                            <div className="block md:hidden space-y-2">
+                              {validRows.map((row: any, idx: number) => {
+                                const kategori = row.kategori || row.jenis || "-";
+                                const temuan = row.temuan || row.aktual || row.deskripsi || "-";
+
+                                return (
+                                  <div key={idx} className="bg-white border border-neutral-200 rounded-xl p-3 space-y-2 shadow-2xs text-xs">
+                                    <div className="flex items-center justify-between gap-2 border-b border-neutral-100 pb-1.5">
+                                      <span className="font-extrabold text-[10px] text-neutral-400">Temuan #{idx + 1}</span>
+                                      <span className="font-extrabold text-[10px] uppercase bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded">
+                                        {kategori}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] font-bold uppercase text-neutral-400">Deskripsi Temuan:</p>
+                                      <p className="text-neutral-800 font-medium leading-relaxed whitespace-pre-wrap mt-0.5">{temuan}</p>
+                                    </div>
+                                    {(row.ideal || row.gap || row.rencana) && (
+                                      <div className="space-y-1 pt-1.5 border-t border-neutral-100 text-[11px]">
+                                        {row.ideal && <p><strong className="text-neutral-600">Ideal:</strong> {row.ideal}</p>}
+                                        {row.gap && <p><strong className="text-danger">Gap:</strong> {row.gap}</p>}
+                                        {row.rencana && <p><strong className="text-primary">Rencana:</strong> {row.rencana}</p>}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
                       </div>
-                    </div>
-                  );
+                    );
+                  };
 
                   return (
                     <div className="space-y-4">
-                      {renderWasteTable(detail.pemborosan_sekolah, "Tabel Analisa Pemborosan di Sekolah")}
-                      {renderWasteTable(detail.pemborosan_rumah, "Tabel Analisa Pemborosan di Rumah")}
+                      {renderWasteTable(detail.pemborosan_sekolah, "Analisa Pemborosan di Sekolah")}
+                      {renderWasteTable(detail.pemborosan_rumah, "Analisa Pemborosan di Rumah / Lingkungan Sekitar")}
                       {detail.foto_url && (
                         <div className="space-y-1">
-                          <p className="font-bold text-neutral-500">Foto Bukti Pemborosan:</p>
+                          <p className="font-bold text-neutral-500 text-xs">Foto Bukti Pemborosan:</p>
                           <img src={detail.foto_url} alt="Foto Pemborosan" className="max-h-56 w-full object-contain rounded-lg border border-neutral-200 mt-1 bg-neutral-50 p-1" />
                         </div>
                       )}

@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
 import * as path from 'path';
 
 @Injectable()
@@ -30,7 +30,7 @@ export class UploadService {
     folder: string = 'galeri',
   ): Promise<string> {
     const ext = path.extname(file.originalname);
-    const filename = `${folder}/${uuidv4()}${ext}`;
+    const filename = `${folder}/${crypto.randomUUID()}${ext}`;
 
     try {
       await this.s3.send(
@@ -64,7 +64,7 @@ export class UploadService {
       }
 
       const ext = mimeType.split('/')[1] || 'jpg';
-      const filename = `${folder}/${uuidv4()}.${ext}`;
+      const filename = `${folder}/${crypto.randomUUID()}.${ext}`;
 
       await this.s3.send(
         new PutObjectCommand({

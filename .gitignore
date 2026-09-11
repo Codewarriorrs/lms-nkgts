@@ -48,3 +48,9 @@ next-env.d.ts
 
 # Prisma generated client
 apps/api/generated/
+
+# Security Audit & Internal Test Harness (Sensitive)
+apps/api/test/security.e2e-spec.ts
+.agents/state/security_audit_report.md
+.agents/state/
+repomix-output.xml

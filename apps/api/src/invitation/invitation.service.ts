@@ -157,6 +157,7 @@ export class InvitationService {
     role: RoleEnum,
     sekolahId: number,
     nis?: string,
+    kelas?: string,
   ) {
     const emailLower = email.toLowerCase();
 
@@ -190,6 +191,7 @@ export class InvitationService {
         role,
         nama,
         nis: nis || null,
+        kelas: kelas || null,
         sekolah_id: sekolahId,
         expires_at: expiresAt,
       },
@@ -206,11 +208,11 @@ export class InvitationService {
 
   // 3. Undang Pengguna Secara Manual
   async inviteManual(dto: InviteUserDto) {
-    return this.createTokenAndInvite(dto.email, dto.nama, dto.role, dto.sekolah_id, dto.nis);
+    return this.createTokenAndInvite(dto.email, dto.nama, dto.role, dto.sekolah_id, dto.nis, dto.kelas);
   }
 
   // 4. Pengunggahan Pengguna Massal via File (Excel / CSV)
-  async importUsers(file: Express.Multer.File, sekolahId: number) {
+  async importUsers(file: Express.Multer.File, sekolahId?: number) {
     if (!file) {
       throw new BadRequestException('File tidak ditemukan');
     }
@@ -241,33 +243,78 @@ export class InvitationService {
       errors: [] as string[],
     };
 
+    // Ambil data daftar sekolah di database untuk pencocokan otomatis
+    const allSekolah = await this.prisma.sekolah.findMany();
+
     // Validasi & Simpan setiap record secara sekuensial
     for (const [index, row] of records.entries()) {
-      const email = row.Email || row.email || row.EMAIL;
-      const nama = row.Nama || row.nama || row.NAMA || row.Name || row.name;
-      let roleRaw = row.Role || row.role || row.ROLE || 'siswa';
-      const nis = row.Nis || row.nis || row.NIS || row['Nomor Induk Siswa'] || null;
+      // Deteksi fleksibel header (Termasuk format Form Pendaftaran Siswa Asli)
+      const email = row['Email Aktif'] || row.Email || row.email || row.EMAIL || row['E-mail'] || row['email_aktif'];
+      const nama = row.Nama || row.nama || row.NAMA || row['Nama Siswa'] || row['Nama Lengkap'] || row.Name || row.name;
+      let roleRaw = row.Role || row.role || row.ROLE || row.Peran || row.peran;
+      const sekolahRaw = row['Asal Sekolah'] || row.Sekolah || row.sekolah || row.SEKOLAH || row['Nama Sekolah'] || row['sekolah_asal'];
+      const nis = row.Column1 || row.NIS || row.Nis || row.nis || row['Nomor Induk Siswa'] || null;
+      const kelas = row['Kelas saat mendaftar'] || row.Kelas || row.kelas || row.KELAS || row.Class || row.class || null;
 
-      const lineNumber = index + 2; // Baris Excel biasanya 1-based header = baris 1
+      const lineNumber = index + 2; // Baris Excel (1-based header = baris 1)
 
-      if (!email || !nama) {
+      const emailStr = email ? email.toString().trim() : '';
+      const namaStr = nama ? nama.toString().trim() : '';
+
+      // Validasi Field Wajib: Email dan Nama
+      if (!emailStr || !namaStr) {
         summary.failed++;
         summary.errors.push(`Baris ${lineNumber}: Kolom 'Email' dan 'Nama' wajib diisi.`);
         continue;
       }
 
-      // Standarisasi role enum
+      // Validasi Field Wajib: Asal Sekolah & Matching Database
+      let targetSekolahId: number | undefined = sekolahId && !isNaN(sekolahId) && sekolahId > 0 ? sekolahId : undefined;
+      const sekolahStr = sekolahRaw ? sekolahRaw.toString().trim() : '';
+
+      if (sekolahStr) {
+        const matched = allSekolah.find(s =>
+          s.nama_sekolah.toLowerCase().trim() === sekolahStr.toLowerCase() ||
+          s.nama_sekolah.toLowerCase().includes(sekolahStr.toLowerCase()) ||
+          sekolahStr.toLowerCase().includes(s.nama_sekolah.toLowerCase())
+        );
+        if (matched) {
+          targetSekolahId = matched.id;
+        } else if (!targetSekolahId) {
+          summary.failed++;
+          summary.errors.push(`Baris ${lineNumber} (${emailStr}): Asal Sekolah '${sekolahStr}' tidak ditemukan di database.`);
+          continue;
+        }
+      }
+
+      if (!targetSekolahId) {
+        summary.failed++;
+        summary.errors.push(`Baris ${lineNumber} (${emailStr}): Kolom 'Asal Sekolah' wajib diisi atau tentukan Opsi Sekolah di modal.`);
+        continue;
+      }
+
+      // Standarisasi Role Enum (Wajib ada/ditentukan, default: siswa)
       let role: RoleEnum = RoleEnum.siswa;
-      roleRaw = roleRaw.trim().toLowerCase();
-      if (roleRaw === 'admin') role = RoleEnum.admin;
-      else if (roleRaw === 'guru') role = RoleEnum.guru;
+      if (roleRaw) {
+        const rLower = roleRaw.toString().trim().toLowerCase();
+        if (rLower === 'admin') role = RoleEnum.admin;
+        else if (rLower === 'guru') role = RoleEnum.guru;
+        else if (rLower === 'siswa') role = RoleEnum.siswa;
+      }
 
       try {
-        await this.createTokenAndInvite(email, nama, role, sekolahId, nis?.toString());
+        await this.createTokenAndInvite(
+          emailStr,
+          namaStr,
+          role,
+          targetSekolahId,
+          nis ? nis.toString().trim() : undefined,
+          kelas ? kelas.toString().trim() : undefined
+        );
         summary.success++;
       } catch (err: any) {
         summary.failed++;
-        summary.errors.push(`Baris ${lineNumber} (${email}): ${err.message}`);
+        summary.errors.push(`Baris ${lineNumber} (${emailStr}): ${err.message}`);
       }
     }
 
@@ -318,6 +365,7 @@ export class InvitationService {
           email: user.email,
           role: user.role,
           nis: user.nis,
+          kelas: user.kelas,
           nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
           created_at: user.created_at,
           reset_password_expires: user.reset_password_expires,
@@ -333,20 +381,21 @@ export class InvitationService {
     };
   }
 
-  // 6. Ambil Daftar Undangan Belum Aktif (Tertunda)
+  // 6. Lihat Daftar Undangan Tertunda (Pending)
   async getPendingInvitations() {
-    const invitations = await this.prisma.invitationToken.findMany({
+    const invites = await this.prisma.invitationToken.findMany({
       where: { is_used: false },
       orderBy: { created_at: 'desc' },
       include: { sekolah: true },
     });
 
-    return invitations.map(invite => ({
+    return invites.map(invite => ({
       id: invite.id,
       nama: invite.nama,
       email: invite.email,
       role: invite.role,
       nis: invite.nis,
+      kelas: invite.kelas,
       nama_sekolah: invite.sekolah.nama_sekolah,
       created_at: invite.created_at,
       expires_at: invite.expires_at,
@@ -468,6 +517,7 @@ export class InvitationService {
       nama: invite.nama,
       role: invite.role,
       nis: invite.nis,
+      kelas: invite.kelas,
       id_sekolah: invite.sekolah_id,
       nama_sekolah: invite.sekolah.nama_sekolah,
     };
@@ -492,6 +542,7 @@ export class InvitationService {
           role: tokenInfo.role,
           sekolah_id: tokenInfo.id_sekolah,
           nis: tokenInfo.nis,
+          kelas: tokenInfo.kelas,
         },
         include: { sekolah: true },
       });
@@ -514,17 +565,26 @@ export class InvitationService {
     };
   }
 
-  // 11. Memperbarui role pengguna aktif (admin, guru, siswa)
-  async updateUserRole(userId: string, role: RoleEnum) {
+  // 11. Memperbarui role dan data pengguna aktif (admin, guru, siswa)
+  async updateUserRole(userId: string, role?: RoleEnum, kelas?: string | null) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
     if (!user) {
       throw new NotFoundException('Pengguna tidak ditemukan!');
     }
+
+    const updateData: any = {};
+    if (role) {
+      updateData.role = role;
+    }
+    if (kelas !== undefined) {
+      updateData.kelas = kelas && kelas.trim() !== '' ? kelas.trim() : null;
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
-      data: { role },
+      data: updateData,
     });
   }
 
@@ -889,6 +949,7 @@ export class InvitationService {
       email: user.email,
       role: user.role,
       nis: user.nis,
+      kelas: user.kelas,
       nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
       created_at: user.created_at,
       reset_password_expires: user.reset_password_expires,

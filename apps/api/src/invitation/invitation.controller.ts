@@ -40,12 +40,13 @@ export class InvitationController {
   @UseInterceptors(FileInterceptor('file'))
   async importUsers(
     @UploadedFile() file: Express.Multer.File,
-    @Body('sekolah_id', ParseIntPipe) sekolahId: number,
+    @Body('sekolah_id') sekolahIdRaw?: string,
   ) {
     if (!file) {
       throw new BadRequestException('Unggah file .xlsx atau .csv terlebih dahulu');
     }
-    return this.invitationService.importUsers(file, sekolahId);
+    const sekolahId = sekolahIdRaw ? parseInt(sekolahIdRaw, 10) : undefined;
+    return this.invitationService.importUsers(file, isNaN(sekolahId as number) ? undefined : sekolahId);
   }
 
   // 2. Undang pengguna secara manual
@@ -135,22 +136,46 @@ export class InvitationController {
     return this.invitationService.activateAccount(activateAccountDto);
   }
 
-  // 11. Perbarui role user (Admin only)
+  // 11. Perbarui role dan kelas user (Admin only)
   @Patch('admin/users/:id/role')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async updateRole(
     @Param('id') id: string,
-    @Body('role') role: string
+    @Body('role') role?: string,
+    @Body('kelas') kelas?: string,
   ) {
-    let roleEnum: RoleEnum;
-    if (role === 'admin') roleEnum = RoleEnum.admin;
-    else if (role === 'guru') roleEnum = RoleEnum.guru;
-    else if (role === 'siswa') roleEnum = RoleEnum.siswa;
-    else {
-      throw new BadRequestException('Role tidak valid');
+    let roleEnum: RoleEnum | undefined;
+    if (role) {
+      if (role === 'admin') roleEnum = RoleEnum.admin;
+      else if (role === 'guru') roleEnum = RoleEnum.guru;
+      else if (role === 'siswa') roleEnum = RoleEnum.siswa;
+      else {
+        throw new BadRequestException('Role tidak valid');
+      }
     }
-    return this.invitationService.updateUserRole(id, roleEnum);
+    return this.invitationService.updateUserRole(id, roleEnum, kelas);
+  }
+
+  // 11b. Update data user langsung (Admin only)
+  @Patch('admin/users/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async updateUser(
+    @Param('id') id: string,
+    @Body('role') role?: string,
+    @Body('kelas') kelas?: string,
+  ) {
+    let roleEnum: RoleEnum | undefined;
+    if (role) {
+      if (role === 'admin') roleEnum = RoleEnum.admin;
+      else if (role === 'guru') roleEnum = RoleEnum.guru;
+      else if (role === 'siswa') roleEnum = RoleEnum.siswa;
+      else {
+        throw new BadRequestException('Role tidak valid');
+      }
+    }
+    return this.invitationService.updateUserRole(id, roleEnum, kelas);
   }
 
   // 12. Hapus pengguna (Admin only)

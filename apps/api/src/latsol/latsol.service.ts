@@ -143,6 +143,11 @@ export class LatsolService {
       total_soal: dbQuestions.length,
       poin_diperoleh: totalPoinDiperoleh,
       poin_maksimum: totalPoinMaksimum,
+      kunci_jawaban: dbQuestions.map((q) => ({
+        id: q.id,
+        jawaban_benar: q.jawaban_benar,
+        pembahasan: q.pembahasan,
+      })),
     };
   }
 

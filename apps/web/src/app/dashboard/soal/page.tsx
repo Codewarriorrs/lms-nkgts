@@ -168,6 +168,22 @@ export default function SoalPage() {
       if (res.ok) {
         const data = await res.json();
         setExamResult(data);
+
+        // Jika backend menyertakan kunci_jawaban, sinkronkan ke state questions langsung
+        if (Array.isArray(data.kunci_jawaban)) {
+          const keyMap: Record<number, { jawaban_benar?: number; pembahasan?: string | null }> = {};
+          data.kunci_jawaban.forEach((k: any) => {
+            keyMap[k.id] = { jawaban_benar: k.jawaban_benar, pembahasan: k.pembahasan };
+          });
+
+          setQuestions((prev) =>
+            prev.map((q) => ({
+              ...q,
+              ...(keyMap[q.id] || {}),
+            }))
+          );
+        }
+
         if (typeof window !== "undefined") {
           window.localStorage.setItem(`lms-latsol-answers-${activeModuleId}`, JSON.stringify(answers));
         }
@@ -274,12 +290,24 @@ export default function SoalPage() {
 
             <div className="flex flex-col items-center gap-3 pt-2">
               <button
-                onClick={() => {
+                onClick={async () => {
+                  const hasMissingKeys = questions.some((q) => q.jawaban_benar === undefined);
+                  if (hasMissingKeys && activeModuleId) {
+                    try {
+                      const res = await fetch(`${API_URL}/latsol/modules/${activeModuleId}`, { headers });
+                      if (res.ok) {
+                        const refreshedQuestions = await res.json();
+                        setQuestions(refreshedQuestions);
+                      }
+                    } catch (err) {
+                      console.error("Gagal menyinkronkan pembahasan:", err);
+                    }
+                  }
                   setExamResult(null);
                   setIsReviewMode(true);
                   setReviewScoreInfo({ nilai: examResult.skor, poin: examResult.total_poin });
                 }}
-                className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-6 py-2.5 rounded-xl transition shadow-md shadow-primary/15 inline-block"
+                className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-6 py-2.5 rounded-xl transition shadow-md shadow-primary/15 inline-block cursor-pointer"
               >
                 Lihat Pembahasan
               </button>

@@ -19,7 +19,8 @@ import {
   Send,
   Download,
   BookOpen,
-  School
+  School,
+  ChevronDown
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import { uploadFileOrBase64 } from "@/utils/upload";
@@ -46,6 +47,7 @@ interface Post {
 
 export default function GaleriPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [pendingPosts, setPendingPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -308,11 +310,67 @@ export default function GaleriPage() {
   };
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
+      {/* Header Galeri & Tombol Aksi Mobile */}
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900 leading-tight">Galeri Budaya Kaizen</h1>
+          <p className="text-neutral-400 text-xs font-semibold mt-1">
+            Dokumentasi dan inspirasi implementasi Kaizen antar sekolah duta.
+          </p>
+        </div>
+
+        {/* Tombol Bagikan Sekarang Mobile (Tampil di layar < lg) */}
+        <button
+          onClick={handleOpenModal}
+          className="lg:hidden shrink-0 inline-flex items-center gap-1.5 bg-[#1B3C73] hover:bg-[#152e5a] text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow-md shadow-[#1B3C73]/20 transition cursor-pointer"
+        >
+          <Upload size={14} />
+          <span>Bagikan Sekarang</span>
+        </button>
+      </div>
+
       {/* Layout Grid: Feed di kiri, Sidebar Info di kanan (hanya desktop) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* KOLOM KIRI (Feed) */}
         <div className="lg:col-span-2 space-y-6">
+
+          {/* Kartu Panduan Proyek Kaizen Khusus Layar Mobile (< lg) */}
+          <div className="block lg:hidden bg-white border border-neutral-200 rounded-2xl p-4 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setIsGuideOpen(!isGuideOpen)}
+              className="w-full flex items-center justify-between text-left text-xs font-bold text-neutral-900 cursor-pointer"
+            >
+              <span className="flex items-center gap-2 text-neutral-900 font-extrabold">
+                <BookOpen className="text-[#1B3C73] shrink-0" size={16} />
+                Panduan Proyek Kaizen
+              </span>
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-[#1B3C73]">
+                {isGuideOpen ? "Tutup" : "Lihat Panduan"}
+                <ChevronDown size={14} className={`transition-transform duration-200 ${isGuideOpen ? "rotate-180" : ""}`} />
+              </span>
+            </button>
+
+            {isGuideOpen && (
+              <div className="mt-3 pt-3 border-t border-neutral-100 text-[11px] text-neutral-600 space-y-2.5 animate-in fade-in duration-150">
+                <p className="font-medium text-neutral-600 leading-relaxed">
+                  Gunakan galeri ini untuk saling menginspirasi antar sekolah duta Budaya Kaizen! Anda dapat membagikan:
+                </p>
+                <ul className="list-disc pl-4 space-y-1 text-neutral-500 font-medium leading-relaxed">
+                  <li>Sebelum & Sesudah (Before-After) implementasi 5R/5S di kelas atau bengkel.</li>
+                  <li>Momen diskusi kelompok atau Genba Walk bersama guru & siswa.</li>
+                  <li>Sosialisasi dan ide kreatif perbaikan berkelanjutan di lingkungan sekolah/rumah.</li>
+                </ul>
+                <button
+                  onClick={handleOpenModal}
+                  className="w-full mt-2 inline-flex items-center justify-center gap-1.5 bg-[#1B3C73] hover:bg-[#152e5a] text-white text-xs font-bold py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+                >
+                  <Upload size={13} /> Bagikan Sekarang
+                </button>
+              </div>
+            )}
+          </div>
           
           {/* Admin Moderation Tabs */}
           {currentUser?.role === "admin" && (
@@ -717,6 +775,18 @@ export default function GaleriPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Action Button (FAB) khusus Layar Mobile */}
+      <div className="lg:hidden fixed bottom-6 right-5 z-40">
+        <button
+          onClick={handleOpenModal}
+          aria-label="Bagikan Sekarang"
+          title="Bagikan Sekarang"
+          className="w-12 h-12 rounded-full bg-[#1B3C73] hover:bg-[#152e5a] text-white shadow-xl shadow-[#1B3C73]/30 flex items-center justify-center transition active:scale-95 cursor-pointer border-2 border-white"
+        >
+          <Camera size={20} />
+        </button>
+      </div>
 
     </div>
   );

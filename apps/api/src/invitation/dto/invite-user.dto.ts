@@ -21,4 +21,8 @@ export class InviteUserDto {
   @IsOptional()
   @IsString()
   nis?: string;
+
+  @IsOptional()
+  @IsString()
+  kelas?: string;
 }
