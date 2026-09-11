@@ -248,23 +248,66 @@ export class InvitationService {
 
     // Validasi & Simpan setiap record secara sekuensial
     for (const [index, row] of records.entries()) {
-      // Deteksi fleksibel header (Termasuk format Form Pendaftaran Siswa Asli)
-      const email = row['Email Aktif'] || row.Email || row.email || row.EMAIL || row['E-mail'] || row['email_aktif'];
-      const nama = row.Nama || row.nama || row.NAMA || row['Nama Siswa'] || row['Nama Lengkap'] || row.Name || row.name;
-      let roleRaw = row.Role || row.role || row.ROLE || row.Peran || row.peran;
-      const sekolahRaw = row['Asal Sekolah'] || row.Sekolah || row.sekolah || row.SEKOLAH || row['Nama Sekolah'] || row['sekolah_asal'];
-      const nis = row.Column1 || row.NIS || row.Nis || row.nis || row['Nomor Induk Siswa'] || null;
-      const kelas = row['Kelas saat mendaftar'] || row.Kelas || row.kelas || row.KELAS || row.Class || row.class || null;
-
       const lineNumber = index + 2; // Baris Excel (1-based header = baris 1)
 
-      const emailStr = email ? email.toString().trim() : '';
-      const namaStr = nama ? nama.toString().trim() : '';
+      if (!row || typeof row !== 'object') continue;
+
+      // Map key dictionary dengan normalisasi spasi & case-insensitive
+      const keyMap = new Map<string, any>();
+      for (const [k, v] of Object.entries(row)) {
+        if (v !== undefined && v !== null && String(v).trim() !== '') {
+          const cleanK = String(k).trim().toLowerCase().replace(/[\s\-_]+/g, '');
+          keyMap.set(cleanK, String(v).trim());
+        }
+      }
+
+      const getVal = (candidates: string[]): string => {
+        for (const cand of candidates) {
+          const cleanCand = cand.toLowerCase().replace(/[\s\-_]+/g, '');
+          for (const [k, v] of keyMap.entries()) {
+            if (k === cleanCand || k.includes(cleanCand) || cleanCand.includes(k)) {
+              return v;
+            }
+          }
+        }
+        return '';
+      };
+
+      // 1. Deteksi Email
+      const emailStr = getVal(['emailaktif', 'email', 'emailaddress', 'e-mail', 'mail', 'alamatemail']);
+
+      // 2. Deteksi Nama Siswa / Pengguna
+      let namaStr = getVal(['nama', 'namalengkap', 'namasiswa', 'name', 'namasiswa/i', 'namapeserta', 'namamurid']);
+      // Fallback: Jika 'Column1' berisi Teks Nama (bukan murni angka NIS)
+      if (!namaStr) {
+        const col1 = getVal(['column1', 'col1', 'kolom1']);
+        if (col1 && isNaN(Number(col1))) {
+          namaStr = col1;
+        }
+      }
+
+      // 3. Deteksi Role (Default: siswa)
+      const roleRaw = getVal(['role', 'peran', 'jabatan', 'status']);
+
+      // 4. Deteksi Asal Sekolah
+      const sekolahRaw = getVal(['asalsekolah', 'sekolah', 'namasekolah', 'instansi', 'school']);
+
+      // 5. Deteksi NIS
+      let nis = getVal(['nis', 'nisn', 'nomorinduk', 'nomorinduksiswa', 'noinduk']);
+      if (!nis) {
+        const col1 = getVal(['column1', 'col1', 'kolom1']);
+        if (col1 && !isNaN(Number(col1))) {
+          nis = col1;
+        }
+      }
+
+      // 6. Deteksi Kelas
+      const kelas = getVal(['kelassaatmendaftar', 'kelas', 'class', 'tingkat']);
 
       // Validasi Field Wajib: Email dan Nama
       if (!emailStr || !namaStr) {
         summary.failed++;
-        summary.errors.push(`Baris ${lineNumber}: Kolom 'Email' dan 'Nama' wajib diisi.`);
+        summary.errors.push(`Baris ${lineNumber}: Kolom 'Email' dan 'Nama' wajib diisi (ditemukan email: "${emailStr || '-'}", nama: "${namaStr || '-'}").`);
         continue;
       }
 
