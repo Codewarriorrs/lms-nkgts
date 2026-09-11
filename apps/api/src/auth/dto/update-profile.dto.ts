@@ -9,8 +9,18 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(50, { message: 'NIS maksimal 50 karakter' })
+  nis?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(20, { message: 'Kelas maksimal 20 karakter' })
   kelas?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150, { message: 'Nama jurusan / SGA maksimal 150 karakter' })
+  jurusan?: string;
 
   @IsOptional()
   @IsString()

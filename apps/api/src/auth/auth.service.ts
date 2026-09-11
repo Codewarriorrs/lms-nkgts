@@ -108,10 +108,10 @@ export class AuthService {
     const dataToUpdate: any = {};
 
     if (dto.nama !== undefined) dataToUpdate.nama = dto.nama;
-    if (user.role === 'admin') {
-      if (dto.kelas !== undefined) dataToUpdate.kelas = dto.kelas;
-      if (dto.tahun_pendaftaran !== undefined) dataToUpdate.tahun_pendaftaran = dto.tahun_pendaftaran;
-    }
+    if (dto.nis !== undefined) dataToUpdate.nis = dto.nis;
+    if (dto.kelas !== undefined) dataToUpdate.kelas = dto.kelas;
+    if (dto.jurusan !== undefined) dataToUpdate.jurusan = dto.jurusan;
+    if (dto.tahun_pendaftaran !== undefined) dataToUpdate.tahun_pendaftaran = dto.tahun_pendaftaran;
     if (dto.no_hp !== undefined) dataToUpdate.no_hp = dto.no_hp;
     if (dto.tempat_lahir !== undefined) dataToUpdate.tempat_lahir = dto.tempat_lahir;
     if (dto.foto_profil !== undefined) dataToUpdate.foto_profil = dto.foto_profil;
@@ -168,6 +168,7 @@ export class AuthService {
         role: user.role.toLowerCase(), // Pastikan lowercase
         nis: user.nis,
         kelas: user.kelas,
+        jurusan: user.jurusan,
         no_hp: user.no_hp,
         tanggal_lahir: user.tanggal_lahir,
         tempat_lahir: user.tempat_lahir,
@@ -185,6 +186,7 @@ export class AuthService {
           role: user.role,
           nis: user.nis,
           kelas: user.kelas,
+          jurusan: user.jurusan,
           no_hp: user.no_hp,
           tanggal_lahir: user.tanggal_lahir,
           tempat_lahir: user.tempat_lahir,

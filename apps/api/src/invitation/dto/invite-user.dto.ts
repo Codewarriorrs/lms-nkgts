@@ -25,4 +25,8 @@ export class InviteUserDto {
   @IsOptional()
   @IsString()
   kelas?: string;
+
+  @IsOptional()
+  @IsString()
+  jurusan?: string;
 }
