@@ -487,10 +487,10 @@ export default function AdminUsersPage() {
   // Download CSV Template Helper
   const downloadTemplate = () => {
     const templateContent =
-      "Email,Nama,Role,Nis,Kelas\n" +
-      "siswa.contoh@nkgts.sch.id,Budi Utomo,siswa,123456,XII TKJ 1\n" +
-      "guru.contoh@nkgts.sch.id,Siti Aminah,guru,,\n" +
-      "admin.sekolah@nkgts.sch.id,Ahmad Fauzi,admin,,";
+      "Email,Nama,Role,Asal Sekolah,Nis,Kelas\n" +
+      "siswa.contoh@nkgts.sch.id,Budi Utomo,siswa,SMK Negeri 1 Jakarta,123456,XII TKJ 1\n" +
+      "guru.contoh@nkgts.sch.id,Siti Aminah,guru,SMK Negeri 1 Jakarta,,\n" +
+      "admin.sekolah@nkgts.sch.id,Ahmad Fauzi,admin,SMK Negeri 1 Jakarta,,";
     const blob = new Blob([templateContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");

@@ -212,7 +212,7 @@ export class InvitationService {
   }
 
   // 4. Pengunggahan Pengguna Massal via File (Excel / CSV)
-  async importUsers(file: Express.Multer.File, sekolahId: number) {
+  async importUsers(file: Express.Multer.File, sekolahId?: number) {
     if (!file) {
       throw new BadRequestException('File tidak ditemukan');
     }
@@ -243,41 +243,78 @@ export class InvitationService {
       errors: [] as string[],
     };
 
+    // Ambil data daftar sekolah di database untuk pencocokan otomatis
+    const allSekolah = await this.prisma.sekolah.findMany();
+
     // Validasi & Simpan setiap record secara sekuensial
     for (const [index, row] of records.entries()) {
-      const email = row.Email || row.email || row.EMAIL;
-      const nama = row.Nama || row.nama || row.NAMA || row.Name || row.name;
-      let roleRaw = row.Role || row.role || row.ROLE || 'siswa';
-      const nis = row.Nis || row.nis || row.NIS || row['Nomor Induk Siswa'] || null;
-      const kelas = row.Kelas || row.kelas || row.KELAS || row.Class || row.class || null;
+      // Deteksi fleksibel header (Termasuk format Form Pendaftaran Siswa Asli)
+      const email = row['Email Aktif'] || row.Email || row.email || row.EMAIL || row['E-mail'] || row['email_aktif'];
+      const nama = row.Nama || row.nama || row.NAMA || row['Nama Siswa'] || row['Nama Lengkap'] || row.Name || row.name;
+      let roleRaw = row.Role || row.role || row.ROLE || row.Peran || row.peran;
+      const sekolahRaw = row['Asal Sekolah'] || row.Sekolah || row.sekolah || row.SEKOLAH || row['Nama Sekolah'] || row['sekolah_asal'];
+      const nis = row.Column1 || row.NIS || row.Nis || row.nis || row['Nomor Induk Siswa'] || null;
+      const kelas = row['Kelas saat mendaftar'] || row.Kelas || row.kelas || row.KELAS || row.Class || row.class || null;
 
-      const lineNumber = index + 2; // Baris Excel biasanya 1-based header = baris 1
+      const lineNumber = index + 2; // Baris Excel (1-based header = baris 1)
 
-      if (!email || !nama) {
+      const emailStr = email ? email.toString().trim() : '';
+      const namaStr = nama ? nama.toString().trim() : '';
+
+      // Validasi Field Wajib: Email dan Nama
+      if (!emailStr || !namaStr) {
         summary.failed++;
         summary.errors.push(`Baris ${lineNumber}: Kolom 'Email' dan 'Nama' wajib diisi.`);
         continue;
       }
 
-      // Standarisasi role enum
+      // Validasi Field Wajib: Asal Sekolah & Matching Database
+      let targetSekolahId: number | undefined = sekolahId && !isNaN(sekolahId) && sekolahId > 0 ? sekolahId : undefined;
+      const sekolahStr = sekolahRaw ? sekolahRaw.toString().trim() : '';
+
+      if (sekolahStr) {
+        const matched = allSekolah.find(s =>
+          s.nama_sekolah.toLowerCase().trim() === sekolahStr.toLowerCase() ||
+          s.nama_sekolah.toLowerCase().includes(sekolahStr.toLowerCase()) ||
+          sekolahStr.toLowerCase().includes(s.nama_sekolah.toLowerCase())
+        );
+        if (matched) {
+          targetSekolahId = matched.id;
+        } else if (!targetSekolahId) {
+          summary.failed++;
+          summary.errors.push(`Baris ${lineNumber} (${emailStr}): Asal Sekolah '${sekolahStr}' tidak ditemukan di database.`);
+          continue;
+        }
+      }
+
+      if (!targetSekolahId) {
+        summary.failed++;
+        summary.errors.push(`Baris ${lineNumber} (${emailStr}): Kolom 'Asal Sekolah' wajib diisi atau tentukan Opsi Sekolah di modal.`);
+        continue;
+      }
+
+      // Standarisasi Role Enum (Wajib ada/ditentukan, default: siswa)
       let role: RoleEnum = RoleEnum.siswa;
-      roleRaw = roleRaw.trim().toLowerCase();
-      if (roleRaw === 'admin') role = RoleEnum.admin;
-      else if (roleRaw === 'guru') role = RoleEnum.guru;
+      if (roleRaw) {
+        const rLower = roleRaw.toString().trim().toLowerCase();
+        if (rLower === 'admin') role = RoleEnum.admin;
+        else if (rLower === 'guru') role = RoleEnum.guru;
+        else if (rLower === 'siswa') role = RoleEnum.siswa;
+      }
 
       try {
         await this.createTokenAndInvite(
-          email,
-          nama,
+          emailStr,
+          namaStr,
           role,
-          sekolahId,
+          targetSekolahId,
           nis ? nis.toString().trim() : undefined,
           kelas ? kelas.toString().trim() : undefined
         );
         summary.success++;
       } catch (err: any) {
         summary.failed++;
-        summary.errors.push(`Baris ${lineNumber} (${email}): ${err.message}`);
+        summary.errors.push(`Baris ${lineNumber} (${emailStr}): ${err.message}`);
       }
     }
 

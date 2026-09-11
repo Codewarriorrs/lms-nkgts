@@ -40,12 +40,13 @@ export class InvitationController {
   @UseInterceptors(FileInterceptor('file'))
   async importUsers(
     @UploadedFile() file: Express.Multer.File,
-    @Body('sekolah_id', ParseIntPipe) sekolahId: number,
+    @Body('sekolah_id') sekolahIdRaw?: string,
   ) {
     if (!file) {
       throw new BadRequestException('Unggah file .xlsx atau .csv terlebih dahulu');
     }
-    return this.invitationService.importUsers(file, sekolahId);
+    const sekolahId = sekolahIdRaw ? parseInt(sekolahIdRaw, 10) : undefined;
+    return this.invitationService.importUsers(file, isNaN(sekolahId as number) ? undefined : sekolahId);
   }
 
   // 2. Undang pengguna secara manual
