@@ -158,6 +158,7 @@ export class InvitationService {
     sekolahId: number,
     nis?: string,
     kelas?: string,
+    jurusan?: string,
   ) {
     const emailLower = email.toLowerCase();
 
@@ -192,6 +193,7 @@ export class InvitationService {
         nama,
         nis: nis || null,
         kelas: kelas || null,
+        jurusan: jurusan || null,
         sekolah_id: sekolahId,
         expires_at: expiresAt,
       },
@@ -208,7 +210,7 @@ export class InvitationService {
 
   // 3. Undang Pengguna Secara Manual
   async inviteManual(dto: InviteUserDto) {
-    return this.createTokenAndInvite(dto.email, dto.nama, dto.role, dto.sekolah_id, dto.nis, dto.kelas);
+    return this.createTokenAndInvite(dto.email, dto.nama, dto.role, dto.sekolah_id, dto.nis, dto.kelas, dto.jurusan);
   }
 
   // 4. Pengunggahan Pengguna Massal via File (Excel / CSV)
@@ -256,7 +258,7 @@ export class InvitationService {
       const keyMap = new Map<string, any>();
       for (const [k, v] of Object.entries(row)) {
         if (v !== undefined && v !== null && String(v).trim() !== '') {
-          const cleanK = String(k).trim().toLowerCase().replace(/[\s\-_]+/g, '');
+          const cleanK = String(k).trim().toLowerCase().replace(/[\s\-_/]+/g, '');
           keyMap.set(cleanK, String(v).trim());
         }
       }
@@ -264,7 +266,7 @@ export class InvitationService {
       const getVal = (candidates: string[], excludeKeywords: string[] = []): string => {
         // Phase 1: Exact Key Match
         for (const cand of candidates) {
-          const cleanCand = cand.toLowerCase().replace(/[\s\-_]+/g, '');
+          const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
           for (const [k, v] of keyMap.entries()) {
             const isExcluded = excludeKeywords.some(ex => k.includes(ex.toLowerCase()));
             if (!isExcluded && k === cleanCand) {
@@ -274,7 +276,7 @@ export class InvitationService {
         }
         // Phase 2: Prefix/Suffix Match (Abaikan partial match pertengahan seperti namasgajurusan)
         for (const cand of candidates) {
-          const cleanCand = cand.toLowerCase().replace(/[\s\-_]+/g, '');
+          const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
           for (const [k, v] of keyMap.entries()) {
             const isExcluded = excludeKeywords.some(ex => k.includes(ex.toLowerCase()));
             if (!isExcluded && (k.startsWith(cleanCand) || k.endsWith(cleanCand))) {
@@ -291,7 +293,7 @@ export class InvitationService {
       // 2. Deteksi Nama Siswa / Pengguna (Kecualikan jurusan, sga, sekolah, dll.)
       let namaStr = getVal(
         ['nama', 'namalengkap', 'namasiswa', 'name', 'namasiswa/i', 'namapeserta', 'namamurid'],
-        ['jurusan', 'sga', 'sekolah', 'email', 'kelas', 'kelamin', 'lahir', 'whatsapp', 'phone']
+        ['jurusan', 'sga', 'sekolah', 'email', 'kelas', 'kelamin', 'lahir', 'whatsapp', 'phone', 'sgajurusan']
       );
 
       // Fallback: Jika 'Column1' berisi Teks Nama (seperti "AFAF HAFIZHAH")
@@ -319,6 +321,9 @@ export class InvitationService {
 
       // 6. Deteksi Kelas
       const kelas = getVal(['kelassaatmendaftar', 'kelas', 'class', 'tingkat']);
+
+      // 7. Deteksi Jurusan / SGA
+      const jurusan = getVal(['namasgajurusan', 'namasga', 'namajurusan', 'jurusan', 'sga', 'prodi', 'programkeahlian', 'kompetensikeahlian']);
 
       // Validasi Field Wajib: Email dan Nama
       if (!emailStr || !namaStr) {
@@ -381,7 +386,8 @@ export class InvitationService {
           role,
           targetSekolahId,
           nis ? nis.toString().trim() : undefined,
-          kelas ? kelas.toString().trim() : undefined
+          kelas ? kelas.toString().trim() : undefined,
+          jurusan ? jurusan.toString().trim() : undefined
         );
         summary.success++;
       } catch (err: any) {
@@ -438,6 +444,7 @@ export class InvitationService {
           role: user.role,
           nis: user.nis,
           kelas: user.kelas,
+          jurusan: user.jurusan,
           nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
           created_at: user.created_at,
           reset_password_expires: user.reset_password_expires,
@@ -468,6 +475,7 @@ export class InvitationService {
       role: invite.role,
       nis: invite.nis,
       kelas: invite.kelas,
+      jurusan: invite.jurusan,
       nama_sekolah: invite.sekolah.nama_sekolah,
       created_at: invite.created_at,
       expires_at: invite.expires_at,
@@ -590,6 +598,7 @@ export class InvitationService {
       role: invite.role,
       nis: invite.nis,
       kelas: invite.kelas,
+      jurusan: invite.jurusan,
       id_sekolah: invite.sekolah_id,
       nama_sekolah: invite.sekolah.nama_sekolah,
     };
@@ -615,6 +624,7 @@ export class InvitationService {
           sekolah_id: tokenInfo.id_sekolah,
           nis: tokenInfo.nis,
           kelas: tokenInfo.kelas,
+          jurusan: tokenInfo.jurusan,
         },
         include: { sekolah: true },
       });
@@ -796,6 +806,7 @@ export class InvitationService {
         'Email': siswa.email,
         'Sekolah': siswa.sekolah?.nama_sekolah || '-',
         'Kelas': siswa.kelas || '-',
+        'Jurusan / SGA': siswa.jurusan || '-',
         'Modul 1 (Latsol)': m1,
         'Modul 2 (Latsol)': m2,
         'Modul 3 (Latsol)': m3,

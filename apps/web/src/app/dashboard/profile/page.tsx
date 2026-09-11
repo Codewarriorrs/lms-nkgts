@@ -15,7 +15,9 @@ export default function ProfilePage() {
 
   // Form states
   const [nama, setNama] = useState("");
+  const [nis, setNis] = useState("");
   const [kelas, setKelas] = useState("");
+  const [jurusan, setJurusan] = useState("");
   const [noHp, setNoHp] = useState("");
   const [tempatLahir, setTempatLahir] = useState("");
   const [tanggalLahir, setTanggalLahir] = useState("");
@@ -30,14 +32,21 @@ export default function ProfilePage() {
         const parsed = JSON.parse(stored);
         setCurrentUser(parsed);
         setNama(parsed.name || "");
+        setNis(parsed.nis || "");
         setKelas(parsed.kelas || "");
+        setJurusan(parsed.jurusan || "");
         setNoHp(parsed.no_hp || "");
         setTempatLahir(parsed.tempat_lahir || "");
-        setTahunPendaftaran(parsed.tahun_pendaftaran || "");
+        setTahunPendaftaran(parsed.tahun_pendaftaran ?? "");
         if (parsed.tanggal_lahir) {
-          const d = new Date(parsed.tanggal_lahir);
-          if (!isNaN(d.getTime())) {
-            setTanggalLahir(d.toISOString().split("T")[0]);
+          const str = String(parsed.tanggal_lahir);
+          if (str.includes("T")) {
+            setTanggalLahir(str.split("T")[0]);
+          } else {
+            const d = new Date(parsed.tanggal_lahir);
+            if (!isNaN(d.getTime())) {
+              setTanggalLahir(d.toISOString().split("T")[0]);
+            }
           }
         }
       } catch (e) {
@@ -88,8 +97,20 @@ export default function ProfilePage() {
         return;
       }
 
+      if (nis && nis.length > 50) {
+        setErrorMsg("NIS maksimal 50 karakter.");
+        setSubmitLoading(false);
+        return;
+      }
+
       if (isSiswa && kelas && kelas.length > 20) {
         setErrorMsg("Nama kelas maksimal 20 karakter.");
+        setSubmitLoading(false);
+        return;
+      }
+
+      if (isSiswa && jurusan && jurusan.length > 150) {
+        setErrorMsg("Nama jurusan / SGA maksimal 150 karakter.");
         setSubmitLoading(false);
         return;
       }
@@ -118,19 +139,19 @@ export default function ProfilePage() {
 
       const payload: any = {
         nama: nama.trim(),
+        nis: nis.trim() || null,
         no_hp: noHp || null,
         tempat_lahir: tempatLahir.trim() || null,
       };
 
-      if (currentUser?.role === "admin") {
-        if (isSiswa) {
-          payload.kelas = kelas.trim() || null;
-          payload.tahun_pendaftaran = tahunPendaftaran !== "" ? Number(tahunPendaftaran) : null;
-        }
+      if (isSiswa) {
+        payload.kelas = kelas.trim() || null;
+        payload.jurusan = jurusan.trim() || null;
+        payload.tahun_pendaftaran = tahunPendaftaran !== "" ? Number(tahunPendaftaran) : null;
       }
 
       if (tanggalLahir) {
-        payload.tanggal_lahir = new Date(tanggalLahir).toISOString();
+        payload.tanggal_lahir = tanggalLahir;
       } else {
         payload.tanggal_lahir = null;
       }
@@ -156,9 +177,14 @@ export default function ProfilePage() {
         throw new Error(data.message || "Gagal memperbarui profil");
       }
 
-      localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("token", data.token);
-      setCurrentUser(data.user);
+      const updatedUserData = data.user || data.data?.profile;
+      if (updatedUserData) {
+        localStorage.setItem("user", JSON.stringify(updatedUserData));
+        setCurrentUser(updatedUserData);
+      }
+      if (data.token || data.data?.access_token) {
+        localStorage.setItem("token", data.token || data.data?.access_token);
+      }
       
       setSuccessMsg("Profil Anda berhasil diperbarui!");
       setIsEditing(false);
@@ -323,17 +349,6 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            {isSiswa && (
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <School size={12} /> Kelas
-                </span>
-                <p className="text-sm font-semibold text-neutral-800 bg-neutral-50 px-4 py-2.5 rounded-lg border border-neutral-100/50">
-                  {currentUser.kelas || "-"}
-                </p>
-              </div>
-            )}
-
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Phone size={12} /> No. HP / WhatsApp
@@ -365,19 +380,37 @@ export default function ProfilePage() {
               <>
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Calendar size={12} /> Tahun Angkatan / Pendaftaran
+                    <Shield size={12} /> NIS
                   </span>
                   <p className="text-sm font-semibold text-neutral-800 bg-neutral-50 px-4 py-2.5 rounded-lg border border-neutral-100/50">
-                    {currentUser.tahun_pendaftaran || "-"}
+                    {currentUser.nis || "-"}
                   </p>
                 </div>
 
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Shield size={12} /> NIS
+                    <School size={12} /> Kelas
                   </span>
                   <p className="text-sm font-semibold text-neutral-800 bg-neutral-50 px-4 py-2.5 rounded-lg border border-neutral-100/50">
-                    {currentUser.nis || "-"}
+                    {currentUser.kelas || "-"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText size={12} /> Nama SGA / Jurusan
+                  </span>
+                  <p className="text-sm font-semibold text-neutral-800 bg-neutral-50 px-4 py-2.5 rounded-lg border border-neutral-100/50">
+                    {currentUser.jurusan || "-"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Calendar size={12} /> Tahun Angkatan / Pendaftaran
+                  </span>
+                  <p className="text-sm font-semibold text-neutral-800 bg-neutral-50 px-4 py-2.5 rounded-lg border border-neutral-100/50">
+                    {currentUser.tahun_pendaftaran || "-"}
                   </p>
                 </div>
               </>
@@ -408,27 +441,6 @@ export default function ProfilePage() {
                   className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-100 text-sm text-neutral-400 font-mono cursor-not-allowed"
                 />
               </div>
-
-              {isSiswa && (
-                <div>
-                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">
-                    Kelas {currentUser?.role !== "admin" ? "(Read Only)" : ""}
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={20}
-                    disabled={currentUser?.role !== "admin"}
-                    value={kelas}
-                    onChange={(e) => setKelas(e.target.value)}
-                    placeholder="Contoh: X TKR 1, XII TKJ"
-                    className={`w-full px-4 py-2.5 rounded-lg border border-neutral-100 text-sm transition ${
-                      currentUser?.role !== "admin"
-                        ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
-                        : "bg-neutral-50 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    }`}
-                  />
-                </div>
-              )}
 
               <div>
                 <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">No. HP / WhatsApp</label>
@@ -474,36 +486,55 @@ export default function ProfilePage() {
               {isSiswa && (
                 <>
                   <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">
-                      Tahun Angkatan / Pendaftaran {currentUser?.role !== "admin" ? "(Read Only)" : ""}
-                    </label>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">NIS</label>
+                    <input
+                      type="text"
+                      maxLength={50}
+                      value={nis}
+                      onChange={(e) => setNis(e.target.value)}
+                      placeholder="Contoh: 12345678"
+                      className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-50 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">Kelas</label>
+                    <input
+                      type="text"
+                      maxLength={20}
+                      value={kelas}
+                      onChange={(e) => setKelas(e.target.value)}
+                      placeholder="Contoh: X TKR 1, XII TKJ"
+                      className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-50 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">Nama SGA / Jurusan</label>
+                    <input
+                      type="text"
+                      maxLength={150}
+                      value={jurusan}
+                      onChange={(e) => setJurusan(e.target.value)}
+                      placeholder="Contoh: Teknik Kendaraan Ringan, SGA 1"
+                      className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-50 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">Tahun Angkatan / Pendaftaran</label>
                     <input
                       type="number"
                       min="2000"
                       max={new Date().getFullYear() + 1}
                       step="1"
-                      disabled={currentUser?.role !== "admin"}
                       value={tahunPendaftaran}
                       onChange={(e) => {
                         const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 4);
                         setTahunPendaftaran(digitsOnly === "" ? "" : Number(digitsOnly));
                       }}
                       placeholder="Contoh: 2026"
-                      className={`w-full px-4 py-2.5 rounded-lg border border-neutral-100 text-sm transition ${
-                        currentUser?.role !== "admin"
-                          ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
-                          : "bg-neutral-50 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      }`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">NIS (Read Only)</label>
-                    <input
-                      type="text"
-                      disabled
-                      value={currentUser.nis || "-"}
-                      className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-100 text-sm text-neutral-400 cursor-not-allowed"
+                      className="w-full px-4 py-2.5 rounded-lg border border-neutral-100 bg-neutral-50 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
                     />
                   </div>
                 </>
@@ -518,12 +549,22 @@ export default function ProfilePage() {
                   setErrorMsg(null);
                   setFotoProfilBase64(null);
                   setNama(currentUser.name || "");
+                  setNis(currentUser.nis || "");
                   setKelas(currentUser.kelas || "");
+                  setJurusan(currentUser.jurusan || "");
                   setNoHp(currentUser.no_hp || "");
                   setTempatLahir(currentUser.tempat_lahir || "");
-                  setTahunPendaftaran(currentUser.tahun_pendaftaran || "");
+                  setTahunPendaftaran(currentUser.tahun_pendaftaran ?? "");
                   if (currentUser.tanggal_lahir) {
-                    setTanggalLahir(new Date(currentUser.tanggal_lahir).toISOString().split("T")[0]);
+                    const str = String(currentUser.tanggal_lahir);
+                    if (str.includes("T")) {
+                      setTanggalLahir(str.split("T")[0]);
+                    } else {
+                      const d = new Date(currentUser.tanggal_lahir);
+                      if (!isNaN(d.getTime())) {
+                        setTanggalLahir(d.toISOString().split("T")[0]);
+                      }
+                    }
                   } else {
                     setTanggalLahir("");
                   }

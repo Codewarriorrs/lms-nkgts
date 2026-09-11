@@ -41,6 +41,7 @@ model User {
 
   // === FIELD BARU KELAS SISWA ===
   kelas         String?         @db.VarChar(20)  // Contoh: "Kelas 10", "Kelas 11"
+  jurusan       String?         @db.VarChar(150) // Contoh: "Teknik Kendaraan Ringan", "SGA 1"
   no_hp         String?         @db.VarChar(20)
   tanggal_lahir DateTime?       @db.Date
   tahun_pendaftaran Int?
@@ -80,6 +81,7 @@ model InvitationToken {
   nama       String   @db.VarChar(150)
   nis        String?  @db.VarChar(50)
   kelas      String?  @db.VarChar(20)
+  jurusan    String?  @db.VarChar(150)
   is_used    Boolean  @default(false)
   expires_at DateTime
   created_at DateTime @default(now())
