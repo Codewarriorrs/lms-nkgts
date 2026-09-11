@@ -13,14 +13,13 @@ RUN npm install --workspace=apps/web
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY package*.json ./
 COPY apps/web ./apps/web
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=1024"
-ENV PATH="/app/node_modules/.bin:/app/apps/web/node_modules/.bin:${PATH}"
+ENV PATH="/app/node_modules/.bin:${PATH}"
 
 RUN npm run build --workspace=apps/web
 
