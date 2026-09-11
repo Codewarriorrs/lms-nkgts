@@ -20,7 +20,9 @@ import {
   X,
   FileSpreadsheet,
   KeyRound,
-  Send
+  Send,
+  Edit,
+  RotateCcw
 } from "lucide-react";
 
 interface UserType {
@@ -745,27 +747,43 @@ export default function AdminUsersPage() {
 
                     <div className="flex flex-wrap items-center justify-end gap-1.5 pt-2 border-t border-neutral-100">
                       <button
-                        onClick={() => setSendResetTargetUser(user)}
-                        className="px-2 py-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg"
-                      >
-                        Reset Sandi
-                      </button>
-                      <button
                         onClick={() => { 
                           setSelectedEditUser(user); 
                           setEditRoleValue(user.role); 
                           setEditKelasValue(user.kelas || ""); 
                         }}
-                        className="px-2 py-1 text-[10px] font-bold text-primary bg-primary/5 border border-primary/20 rounded-lg"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300/80 rounded-lg cursor-pointer transition"
                       >
+                        <Edit size={11} />
                         Edit Data
                       </button>
+                      {user.role === "siswa" && (
+                        <button
+                          onClick={() => {
+                            setResetTargetUser({ id: user.id, nama: user.nama });
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-white bg-amber-500 hover:bg-amber-600 border border-amber-600/30 rounded-lg cursor-pointer transition"
+                        >
+                          <RotateCcw size={11} />
+                          Reset Progres
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleDeleteUser(user.id, user.nama)}
-                        className="px-2 py-1 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg"
+                        onClick={() => setSendResetTargetUser(user)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 border border-blue-700/30 rounded-lg cursor-pointer transition"
                       >
-                        Hapus
+                        <KeyRound size={11} />
+                        Reset Sandi
                       </button>
+                      {user.email !== "admin@nkgts.com" && user.id !== currentUser?.id && (
+                        <button
+                          onClick={() => handleDeleteUser(user.id, user.nama)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 border border-rose-700/30 rounded-lg cursor-pointer transition"
+                        >
+                          <Trash2 size={11} />
+                          Hapus
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -847,17 +865,18 @@ export default function AdminUsersPage() {
                             day: "numeric"
                           })}
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        <td className="px-6 py-4 text-right whitespace-nowrap min-w-[280px]">
+                          <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                             <button
                               onClick={() => {
                                 setSelectedEditUser(user);
                                 setEditRoleValue(user.role);
                                 setEditKelasValue(user.kelas || "");
                               }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all border border-slate-300/80 cursor-pointer shadow-2xs whitespace-nowrap"
                               title="Ubah peran & kelas pengguna"
                             >
+                              <Edit size={13} />
                               Edit / Role
                             </button>
                             {user.role === "siswa" && (
@@ -865,27 +884,28 @@ export default function AdminUsersPage() {
                                 onClick={() => {
                                   setResetTargetUser({ id: user.id, nama: user.nama });
                                 }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-warning/30 bg-warning/5 hover:bg-warning/15 text-warning-dark text-xs font-bold transition cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-xs border border-amber-600/30 cursor-pointer whitespace-nowrap"
                                 title="Reset progres belajar siswa"
                               >
+                                <RotateCcw size={13} />
                                 Reset Progres
                               </button>
                             )}
                             <button
                               onClick={() => setSendResetTargetUser(user)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition cursor-pointer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer whitespace-nowrap"
                               title="Kirim email petunjuk atur ulang kata sandi (berlaku 24 jam)"
                             >
-                              <KeyRound size={12} />
+                              <KeyRound size={13} />
                               Kirim Link Reset
                             </button>
                             {user.email !== "admin@nkgts.com" && user.id !== currentUser?.id && (
                               <button
                                 onClick={() => handleDeleteUser(user.id, user.nama)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-600 text-xs font-bold transition cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer whitespace-nowrap"
                                 title="Hapus akun pengguna"
                               >
-                                <Trash2 size={12} />
+                                <Trash2 size={13} />
                                 Hapus
                               </button>
                             )}
@@ -972,24 +992,24 @@ export default function AdminUsersPage() {
                             })}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        <td className="px-6 py-4 text-right whitespace-nowrap min-w-[220px]">
+                          <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                             <button
                               onClick={() => handleResendInvite(invite.id, invite.email)}
                               disabled={loading}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
                               title="Kirim ulang email undangan"
                             >
-                              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+                              <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
                               Kirim Ulang
                             </button>
                             <button
                               onClick={() => setDeleteTargetId(invite.id)}
                               disabled={loading}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-600 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
                               title="Batalkan dan hapus undangan"
                             >
-                              <Trash2 size={12} />
+                              <Trash2 size={13} />
                               Hapus
                             </button>
                           </div>
@@ -1083,22 +1103,22 @@ export default function AdminUsersPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        <td className="px-6 py-4 text-right whitespace-nowrap min-w-[220px]">
+                          <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                             <button
                               onClick={() => setSendResetTargetUser(user)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition cursor-pointer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer whitespace-nowrap"
                               title="Kirim ulang email reset kata sandi (perpanjang 24 jam)"
                             >
-                              <RefreshCw size={12} />
+                              <RefreshCw size={13} />
                               Kirim Ulang
                             </button>
                             <button
                               onClick={() => setCancelResetTargetUser(user)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-600 text-xs font-bold transition cursor-pointer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer whitespace-nowrap"
                               title="Batalkan tautan token reset sandi"
                             >
-                              <X size={12} />
+                              <X size={13} />
                               Batalkan
                             </button>
                           </div>
