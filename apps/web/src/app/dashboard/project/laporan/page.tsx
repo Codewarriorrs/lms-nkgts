@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import UploadCard from "@/components/project/UploadCard";
-import { ArrowLeft } from "lucide-react";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function LaporanPage() {
   const sample = { name: "TemplateLaporan.pdf", url: "/TemplateLaporan.pdf" };
@@ -14,9 +13,7 @@ export default function LaporanPage() {
           <h1 className="text-2xl font-bold text-neutral-900">Kumpulkan Laporan</h1>
           <p className="text-neutral-400 text-xs mt-1">Unggah laporan akhir proyek kelompok Anda di halaman ini.</p>
         </div>
-        <Link href="/dashboard/project" className="inline-flex items-center gap-2 text-sm text-neutral-600 hover:text-neutral-800">
-          <ArrowLeft size={16} /> Kembali
-        </Link>
+        <BackButton href="/dashboard/project" label="Kembali ke Proyek" variant="outline" size="sm" />
       </div>
 
       <div className="max-w-6xl w-full">

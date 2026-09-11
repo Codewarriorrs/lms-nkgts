@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import TeacherDashboard from "@/components/dashboard/TeacherDashboard";
+import { BackButton } from "@/components/ui/BackButton";
 
 interface LatsolStatus {
   modul_id: number;
@@ -224,12 +225,7 @@ export default function SoalPage() {
         
         {/* Exam Header */}
         <div className="flex items-center justify-between border-b border-neutral-100 pb-4">
-          <button 
-            onClick={handleExitExam}
-            className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 font-bold"
-          >
-            <ChevronLeft size={16} /> Kembali ke Menu
-          </button>
+          <BackButton onClick={handleExitExam} label="Kembali ke Menu" variant="outline" size="sm" />
           <div className="text-right">
             <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
               {isReviewMode ? "Pembahasan Ujian" : "Ujian Modul"}
@@ -311,12 +307,7 @@ export default function SoalPage() {
               >
                 Lihat Pembahasan
               </button>
-              <button
-                onClick={handleExitExam}
-                className="bg-white hover:bg-neutral-50 text-neutral-850 text-xs font-bold px-6 py-2.5 rounded-xl transition border border-neutral-200 inline-block"
-              >
-                Kembali ke Daftar Latsol
-              </button>
+              <BackButton onClick={handleExitExam} label="Kembali ke Daftar Latsol" variant="outline" size="md" />
             </div>
           </div>
         ) : (

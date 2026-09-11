@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { BackButton } from "@/components/ui/BackButton";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -496,10 +497,8 @@ export default function MateriDetailPage() {
   return (
     <div className="px-3 sm:px-6 py-4 sm:py-8 space-y-6">
       {/* Header navigasi */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Link href="/dashboard/materi" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary-light">
-          <ArrowLeft size={16} /> Kembali
-        </Link>
+      <div className="flex items-center justify-between">
+        <BackButton href="/dashboard/materi" label="Kembali ke Daftar Modul" variant="outline" size="sm" />
         <div className="flex items-center gap-3">
           {/* Tombol Edit khusus Admin */}
           {currentUser?.role === "admin" && (

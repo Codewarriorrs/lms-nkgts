@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
 import { API_URL } from "@/lib/api";
+import { BackButton } from "@/components/ui/BackButton";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -190,14 +191,8 @@ function ResetPasswordForm() {
                   )}
                 </button>
 
-                <div className="text-center">
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-500 hover:text-neutral-800 transition"
-                  >
-                    <ArrowLeft size={14} />
-                    Kembali ke Halaman Masuk
-                  </Link>
+                <div className="text-center pt-1 flex justify-center">
+                  <BackButton href="/login" label="Kembali ke Halaman Masuk" variant="outline" size="sm" />
                 </div>
               </div>
             </form>

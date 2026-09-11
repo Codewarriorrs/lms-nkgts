@@ -3,8 +3,8 @@
 import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { API_URL } from "@/lib/api";
+import { BackButton } from "@/components/ui/BackButton";
 
 export function LoginForm() {
   const router = useRouter();
@@ -117,13 +117,9 @@ export function LoginForm() {
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12 bg-white">
         <div className="w-full max-w-sm">
           {/* Back to Home Link */}
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-400 hover:text-primary transition-colors duration-200 mb-6"
-          >
-            <ArrowLeft size={14} />
-            Kembali ke Beranda
-          </Link>
+          <div className="mb-6">
+            <BackButton href="/" label="Kembali ke Beranda" variant="outline" size="sm" />
+          </div>
 
           {/* Mobile logo */}
           <Link href="/" className="lg:hidden flex items-center gap-2.5 mb-10">
