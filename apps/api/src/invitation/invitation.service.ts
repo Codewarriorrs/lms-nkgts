@@ -268,7 +268,7 @@ export class InvitationService {
         continue;
       }
 
-      // Validasi Field Wajib: Asal Sekolah & Matching Database
+      // Validasi Field Wajib: Asal Sekolah & Auto Match / Auto Create Sekolah di Database
       let targetSekolahId: number | undefined = sekolahId && !isNaN(sekolahId) && sekolahId > 0 ? sekolahId : undefined;
       const sekolahStr = sekolahRaw ? sekolahRaw.toString().trim() : '';
 
@@ -280,16 +280,29 @@ export class InvitationService {
         );
         if (matched) {
           targetSekolahId = matched.id;
-        } else if (!targetSekolahId) {
-          summary.failed++;
-          summary.errors.push(`Baris ${lineNumber} (${emailStr}): Asal Sekolah '${sekolahStr}' tidak ditemukan di database.`);
-          continue;
+        } else {
+          // Buat data Sekolah baru di DB secara otomatis jika belum terdaftar
+          try {
+            const newSekolah = await this.prisma.sekolah.create({
+              data: { nama_sekolah: sekolahStr },
+            });
+            allSekolah.push(newSekolah);
+            targetSekolahId = newSekolah.id;
+          } catch (e) {
+            // Jika terjadi race condition / unique constraint, ambil data yang ada
+            const existing = await this.prisma.sekolah.findFirst({
+              where: { nama_sekolah: { equals: sekolahStr, mode: 'insensitive' } },
+            });
+            if (existing) {
+              targetSekolahId = existing.id;
+            }
+          }
         }
       }
 
       if (!targetSekolahId) {
         summary.failed++;
-        summary.errors.push(`Baris ${lineNumber} (${emailStr}): Kolom 'Asal Sekolah' wajib diisi atau tentukan Opsi Sekolah di modal.`);
+        summary.errors.push(`Baris ${lineNumber} (${emailStr}): Kolom 'Asal Sekolah' wajib diisi pada file Excel/CSV.`);
         continue;
       }
 

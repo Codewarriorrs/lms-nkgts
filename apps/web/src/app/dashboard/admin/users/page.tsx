@@ -397,8 +397,8 @@ export default function AdminUsersPage() {
   // 5. Handle Excel/CSV Import
   const handleImportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!importFile || !importSekolahId) {
-      setErrorMsg("Pilih file dan sekolah tujuan terlebih dahulu.");
+    if (!importFile) {
+      setErrorMsg("Pilih file CSV / Excel terlebih dahulu.");
       return;
     }
     setLoading(true);
@@ -408,7 +408,9 @@ export default function AdminUsersPage() {
 
     const formData = new FormData();
     formData.append("file", importFile);
-    formData.append("sekolah_id", importSekolahId);
+    if (importSekolahId) {
+      formData.append("sekolah_id", importSekolahId);
+    }
 
     try {
       const token = localStorage.getItem("token");
@@ -1282,16 +1284,20 @@ export default function AdminUsersPage() {
             
             <form onSubmit={handleImportSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Sekolah Tujuan *</label>
+                <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Sekolah Tujuan (Opsional / Fallback)</label>
                 <select
                   value={importSekolahId}
                   onChange={(e) => setImportSekolahId(e.target.value)}
-                  className="w-full px-4 py-2 border border-neutral-100 rounded-xl text-sm bg-white focus:outline-none focus:border-primary transition cursor-pointer"
+                  className="w-full px-4 py-2 border border-neutral-100 rounded-xl text-sm bg-white focus:outline-none focus:border-primary transition cursor-pointer text-neutral-700 font-medium"
                 >
+                  <option value="">-- Otomatis dibaca dari kolom Asal Sekolah di File --</option>
                   {schools.map(s => (
                     <option key={s.id} value={s.id}>{s.nama_sekolah}</option>
                   ))}
                 </select>
+                <p className="text-[11px] text-neutral-400 mt-1">
+                  Sistem akan otomatis mendeteksi nama sekolah dari kolom <strong>Asal Sekolah</strong> per baris di file Excel/CSV.
+                </p>
               </div>
 
               {/* Upload Drop Zone */}
