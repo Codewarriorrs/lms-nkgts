@@ -261,11 +261,23 @@ export class InvitationService {
         }
       }
 
-      const getVal = (candidates: string[]): string => {
+      const getVal = (candidates: string[], excludeKeywords: string[] = []): string => {
+        // Phase 1: Exact Key Match
         for (const cand of candidates) {
           const cleanCand = cand.toLowerCase().replace(/[\s\-_]+/g, '');
           for (const [k, v] of keyMap.entries()) {
-            if (k === cleanCand || k.includes(cleanCand) || cleanCand.includes(k)) {
+            const isExcluded = excludeKeywords.some(ex => k.includes(ex.toLowerCase()));
+            if (!isExcluded && k === cleanCand) {
+              return v;
+            }
+          }
+        }
+        // Phase 2: Prefix/Suffix Match (Abaikan partial match pertengahan seperti namasgajurusan)
+        for (const cand of candidates) {
+          const cleanCand = cand.toLowerCase().replace(/[\s\-_]+/g, '');
+          for (const [k, v] of keyMap.entries()) {
+            const isExcluded = excludeKeywords.some(ex => k.includes(ex.toLowerCase()));
+            if (!isExcluded && (k.startsWith(cleanCand) || k.endsWith(cleanCand))) {
               return v;
             }
           }
@@ -276,9 +288,13 @@ export class InvitationService {
       // 1. Deteksi Email
       const emailStr = getVal(['emailaktif', 'email', 'emailaddress', 'e-mail', 'mail', 'alamatemail']);
 
-      // 2. Deteksi Nama Siswa / Pengguna
-      let namaStr = getVal(['nama', 'namalengkap', 'namasiswa', 'name', 'namasiswa/i', 'namapeserta', 'namamurid']);
-      // Fallback: Jika 'Column1' berisi Teks Nama (bukan murni angka NIS)
+      // 2. Deteksi Nama Siswa / Pengguna (Kecualikan jurusan, sga, sekolah, dll.)
+      let namaStr = getVal(
+        ['nama', 'namalengkap', 'namasiswa', 'name', 'namasiswa/i', 'namapeserta', 'namamurid'],
+        ['jurusan', 'sga', 'sekolah', 'email', 'kelas', 'kelamin', 'lahir', 'whatsapp', 'phone']
+      );
+
+      // Fallback: Jika 'Column1' berisi Teks Nama (seperti "AFAF HAFIZHAH")
       if (!namaStr) {
         const col1 = getVal(['column1', 'col1', 'kolom1']);
         if (col1 && isNaN(Number(col1))) {
