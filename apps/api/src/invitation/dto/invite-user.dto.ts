@@ -29,4 +29,21 @@ export class InviteUserDto {
   @IsOptional()
   @IsString()
   jurusan?: string;
+
+  @IsOptional()
+  @IsString()
+  no_hp?: string;
+
+  @IsOptional()
+  @IsString()
+  tanggal_lahir?: string;
+
+  @IsOptional()
+  @IsString()
+  tempat_lahir?: string;
+
+  @IsOptional()
+  @IsInt()
+  tahun_pendaftaran?: number;
 }
+

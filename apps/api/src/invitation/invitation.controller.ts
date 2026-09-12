@@ -33,6 +33,17 @@ export class InvitationController {
 
   // ================= ADMIN ROUTE ENDPOINTS =================
 
+  // 0. Unduh template Excel impor pengguna (.xlsx)
+  @Get('admin/users/download-template')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async downloadTemplate(@Res() res: Response) {
+    const buffer = this.invitationService.generateTemplateExcel();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="Template_Import_Pengguna_NKGTS.xlsx"');
+    res.send(buffer);
+  }
+
   // 1. Import pengguna massal via Excel/CSV
   @Post('admin/users/import')
   @UseGuards(JwtAuthGuard, RolesGuard)

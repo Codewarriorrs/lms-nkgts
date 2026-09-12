@@ -99,6 +99,19 @@ export class AuthService {
     };
   }
 
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { sekolah: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Pengguna tidak ditemukan');
+    }
+
+    return this.buildAuthResponse(user);
+  }
+
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {

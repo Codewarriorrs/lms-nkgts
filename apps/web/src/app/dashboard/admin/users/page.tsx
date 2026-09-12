@@ -488,22 +488,26 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Download CSV Template Helper
-  const downloadTemplate = () => {
-    const templateContent =
-      "Email,Nama,Role,Asal Sekolah,Nis,Kelas\n" +
-      "siswa.contoh@nkgts.sch.id,Budi Utomo,siswa,SMK Negeri 1 Jakarta,123456,XII TKJ 1\n" +
-      "guru.contoh@nkgts.sch.id,Siti Aminah,guru,SMK Negeri 1 Jakarta,,\n" +
-      "admin.sekolah@nkgts.sch.id,Ahmad Fauzi,admin,SMK Negeri 1 Jakarta,,";
-    const blob = new Blob([templateContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "template_import_user_nkgts.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  // Download Excel Template Helper (.xlsx)
+  const downloadTemplate = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/users/download-template`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Gagal mengunduh template Excel");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "Template_Import_Pengguna_NKGTS.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert("Gagal mengunduh template Excel: " + err.message);
+    }
   };
 
   // 8. Handle Export Excel Nilai Siswa

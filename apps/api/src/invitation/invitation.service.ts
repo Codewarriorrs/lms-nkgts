@@ -219,6 +219,7 @@ export class InvitationService {
     nis?: string,
     kelas?: string,
     jurusan?: string,
+    no_hp?: string,
     tanggal_lahir?: Date | string,
     tempat_lahir?: string,
     tahun_pendaftaran?: number,
@@ -251,22 +252,44 @@ export class InvitationService {
     const validTglLahir = tglLahirDate && !isNaN(tglLahirDate.getTime()) ? tglLahirDate : null;
 
     // Simpan ke database
-    const inviteToken = await this.prisma.invitationToken.create({
-      data: {
-        email: emailLower,
-        token,
-        role,
-        nama,
-        nis: nis || null,
-        kelas: kelas || null,
-        jurusan: jurusan || null,
-        tanggal_lahir: validTglLahir,
-        tempat_lahir: tempat_lahir || null,
-        tahun_pendaftaran: tahun_pendaftaran || null,
-        sekolah_id: sekolahId,
-        expires_at: expiresAt,
-      },
-    });
+    let inviteToken;
+    try {
+      inviteToken = await this.prisma.invitationToken.create({
+        data: {
+          email: emailLower,
+          token,
+          role,
+          nama,
+          nis: nis || null,
+          kelas: kelas || null,
+          jurusan: jurusan || null,
+          no_hp: no_hp || null,
+          tanggal_lahir: validTglLahir,
+          tempat_lahir: tempat_lahir || null,
+          tahun_pendaftaran: tahun_pendaftaran || null,
+          sekolah_id: sekolahId,
+          expires_at: expiresAt,
+        },
+      });
+    } catch (err: any) {
+      if (err?.message?.includes('tanggal_lahir') || err?.message?.includes('no_hp')) {
+        inviteToken = await this.prisma.invitationToken.create({
+          data: {
+            email: emailLower,
+            token,
+            role,
+            nama,
+            nis: nis || null,
+            kelas: kelas || null,
+            jurusan: jurusan || null,
+            sekolah_id: sekolahId,
+            expires_at: expiresAt,
+          },
+        });
+      } else {
+        throw err;
+      }
+    }
 
     // Kirim email undangan secara sinkron dengan batas timeout 5 detik
     const emailError = await this.sendInvitationEmail(emailLower, nama, token, role, sekolah.nama_sekolah);
@@ -279,7 +302,7 @@ export class InvitationService {
 
   // 3. Undang Pengguna Secara Manual
   async inviteManual(dto: InviteUserDto) {
-    const autoTahun = this.calculateGraduationYear(dto.kelas);
+    const autoTahun = dto.tahun_pendaftaran || this.calculateGraduationYear(dto.kelas);
     return this.createTokenAndInvite(
       dto.email, 
       dto.nama, 
@@ -288,8 +311,9 @@ export class InvitationService {
       dto.nis, 
       dto.kelas, 
       dto.jurusan,
-      undefined,
-      undefined,
+      dto.no_hp,
+      dto.tanggal_lahir,
+      dto.tempat_lahir,
       autoTahun
     );
   }
@@ -410,15 +434,19 @@ export class InvitationService {
       const jurusanRaw = getVal(['namasgajurusan', 'namasga', 'namajurusan', 'jurusan', 'sga', 'prodi', 'programkeahlian', 'kompetensikeahlian']);
       const jurusan = jurusanRaw ? String(jurusanRaw).trim() : '';
 
-      // 8. Deteksi Tanggal Lahir
+      // 8. Deteksi No HP / WhatsApp
+      const noHpRaw = getVal(['nohp', 'nowa', 'whatsapp', 'nomorhp', 'nomorwhatsapp', 'telepon', 'phone', 'no_hp', 'no_wa', 'hp', 'wa']);
+      const noHp = noHpRaw ? String(noHpRaw).trim() : '';
+
+      // 9. Deteksi Tanggal Lahir
       const tglLahirRaw = getVal(['tanggallahir', 'tgllahir', 'birthdate', 'dob', 'tgl_lahir', 'tanggal_lahir', 'tgl_lh', 'tgl_lahir_siswa']);
       const parsedTglLahir = this.parseExcelDate(tglLahirRaw);
 
-      // 9. Deteksi Tempat Lahir
+      // 10. Deteksi Tempat Lahir
       const tempatLahirRaw = getVal(['tempatlahir', 'birthplace', 'tempat_lahir', 'tmpt_lahir', 'kota_lahir']);
       const tempatLahir = tempatLahirRaw ? String(tempatLahirRaw).trim() : '';
 
-      // 10. Deteksi / Kalkulasi Tahun Angkatan (Tahun Lulus)
+      // 11. Deteksi / Kalkulasi Tahun Angkatan (Tahun Lulus)
       const tahunRaw = getVal(['tahunpendaftaran', 'tahunangkatan', 'tahunlulus', 'angkatan', 'tahun_angkatan', 'tahun_pendaftaran']);
       let tahunAngkatan = tahunRaw && !isNaN(Number(tahunRaw)) ? parseInt(String(tahunRaw).trim(), 10) : undefined;
       if (!tahunAngkatan) {
@@ -489,6 +517,7 @@ export class InvitationService {
           nis || undefined,
           kelas || undefined,
           jurusan || undefined,
+          noHp || undefined,
           parsedTglLahir,
           tempatLahir || undefined,
           tahunAngkatan
@@ -549,6 +578,10 @@ export class InvitationService {
           nis: user.nis,
           kelas: user.kelas,
           jurusan: user.jurusan,
+          no_hp: user.no_hp,
+          tanggal_lahir: user.tanggal_lahir,
+          tempat_lahir: user.tempat_lahir,
+          tahun_pendaftaran: user.tahun_pendaftaran,
           nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
           created_at: user.created_at,
           reset_password_expires: user.reset_password_expires,
@@ -580,6 +613,10 @@ export class InvitationService {
       nis: invite.nis,
       kelas: invite.kelas,
       jurusan: invite.jurusan,
+      no_hp: invite.no_hp,
+      tanggal_lahir: invite.tanggal_lahir,
+      tempat_lahir: invite.tempat_lahir,
+      tahun_pendaftaran: invite.tahun_pendaftaran,
       nama_sekolah: invite.sekolah.nama_sekolah,
       created_at: invite.created_at,
       expires_at: invite.expires_at,
@@ -703,6 +740,7 @@ export class InvitationService {
       nis: invite.nis,
       kelas: invite.kelas,
       jurusan: invite.jurusan,
+      no_hp: invite.no_hp,
       tanggal_lahir: invite.tanggal_lahir,
       tempat_lahir: invite.tempat_lahir,
       tahun_pendaftaran: invite.tahun_pendaftaran,
@@ -732,6 +770,7 @@ export class InvitationService {
           nis: tokenInfo.nis,
           kelas: tokenInfo.kelas,
           jurusan: tokenInfo.jurusan,
+          no_hp: tokenInfo.no_hp,
           tanggal_lahir: tokenInfo.tanggal_lahir,
           tempat_lahir: tokenInfo.tempat_lahir,
           tahun_pendaftaran: tokenInfo.tahun_pendaftaran,
@@ -1171,6 +1210,56 @@ export class InvitationService {
     return {
       message: `Tautan atur ulang kata sandi untuk akun ${user.nama} (${user.email}) berhasil dibatalkan.`,
     };
+  }
+
+  // 17. Generate official Excel template buffer for user import (.xlsx)
+  generateTemplateExcel(): Buffer {
+    const templateData = [
+      {
+        'Email Aktif': 'siswa.contoh@nkgts.sch.id',
+        'Nama Lengkap': 'Budi Utomo',
+        'Role': 'siswa',
+        'Asal Sekolah': 'SMK Negeri 26 Jakarta',
+        'NIS': '12345678',
+        'Kelas Saat Mendaftar': 'Kelas 11',
+        'Nama SGA / Jurusan': 'Teknik Kendaraan Ringan',
+        'No HP / WhatsApp': '081234567890',
+        'Tempat Lahir': 'Jakarta',
+        'Tanggal Lahir': '2007-05-15',
+        'Tahun Angkatan': 2027
+      },
+      {
+        'Email Aktif': 'guru.contoh@nkgts.sch.id',
+        'Nama Lengkap': 'Siti Aminah',
+        'Role': 'guru',
+        'Asal Sekolah': 'SMK Negeri 26 Jakarta',
+        'NIS': '',
+        'Kelas Saat Mendaftar': '',
+        'Nama SGA / Jurusan': 'Otomotif',
+        'No HP / WhatsApp': '081987654321',
+        'Tempat Lahir': 'Bandung',
+        'Tanggal Lahir': '1985-08-20',
+        'Tahun Angkatan': ''
+      },
+      {
+        'Email Aktif': 'admin.contoh@nkgts.sch.id',
+        'Nama Lengkap': 'Ahmad Fauzi',
+        'Role': 'admin',
+        'Asal Sekolah': 'N-KGTS Pusat',
+        'NIS': '',
+        'Kelas Saat Mendaftar': '',
+        'Nama SGA / Jurusan': 'Admin Sistem',
+        'No HP / WhatsApp': '085678901234',
+        'Tempat Lahir': 'Surabaya',
+        'Tanggal Lahir': '1990-01-10',
+        'Tahun Angkatan': ''
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template Undangan');
+    return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
   }
 }
 

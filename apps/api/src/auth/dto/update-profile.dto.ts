@@ -24,7 +24,7 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^[0-9]{9,16}$/, { message: 'Nomor HP/WhatsApp harus berupa digit angka 9-16 karakter' })
+  @Matches(/^[0-9+\-\s]{8,20}$/, { message: 'Nomor HP/WhatsApp harus berupa 8-20 karakter angka/tanda hubung' })
   no_hp?: string;
 
   @IsOptional()
