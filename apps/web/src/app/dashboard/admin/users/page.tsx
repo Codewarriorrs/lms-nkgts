@@ -811,6 +811,8 @@ export default function AdminUsersPage() {
         endpoint = `${API_URL}/admin/resets/bulk-cancel`;
       }
 
+      console.log(`[BULK DELETE] activeTab: ${activeTab}, target IDs:`, targetIds);
+
       const res = await fetch(endpoint, {
         method: "POST",
         headers: {

@@ -1365,39 +1365,39 @@ export class InvitationService {
       throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
     }
 
-    // Normalisasi dan pastikan ID berupa string murni yang tidak kosong
-    const validIds = ids
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Normalisasi dan validasi: pastikan string UUID valid dan buang jika sama dengan currentUserId
+    const cleanIds = ids
       .map((id) => String(id).trim())
-      .filter((id) => id.length > 0 && id !== 'undefined' && id !== 'null');
+      .filter((id) => uuidRegex.test(id) && (!currentUserId || id !== currentUserId));
 
-    if (validIds.length === 0) {
-      throw new BadRequestException('Tidak ada ID valid yang ditemukan untuk diproses.');
+    if (cleanIds.length === 0) {
+      if (ids.some((id) => String(id).trim() === currentUserId)) {
+        return {
+          success: 0,
+          message: 'Akun admin yang sedang aktif login dilindungi dan tidak dapat dihapus.',
+        };
+      }
+      throw new BadRequestException('Tidak ada ID pengguna valid yang dapat diproses.');
     }
 
-    // Lindungi akun admin utama dan akun yang sedang aktif login
-    const usersToDelete = await this.prisma.user.findMany({
-      where: {
-        id: { in: validIds },
-        email: { not: 'admin@nkgts.com' },
-        role: { not: RoleEnum.admin },
-        ...(currentUserId ? { id: { not: currentUserId } } : {}),
-      },
-      select: { id: true },
-    });
-
-    const safeIds = usersToDelete.map((u) => u.id);
-    if (safeIds.length === 0) {
-      return { success: 0, message: 'Tidak ada pengguna yang dapat dihapus (akun admin dilindungi).' };
-    }
-
+    // Eksekusi penghapusan HANYA untuk cleanIds yang secara eksplisit dicentang/dikirim
+    // DILINDUNGI: akun admin utama (admin@nkgts.com) dan seluruh akun dengan role admin
     const res = await this.prisma.user.deleteMany({
       where: {
-        id: { in: safeIds },
+        id: { in: cleanIds },
         email: { not: 'admin@nkgts.com' },
         role: { not: RoleEnum.admin },
-        ...(currentUserId ? { id: { not: currentUserId } } : {}),
       },
     });
+
+    if (res.count === 0) {
+      return {
+        success: 0,
+        message: 'Tidak ada akun pengguna yang dihapus (akun dengan role admin dilindungi dari penghapusan massal).',
+      };
+    }
 
     return {
       success: res.count,
