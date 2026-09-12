@@ -500,9 +500,19 @@ export class AppController implements OnModuleInit {
 
   @Get('schools')
   async getSchools() {
-    return this.prisma.sekolah.findMany({
+    await this.cleanDuplicateSchools();
+    const schools = await this.prisma.sekolah.findMany({
       orderBy: { nama_sekolah: 'asc' }
     });
+
+    const uniqueMap = new Map<string, typeof schools[0]>();
+    for (const s of schools) {
+      const normName = normalizeSchoolName(s.nama_sekolah);
+      if (!uniqueMap.has(normName.toLowerCase())) {
+        uniqueMap.set(normName.toLowerCase(), { ...s, nama_sekolah: normName });
+      }
+    }
+    return Array.from(uniqueMap.values()).sort((a, b) => a.nama_sekolah.localeCompare(b.nama_sekolah));
   }
 }
 

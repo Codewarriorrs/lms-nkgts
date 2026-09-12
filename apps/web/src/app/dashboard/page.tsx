@@ -409,8 +409,8 @@ export default function DashboardPage() {
         {nilaiPkl && (
           <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white rounded-2xl p-6 shadow-md relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 relative z-10">
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md text-white text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
-                <Award size={14} /> Laporan Hasil Magang (Penilaian PKL)
+              <div className="flex items-center gap-2 text-emerald-100 text-xs font-extrabold uppercase tracking-wider">
+                <Award size={16} /> Laporan Hasil Magang (Penilaian PKL)
               </div>
               <h3 className="text-xl font-bold text-white leading-snug">
                 Nilai Akhir Magang: <span className="text-yellow-300 font-extrabold text-2xl ml-1">{nilaiPkl.nilai_akhir ?? "-"}</span> / 100
