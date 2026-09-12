@@ -25,35 +25,59 @@ export default function ProfilePage() {
   const [fotoProfilBase64, setFotoProfilBase64] = useState<string | null>(null);
   const [selectedFotoFile, setSelectedFotoFile] = useState<File | null>(null);
 
+  const populateUser = (u: any) => {
+    setCurrentUser(u);
+    setNama(u.name || u.nama || "");
+    setNis(u.nis || "");
+    setKelas(u.kelas || "");
+    setJurusan(u.jurusan || "");
+    setNoHp(u.no_hp || "");
+    setTempatLahir(u.tempat_lahir || "");
+    setTahunPendaftaran(u.tahun_pendaftaran ?? "");
+    if (u.tanggal_lahir) {
+      const str = String(u.tanggal_lahir);
+      if (str.includes("T")) {
+        setTanggalLahir(str.split("T")[0]);
+      } else {
+        const d = new Date(u.tanggal_lahir);
+        if (!isNaN(d.getTime())) {
+          setTanggalLahir(d.toISOString().split("T")[0]);
+        }
+      }
+    } else {
+      setTanggalLahir("");
+    }
+  };
+
   useEffect(() => {
+    const token = localStorage.getItem("token");
     const stored = localStorage.getItem("user");
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setCurrentUser(parsed);
-        setNama(parsed.name || "");
-        setNis(parsed.nis || "");
-        setKelas(parsed.kelas || "");
-        setJurusan(parsed.jurusan || "");
-        setNoHp(parsed.no_hp || "");
-        setTempatLahir(parsed.tempat_lahir || "");
-        setTahunPendaftaran(parsed.tahun_pendaftaran ?? "");
-        if (parsed.tanggal_lahir) {
-          const str = String(parsed.tanggal_lahir);
-          if (str.includes("T")) {
-            setTanggalLahir(str.split("T")[0]);
-          } else {
-            const d = new Date(parsed.tanggal_lahir);
-            if (!isNaN(d.getTime())) {
-              setTanggalLahir(d.toISOString().split("T")[0]);
-            }
-          }
-        }
+        populateUser(parsed);
       } catch (e) {
         console.error("Failed to parse stored user", e);
       }
     }
-    setLoading(false);
+
+    if (token) {
+      fetch(`${API_URL}/auth/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          const freshUser = data.user || data.data?.profile;
+          if (freshUser) {
+            localStorage.setItem("user", JSON.stringify(freshUser));
+            populateUser(freshUser);
+          }
+        })
+        .catch((err) => console.error("Failed to fetch fresh profile from API", err))
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
