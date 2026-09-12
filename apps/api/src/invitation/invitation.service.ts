@@ -397,9 +397,9 @@ export class InvitationService {
       const emailRaw = getVal(['emailaktif', 'email', 'emailaddress', 'e-mail', 'mail', 'alamatemail']);
       const emailStr = emailRaw ? String(emailRaw).trim() : '';
 
-      // 2. Deteksi Nama Siswa / Pengguna
+      // 2. Deteksi Nama Siswa / Pengguna / Praktisi
       let namaRaw = getVal(
-        ['nama', 'namalengkap', 'namasiswa', 'name', 'namasiswa/i', 'namapeserta', 'namamurid'],
+        ['namapraktisi', 'namaguru', 'namalengkap', 'nama', 'namasiswa', 'name', 'namasiswa/i', 'namapeserta', 'namamurid', 'praktisi'],
         ['jurusan', 'sga', 'sekolah', 'email', 'kelas', 'kelamin', 'lahir', 'whatsapp', 'phone', 'sgajurusan']
       );
       let namaStr = namaRaw ? String(namaRaw).trim() : '';
@@ -411,8 +411,18 @@ export class InvitationService {
         }
       }
 
-      // 3. Deteksi Role
-      const roleRaw = getVal(['role', 'peran', 'jabatan', 'status']);
+      // 3. Deteksi Role & Jabatan
+      let roleRaw = getVal(['role', 'peran', 'jabatan', 'posisi', 'status', 'profesi', 'jabatandisekolah', 'jabatandisga']);
+      if (!roleRaw) {
+        for (const [k, v] of keyMap.entries()) {
+          if (k.includes('jabatan') || k.includes('posisi') || k.includes('peran') || k.includes('role')) {
+            if (v && String(v).trim() !== '') {
+              roleRaw = v;
+              break;
+            }
+          }
+        }
+      }
 
       // 4. Deteksi Asal Sekolah
       const sekolahRaw = getVal(['asalsekolah', 'sekolah', 'namasekolah', 'instansi', 'school']);
@@ -435,8 +445,8 @@ export class InvitationService {
       const jurusanRaw = getVal(['namasgajurusan', 'namasga', 'namajurusan', 'jurusan', 'sga', 'prodi', 'programkeahlian', 'kompetensikeahlian']);
       const jurusan = jurusanRaw ? String(jurusanRaw).trim() : '';
 
-      // 8. Deteksi No HP / WhatsApp
-      const noHpRaw = getVal(['nohp', 'nowa', 'whatsapp', 'nomorhp', 'nomorwhatsapp', 'telepon', 'phone', 'no_hp', 'no_wa', 'hp', 'wa']);
+      // 8. Deteksi No HP / WhatsApp / Telepon
+      const noHpRaw = getVal(['nohp', 'nowa', 'whatsapp', 'nomorhp', 'nomorwhatsapp', 'telepon', 'phone', 'no_hp', 'no_wa', 'hp', 'wa', 'notlp', 'notelp', 'telp', 'tlp']);
       const noHp = noHpRaw ? String(noHpRaw).trim() : '';
 
       // 9. Deteksi Tanggal Lahir
@@ -501,12 +511,40 @@ export class InvitationService {
         continue;
       }
 
+      // Deteksi Cerdas Role Guru/Praktisi vs Siswa
+      const hasPraktisiCol = Array.from(keyMap.keys()).some(
+        k => k.includes('praktisi') || k === 'namapraktisi' || k === 'namaguru'
+      );
+
+      // Regex fleksibel kata kunci jabatan / peran guru & praktisi
+      const guruKeywordRegex = /guru|bk|konseling|kaprodi|pengajar|kepala|wakasek|koordinator|pembimbing|instruktur|praktisi|notulen|fasilitator|leader/i;
+
+      // Kumpulkan seluruh teks indikator jabatan/peran dari kolom baris tersebut
+      const jabatanValues: string[] = [];
+      if (roleRaw) jabatanValues.push(String(roleRaw));
+      for (const [k, v] of keyMap.entries()) {
+        if (k.includes('jabatan') || k.includes('posisi') || k.includes('peran') || k.includes('profesi') || k.includes('role')) {
+          if (v && String(v).trim() !== '') {
+            jabatanValues.push(String(v));
+          }
+        }
+      }
+      const combinedJabatanText = jabatanValues.join(' ');
+
       let role: RoleEnum = RoleEnum.siswa;
-      if (roleRaw) {
+
+      if (/admin/i.test(String(roleRaw || '')) && !guruKeywordRegex.test(String(roleRaw || ''))) {
+        role = RoleEnum.admin;
+      } else if (hasPraktisiCol || guruKeywordRegex.test(combinedJabatanText)) {
+        role = RoleEnum.guru;
+      } else if (roleRaw) {
         const rLower = String(roleRaw).trim().toLowerCase();
         if (rLower === 'admin') role = RoleEnum.admin;
-        else if (rLower === 'guru') role = RoleEnum.guru;
+        else if (rLower === 'guru' || guruKeywordRegex.test(rLower)) role = RoleEnum.guru;
         else if (rLower === 'siswa') role = RoleEnum.siswa;
+        else {
+          role = RoleEnum.siswa;
+        }
       }
 
       try {

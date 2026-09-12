@@ -69,6 +69,16 @@ function formatTimeRemaining(dateStr: string) {
   return `Sisa ${minutes} menit`;
 }
 
+function formatKelasDisplay(kelas?: string | null, jurusan?: string | null) {
+  const cleanKelas = (kelas || "").trim().replace(/^(kelas\s+)+/i, "Kelas ");
+  const cleanJurusan = (jurusan || "").trim();
+
+  if (cleanKelas && cleanJurusan) {
+    return `${cleanKelas} • ${cleanJurusan}`;
+  }
+  return cleanKelas || cleanJurusan || "-";
+}
+
 interface InvitationType {
   id: number;
   nama: string;
@@ -651,25 +661,13 @@ export default function AdminUsersPage() {
   };
 
   // Download Excel Template Helper (.xlsx)
-  const downloadTemplate = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/admin/users/download-template`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Gagal mengunduh template Excel");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", "Template_Import_Pengguna_NKGTS.xlsx");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err: any) {
-      alert("Gagal mengunduh template Excel: " + err.message);
-    }
+  const downloadTemplate = () => {
+    const link = document.createElement("a");
+    link.href = "/Template_Import_Pengguna_NKGTS.xlsx";
+    link.setAttribute("download", "Template_Import_Pengguna_NKGTS.xlsx");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // 8. Handle Export Excel Nilai Siswa
@@ -914,7 +912,7 @@ export default function AdminUsersPage() {
                     <div className="text-[11px] text-neutral-500 space-y-0.5">
                       <p>Sekolah: <strong className="text-neutral-700 font-semibold">{user.nama_sekolah || "N-KGTS"}</strong></p>
                       <p>NIS: <strong className="font-mono text-neutral-700">{user.nis || "-"}</strong></p>
-                      <p>Kelas / Jurusan: <strong className="text-primary font-bold">{(user.kelas || user.jurusan) ? `Kelas ${user.kelas || "-"} • ${user.jurusan || "-"}` : "-"}</strong></p>
+                      <p>Kelas / Jurusan: <strong className="text-primary font-bold">{formatKelasDisplay(user.kelas, user.jurusan)}</strong></p>
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-1.5 pt-2 border-t border-neutral-100">
@@ -1010,7 +1008,7 @@ export default function AdminUsersPage() {
                           <div className="font-mono text-neutral-800 font-semibold">{user.nis || "-"}</div>
                           {(user.kelas || user.jurusan) ? (
                             <span className="inline-block mt-1 px-2 py-0.5 rounded bg-primary/10 text-primary font-bold text-[10px]">
-                              Kelas {user.kelas || "-"} • {user.jurusan || "-"}
+                              {formatKelasDisplay(user.kelas, user.jurusan)}
                             </span>
                           ) : (
                             <div className="text-[11px] text-neutral-400 mt-0.5">-</div>
