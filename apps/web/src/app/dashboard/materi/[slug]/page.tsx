@@ -224,16 +224,22 @@ export default function MateriDetailPage() {
   }, [dbModule, isEditing, currentUser]);
 
   useEffect(() => {
-    const container = document.getElementById("module-content");
-    if (!container) return;
+    if (!dbModule || isEditing) return;
 
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const remaining = scrollHeight - (scrollTop + clientHeight);
-      let scrollPercent = Math.min(100, Math.max(0, Math.round(((scrollTop + clientHeight) / scrollHeight) * 100)));
-      if (scrollPercent >= 92 || remaining <= 35) {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const docHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight
+      );
+      const scrollable = docHeight - windowHeight;
+      let scrollPercent = scrollable > 0 ? Math.min(100, Math.max(0, Math.round((scrollTop / scrollable) * 100))) : 100;
+
+      if (scrollPercent >= 90 || (scrollable - scrollTop) <= 60) {
         scrollPercent = 100;
       }
+
       setProgress((current) => {
         const nextScrollTop = Math.max(current.scrollTop, scrollTop);
         const nextScrollProgress = Math.max(current.scrollProgress, scrollPercent);
@@ -245,17 +251,13 @@ export default function MateriDetailPage() {
       });
     };
 
-    container.addEventListener("scroll", handleScroll);
-    const restorePosition = window.setTimeout(() => {
-      container.scrollTop = progress.scrollTop;
-    }, 80);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
 
     return () => {
-      window.clearTimeout(restorePosition);
-      container.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("scroll", handleScroll);
     };
-  }, [dbModule, isEditing, progress.scrollTop]);
+  }, [dbModule, isEditing]);
 
   // Fungsi helper untuk menyimpan progres membaca ke database
   const saveProgressToDb = async (percentage: number, isCompleted: boolean) => {
@@ -860,38 +862,40 @@ export default function MateriDetailPage() {
 
         {/* Panel Samping / Info Modul */}
         {showSidebar && (
-          <aside className="space-y-4 rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm self-start">
-            <div className="flex items-center gap-2 text-primary">
+          <aside className="space-y-5 rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm self-start">
+            <div className="flex items-center gap-2 text-primary pb-3 border-b border-neutral-100">
               <BookOpen size={18} />
               <h2 className="text-base font-bold text-neutral-900">Ringkasan Modul</h2>
             </div>
-            <div className="space-y-3 text-sm text-neutral-600">
-              <div className="rounded-lg bg-neutral-50 p-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Durasi Belajar</p>
-                <p className="mt-1 font-semibold text-neutral-800">
+            
+            <div className="divide-y divide-neutral-100 text-sm text-neutral-600">
+              <div className="py-2.5 flex justify-between items-center">
+                <span className="text-xs font-semibold text-neutral-500">Durasi Belajar</span>
+                <span className="font-semibold text-neutral-800">
                   {(() => {
                     const staticModule = materiModules.find((m) => m.id === dbModule.id);
                     return staticModule?.duration || "45 menit";
                   })()}
-                </p>
+                </span>
               </div>
-              <div className="rounded-lg bg-neutral-50 p-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Status Penyelesaian</p>
-                <p className="mt-1 font-semibold text-neutral-800">{progress.completed ? "Lulus / Selesai" : "Belum Selesai"}</p>
+              <div className="py-2.5 flex justify-between items-center">
+                <span className="text-xs font-semibold text-neutral-500">Status Penyelesaian</span>
+                <span className={`font-semibold text-xs px-2.5 py-1 rounded-full ${progress.completed ? "bg-emerald-100 text-emerald-800" : "bg-neutral-100 text-neutral-600"}`}>
+                  {progress.completed ? "Lulus / Selesai" : "Belum Selesai"}
+                </span>
               </div>
-              <div className="rounded-lg bg-neutral-50 p-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Persentase Baca</p>
-                <p className="mt-1 font-semibold text-neutral-800">{progress.scrollProgress}%</p>
+              <div className="py-2.5 flex justify-between items-center">
+                <span className="text-xs font-semibold text-neutral-500">Persentase Baca</span>
+                <span className="font-bold text-primary">{progress.scrollProgress}%</span>
               </div>
-              <div className="rounded-lg bg-neutral-50 p-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Skor Kuis Tertinggi</p>
-                <p className="mt-1 font-semibold text-neutral-800">{progress.score !== null ? `${progress.score}%` : "Belum Mengerjakan"}</p>
+              <div className="py-2.5 flex justify-between items-center">
+                <span className="text-xs font-semibold text-neutral-500">Skor Kuis Tertinggi</span>
+                <span className="font-bold text-neutral-800">{progress.score !== null ? `${progress.score}%` : "-"}</span>
               </div>
             </div>
 
             {/* Download Original File Button in Sidebar */}
-            <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4 space-y-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Berkas Asli</p>
+            <div className="pt-2 border-t border-neutral-100">
               <a
                 href={pdfUrl}
                 target="_blank"
@@ -902,13 +906,13 @@ export default function MateriDetailPage() {
               </a>
             </div>
 
-            <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
-              <div className="flex items-center gap-2 text-accent-dark">
-                <Trophy size={18} />
-                <h3 className="text-sm font-bold text-neutral-900">Target Belajar</h3>
+            <div className="pt-3 border-t border-neutral-100">
+              <div className="flex items-center gap-2 text-accent-dark mb-1">
+                <Trophy size={16} />
+                <h3 className="text-xs font-bold text-neutral-900">Target Belajar</h3>
               </div>
-              <p className="mt-2 text-xs leading-5 text-neutral-500">
-                Silakan baca artikel secara perlahan untuk memahami isinya. Setelah selesai membaca, Anda bisa mencoba kuis kelulusan di bagian bawah artikel.
+              <p className="text-xs leading-relaxed text-neutral-500">
+                Silakan baca artikel secara perlahan untuk memahami isinya. Selesaikan kuis di bagian bawah artikel untuk kelulusan modul.
               </p>
             </div>
           </aside>

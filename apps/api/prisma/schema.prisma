@@ -82,6 +82,9 @@ model InvitationToken {
   nis        String?  @db.VarChar(50)
   kelas      String?  @db.VarChar(20)
   jurusan    String?  @db.VarChar(150)
+  tanggal_lahir DateTime? @db.Date
+  tempat_lahir String? @db.VarChar(100)
+  tahun_pendaftaran Int?
   is_used    Boolean  @default(false)
   expires_at DateTime
   created_at DateTime @default(now())

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
 import { ProjectKaizenService } from './project-kaizen.service';
 import { SubmitProjectDto } from './dto/submit-project.dto';
 import { ReviewProjectDto } from './dto/review-project.dto';
@@ -24,6 +24,12 @@ export class ProjectKaizenController {
   @Roles(RoleEnum.siswa)
   async kumpulkanProject(@Body() dto: SubmitProjectDto, @Req() req: any) {
     return this.projectKaizenService.submitProject(req.user.id, dto);
+  }
+
+  // DELETE /project-kaizen/:id -> hapus berkas submisi proposal/laporan
+  @Delete(':id')
+  async hapusProject(@Param('id') id: string, @Req() req: any) {
+    return this.projectKaizenService.deleteProject(req.user.id, id);
   }
 
   // GET /project-kaizen/all -> guru melihat semua project siswa di sekolahnya

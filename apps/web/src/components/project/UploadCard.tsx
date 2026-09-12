@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FilePlus, Download, CheckCircle2, Clock, MessageSquare, AlertCircle } from "lucide-react";
+import { FilePlus, Download, CheckCircle2, Clock, MessageSquare, AlertCircle, Trash2, Image as ImageIcon } from "lucide-react";
 import { API_URL } from "@/lib/api";
-
 import { uploadFileOrBase64 } from "@/utils/upload";
 
 interface SampleFile {
@@ -13,6 +12,7 @@ interface SampleFile {
 
 export default function UploadCard({ title, sample }: { title: string; sample?: SampleFile }) {
   const [selected, setSelected] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dbSubmission, setDbSubmission] = useState<any>(null);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(true);
@@ -37,6 +37,8 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
         if (match) {
           setDbSubmission(match);
           setComment(match.catatan_siswa || "");
+        } else {
+          setDbSubmission(null);
         }
       }
     } catch (err) {
@@ -50,12 +52,18 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
     fetchStatus();
   }, [tipe, token]);
 
-  const ALLOWED_EXTENSIONS = ["pdf", "doc", "docx"];
+  const ALLOWED_EXTENSIONS = ["pdf", "doc", "docx", "jpg", "jpeg", "png", "webp"];
+
+  const isImageFile = (fileNameOrUrl: string) => {
+    if (!fileNameOrUrl) return false;
+    const lower = fileNameOrUrl.toLowerCase();
+    return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp") || lower.startsWith("data:image/");
+  };
 
   const validateFile = (file: File): boolean => {
     const ext = file.name.split(".").pop()?.toLowerCase() || "";
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      alert("Hanya berkas format PDF (.pdf) atau Word (.doc, .docx) yang diizinkan untuk diunggah!");
+      alert("Hanya berkas format PDF (.pdf), Word (.doc, .docx), atau Foto/Gambar (.jpg, .jpeg, .png, .webp) yang diizinkan!");
       return false;
     }
     return true;
@@ -66,6 +74,11 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
     if (f) {
       if (validateFile(f)) {
         setSelected(f);
+        if (isImageFile(f.name)) {
+          setPreviewUrl(URL.createObjectURL(f));
+        } else {
+          setPreviewUrl(null);
+        }
       } else {
         e.target.value = "";
       }
@@ -93,12 +106,38 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
       });
       if (res.ok) {
         setSelected(null);
+        setPreviewUrl(null);
         fetchStatus();
       } else {
         alert("Gagal mengunggah berkas proyek.");
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!dbSubmission || !token) return;
+    if (!confirm("Apakah Anda yakin ingin menghapus berkas proyek ini?")) return;
+    try {
+      setSubmitting(true);
+      const res = await fetch(`${API_URL}/project-kaizen/${dbSubmission.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setDbSubmission(null);
+        setSelected(null);
+        setPreviewUrl(null);
+        setComment("");
+        fetchStatus();
+      } else {
+        alert("Gagal menghapus berkas proyek.");
+      }
+    } catch (err) {
+      console.error("Gagal menghapus berkas:", err);
     } finally {
       setSubmitting(false);
     }
@@ -134,20 +173,45 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
         <div className="flex-1 min-w-0 w-full max-w-full space-y-4 overflow-hidden">
           <div className="flex items-center justify-between">
             <h3 className="text-neutral-900 font-bold text-base">Unggah Berkas {title}</h3>
-            <span className="text-xs text-neutral-400">Format PDF / Dokumen</span>
+            <span className="text-xs text-neutral-400">PDF / Word / Foto (JPG, PNG)</span>
           </div>
 
           {/* Submission status alert if exists */}
           {dbSubmission && (
-            <div className="p-4 rounded-xl border border-success/20 bg-success/5 text-xs text-success-dark flex items-start gap-2.5 w-full max-w-full overflow-hidden">
-              <CheckCircle2 size={16} className="text-success shrink-0 mt-0.5" />
-              <div className="min-w-0 flex-1 overflow-hidden">
-                <p className="font-bold text-neutral-850">Berkas Berhasil Terkirim</p>
-                <p className="text-neutral-500 mt-0.5 break-all break-words leading-relaxed">
-                  Nama: <strong className="font-semibold text-neutral-700 break-all break-words">{dbSubmission.file_name}</strong>
-                </p>
-                <p className="text-neutral-400 text-[10px] mt-1">Dikirim pada: {new Date(dbSubmission.submitted_at).toLocaleString("id-ID")}</p>
+            <div className="p-4 rounded-xl border border-success/20 bg-success/5 text-xs text-success-dark flex items-start justify-between gap-3 w-full max-w-full overflow-hidden">
+              <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                <CheckCircle2 size={16} className="text-success shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <p className="font-bold text-neutral-850">Berkas Berhasil Terkirim</p>
+                  <p className="text-neutral-500 mt-0.5 break-all break-words leading-relaxed">
+                    Nama: <strong className="font-semibold text-neutral-700 break-all break-words">{dbSubmission.file_name}</strong>
+                  </p>
+                  <p className="text-neutral-400 text-[10px] mt-1">Dikirim pada: {new Date(dbSubmission.submitted_at).toLocaleString("id-ID")}</p>
+                  
+                  {/* Preview file jika gambar/foto */}
+                  {dbSubmission.file_url && isImageFile(dbSubmission.file_name || dbSubmission.file_url) && (
+                    <div className="mt-3">
+                      <img src={dbSubmission.file_url} alt="Preview Proyek" className="max-h-40 rounded-lg border object-cover shadow-xs" />
+                    </div>
+                  )}
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={submitting}
+                className="inline-flex items-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3 py-1.5 rounded-lg font-bold text-xs shrink-0 transition"
+              >
+                <Trash2 size={13} /> Hapus Berkas
+              </button>
+            </div>
+          )}
+
+          {/* Preview berkas baru yang dipilih */}
+          {previewUrl && (
+            <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 space-y-2">
+              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Preview Gambar yang Dipilih</span>
+              <img src={previewUrl} alt="Preview Baru" className="max-h-40 rounded-lg border object-cover" />
             </div>
           )}
 
@@ -157,13 +221,13 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
               <input 
                 type="file" 
                 onChange={handleFile} 
-                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
                 className="hidden" 
               />
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-neutral-200 text-xs font-bold cursor-pointer select-none">
-                <FilePlus size={14} /> {dbSubmission ? "Ganti Berkas" : "Pilih Berkas"}
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-neutral-200 text-xs font-bold cursor-pointer select-none hover:bg-neutral-100 transition">
+                <FilePlus size={14} /> {dbSubmission ? "Ganti Berkas / Foto" : "Pilih Berkas / Foto"}
               </div>
-              <div className="text-xs text-neutral-600 truncate">{selected ? selected.name : "Belum memilih berkas"}</div>
+              <div className="text-xs text-neutral-600 truncate">{selected ? selected.name : "Belum memilih berkas baru"}</div>
             </label>
 
             <div className="space-y-1.5">
@@ -183,7 +247,7 @@ export default function UploadCard({ title, sample }: { title: string; sample?: 
                 disabled={!selected || submitting}
                 className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary-light text-white px-4 py-2.5 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
               >
-                {submitting ? "Mengunggah..." : "Submit Tugas"}
+                {submitting ? "Mengunggah..." : dbSubmission ? "Simpan Perubahan / Ganti" : "Submit Tugas"}
               </button>
             </div>
           </div>

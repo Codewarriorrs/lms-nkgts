@@ -1312,53 +1312,53 @@ export default function TugasPage() {
                   <p className="text-neutral-400 text-xs mt-1">Gunakan panduan di bawah untuk mengidentifikasi 6 kategori potensi bahaya di sekolah dan rumah.</p>
                 </div>
 
-                {/* STOP 6 Infografis CSS/SVG */}
-                <div className="bg-primary/5 border border-primary/10 rounded-2xl p-5 space-y-3">
-  <div className="flex items-center gap-2 text-primary">
-    <Info size={16} />
-    <h3 className="text-xs font-bold uppercase tracking-wider">Panduan Deteksi 6 Bahaya</h3>
-  </div>
+                {/* STOP 6 Infografis CSS/SVG - Clean Flat Layout */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Info size={16} />
+                    <h3 className="text-xs font-bold uppercase tracking-wider">Panduan Deteksi 6 Bahaya</h3>
+                  </div>
 
-  <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-    {[
-      { key: "APPARATUS", title: "Potensi Terjepit Peralatan Kerja", icon: BetweenHorizonalEnd, color: "bg-purple-500 text-white" },
-      { key: "BIG HEAVY", title: "Potensi Tertimpa Barang Berat", icon: Anvil, color: "bg-orange-500 text-white" },
-      { key: "CAR", title: "Potensi Kecelakaan Kendaraan", icon: Car, color: "bg-blue-500 text-white" },
-      { key: "DROP", title: "Potensi Terjatuh", icon: ArrowDownCircle, color: "bg-green-500 text-white" },
-      { key: "ELECTRIC", title: "Potensi Kelistrikan", icon: Zap, color: "bg-yellow-500 text-neutral-900" }, 
-      { key: "FIRE", title: "Potensi Kebakaran", icon: Flame, color: "bg-red-500 text-white" }
-    ].map((item) => {
-      const IconComponent = item.icon;
-      return (
-        <div 
-          key={item.key} 
-          className="bg-white rounded-xl border p-3 text-center flex flex-col items-center justify-between h-full shadow-sm"
-        >
-          {/* 1. ZONA IKON */}
-          <div className="mb-1.5">
-            <div className={`p-1.5 rounded-lg ${item.color} flex items-center justify-center`}>
-              <IconComponent size={16} />
-            </div>
-          </div>
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                    {[
+                      { key: "APPARATUS", title: "Potensi Terjepit Peralatan Kerja", icon: BetweenHorizonalEnd, color: "bg-purple-500 text-white" },
+                      { key: "BIG HEAVY", title: "Potensi Tertimpa Barang Berat", icon: Anvil, color: "bg-orange-500 text-white" },
+                      { key: "CAR", title: "Potensi Kecelakaan Kendaraan", icon: Car, color: "bg-blue-500 text-white" },
+                      { key: "DROP", title: "Potensi Terjatuh", icon: ArrowDownCircle, color: "bg-green-500 text-white" },
+                      { key: "ELECTRIC", title: "Potensi Kelistrikan", icon: Zap, color: "bg-yellow-500 text-neutral-900" }, 
+                      { key: "FIRE", title: "Potensi Kebakaran", icon: Flame, color: "bg-red-500 text-white" }
+                    ].map((item) => {
+                      const IconComponent = item.icon;
+                      return (
+                        <div 
+                          key={item.key} 
+                          className="bg-neutral-50 rounded-xl border border-neutral-100 p-3 text-center flex flex-col items-center justify-between h-full"
+                        >
+                          {/* 1. ZONA IKON */}
+                          <div className="mb-1.5">
+                            <div className={`p-1.5 rounded-lg ${item.color} flex items-center justify-center`}>
+                              <IconComponent size={16} />
+                            </div>
+                          </div>
 
-          {/* 2. ZONA KEY (Memberi ruang pasti jika ada key 2 kata seperti 'BIG HEAVY') */}
-          <div className="flex items-center justify-center min-h-[18px] w-full mb-1">
-            <span className="text-[9px] font-black text-neutral-400 tracking-wider block leading-tight">
-              {item.key}
-            </span>
-          </div>
+                          {/* 2. ZONA KEY */}
+                          <div className="flex items-center justify-center min-h-[18px] w-full mb-1">
+                            <span className="text-[9px] font-black text-neutral-400 tracking-wider block leading-tight">
+                              {item.key}
+                            </span>
+                          </div>
 
-          {/* 3. ZONA TITLE (Mengunci tinggi 32px agar judul 1 baris & 3 baris sejajar) */}
-          <div className="flex items-center justify-center min-h-[32px] w-full">
-            <h4 className="text-[10px] font-bold text-neutral-800 leading-tight">
-              {item.title}
-            </h4>
-          </div>
-        </div>
-      );
-    })}
-  </div>
-</div>
+                          {/* 3. ZONA TITLE */}
+                          <div className="flex items-center justify-center min-h-[32px] w-full">
+                            <h4 className="text-[10px] font-bold text-neutral-800 leading-tight">
+                              {item.title}
+                            </h4>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 {(() => {
                   const submisi = getSubmisiData(4);
@@ -1469,15 +1469,15 @@ export default function TugasPage() {
                           {list.map((row, i) => {
                             const score = row.frekuensi * row.dampak;
                             let label = "Rendah";
-                            let color = "text-success bg-success/10 border-success/30";
-                            if (score >= 10) { label = "Tinggi"; color = "text-danger bg-danger/10 border-danger/30"; }
-                            else if (score >= 5) { label = "Sedang"; color = "text-warning bg-warning/10 border-warning/30"; }
+                            let color = "bg-emerald-600 text-white font-bold";
+                            if (score >= 10) { label = "Tinggi"; color = "bg-rose-600 text-white font-bold"; }
+                            else if (score >= 5) { label = "Sedang"; color = "bg-amber-500 text-white font-bold"; }
 
                             return (
                               <div key={i} className="py-3.5 border-b border-neutral-100 space-y-3">
                                 <div className="flex items-center justify-between pb-1">
                                   <span className="font-extrabold text-neutral-900 text-xs">Temuan #{i + 1}</span>
-                                  <span className={`inline-block font-black px-2.5 py-0.5 rounded-full text-[10px] border ${color}`}>
+                                  <span className={`inline-block font-bold px-2.5 py-1 rounded-full text-[10px] ${color}`}>
                                     Skor: {score} ({label})
                                   </span>
                                 </div>
@@ -1569,9 +1569,9 @@ export default function TugasPage() {
                               {list.map((row, i) => {
                                 const score = row.frekuensi * row.dampak;
                                 let label = "Rendah";
-                                let color = "text-success bg-success/5 border-success/15";
-                                if (score >= 10) { label = "Tinggi"; color = "text-danger bg-danger/5 border-danger/15"; }
-                                else if (score >= 5) { label = "Sedang"; color = "text-warning bg-warning/5 border-warning/15"; }
+                                let color = "bg-emerald-600 text-white font-bold";
+                                if (score >= 10) { label = "Tinggi"; color = "bg-rose-600 text-white font-bold"; }
+                                else if (score >= 5) { label = "Sedang"; color = "bg-amber-500 text-white font-bold"; }
 
                                 return (
                                   <tr key={i} className="hover:bg-neutral-50/30 transition-colors">
@@ -1619,7 +1619,7 @@ export default function TugasPage() {
                                       </select>
                                     </td>
                                     <td className="py-3 px-3 text-center">
-                                      <span className={`inline-block font-black px-2.5 py-1 rounded-full text-[10px] border ${color}`}>
+                                      <span className={`inline-block font-bold px-2.5 py-1 rounded-full text-[10px] ${color}`}>
                                         {score} ({label})
                                       </span>
                                     </td>
@@ -1730,8 +1730,8 @@ export default function TugasPage() {
                   <p className="text-neutral-400 text-xs mt-1">Identifikasi pemborosan di sekitar lingkungan Anda menggunakan panduan 7 jenis Waste di bawah.</p>
                 </div>
 
-                {/* Infografis 7 Waste CSS/SVG */}
-                <div className="bg-primary/5 border border-primary/10 rounded-2xl p-5 space-y-3">
+                {/* Infografis 7 Waste CSS/SVG - Clean Flat Layout */}
+                <div className="space-y-3">
                   <div className="flex items-center gap-2 text-primary">
                     <Info size={16} />
                     <h3 className="text-xs font-bold uppercase tracking-wider">Panduan 7 Jenis Waste</h3>
@@ -1751,7 +1751,7 @@ export default function TugasPage() {
                       return (
                         <div 
                           key={w.key} 
-                          className="bg-white rounded-xl border p-3 text-center flex flex-col items-center justify-between h-full shadow-sm"
+                          className="bg-neutral-50 rounded-xl border border-neutral-100 p-3 text-center flex flex-col items-center justify-between h-full"
                         >
                           {/* 1. ZONA IKON */}
                           <div className="mb-1.5">
@@ -1760,14 +1760,14 @@ export default function TugasPage() {
                             </div>
                           </div>
 
-                          {/* 2. ZONA KEY (Mencakup 'OVER PRODUCTION' & 'EXTRA PROCESS' yang 2 baris) */}
+                          {/* 2. ZONA KEY */}
                           <div className="flex items-center justify-center min-h-[22px] w-full mb-1">
                             <span className="text-[9px] font-black uppercase tracking-wider text-neutral-400 block leading-tight">
                               {w.key}
                             </span>
                           </div>
 
-                          {/* 3. ZONA TITLE (Mengunci tinggi 36px agar judul panjang & pendek tetap sejajar) */}
+                          {/* 3. ZONA TITLE */}
                           <div className="flex items-center justify-center min-h-[36px] w-full">
                             <h4 className="text-[10px] font-bold text-neutral-800 leading-tight">
                               {w.title}

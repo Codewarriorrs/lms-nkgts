@@ -111,4 +111,28 @@ export class ProjectKaizenService {
       },
     });
   }
+
+  // 5. Hapus berkas submisi project (proposal atau laporan)
+  async deleteProject(siswaId: string, projectId: string) {
+    const project = await this.prisma.fileProject.findUnique({
+      where: { id: projectId },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Berkas proyek Kaizen tidak ditemukan!');
+    }
+
+    if (project.siswa_id !== siswaId) {
+      const user = await this.prisma.user.findUnique({ where: { id: siswaId } });
+      if (!user || user.role === 'siswa') {
+        throw new NotFoundException('Anda tidak memiliki akses untuk menghapus proyek ini!');
+      }
+    }
+
+    await this.prisma.fileProject.delete({
+      where: { id: projectId },
+    });
+
+    return { message: 'Berkas proyek Kaizen berhasil dihapus.' };
+  }
 }

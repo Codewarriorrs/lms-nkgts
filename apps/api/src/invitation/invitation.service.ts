@@ -150,6 +150,66 @@ export class InvitationService {
     return 'Gagal memproses pengiriman email.';
   }
 
+  // Helper normalisasi nama sekolah & kalkulasi tahun angkatan
+  private normalizeSchoolName(name: string): string {
+    if (!name) return '';
+    let clean = name.trim().replace(/\s+/g, ' ');
+    clean = clean.replace(/\bSMKN\b/gi, 'SMK Negeri');
+    clean = clean.replace(/\bSMK\s+N\b/gi, 'SMK Negeri');
+    clean = clean.replace(/\bSMK\s*NEGERI\b/gi, 'SMK Negeri');
+    return clean;
+  }
+
+  private calculateGraduationYear(kelas?: string): number | undefined {
+    if (!kelas) return undefined;
+    const currentYear = new Date().getFullYear();
+    const kUpper = kelas.toUpperCase();
+
+    if (/\b(XII|12|XIII|13)\b/i.test(kUpper) || kUpper.includes('KELAS 12') || kUpper.includes('KELAS XII')) {
+      return currentYear;
+    }
+    if (/\b(XI|11)\b/i.test(kUpper) || kUpper.includes('KELAS 11') || kUpper.includes('KELAS XI')) {
+      return currentYear + 1;
+    }
+    if (/\b(X|10)\b/i.test(kUpper) || kUpper.includes('KELAS 10') || kUpper.includes('KELAS X')) {
+      return currentYear + 2;
+    }
+    return undefined;
+  }
+
+  private parseExcelDate(val: any): Date | undefined {
+    if (!val) return undefined;
+    if (val instanceof Date && !isNaN(val.getTime())) return val;
+    if (typeof val === 'number') {
+      const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+      if (!isNaN(d.getTime())) return d;
+    }
+    const str = String(val).trim();
+    if (!str) return undefined;
+
+    let parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) return parsed;
+
+    const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmyMatch) {
+      const day = parseInt(dmyMatch[1], 10);
+      const month = parseInt(dmyMatch[2], 10) - 1;
+      const year = parseInt(dmyMatch[3], 10);
+      parsed = new Date(year, month, day);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+
+    const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (ymdMatch) {
+      const year = parseInt(ymdMatch[1], 10);
+      const month = parseInt(ymdMatch[2], 10) - 1;
+      const day = parseInt(ymdMatch[3], 10);
+      parsed = new Date(year, month, day);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return undefined;
+  }
+
   // 2. Buat Token Baru & Kirim Email (Proses Utama)
   private async createTokenAndInvite(
     email: string,
@@ -159,6 +219,9 @@ export class InvitationService {
     nis?: string,
     kelas?: string,
     jurusan?: string,
+    tanggal_lahir?: Date | string,
+    tempat_lahir?: string,
+    tahun_pendaftaran?: number,
   ) {
     const emailLower = email.toLowerCase();
 
@@ -184,6 +247,9 @@ export class InvitationService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // Kedaluwarsa dalam 7 hari
 
+    const tglLahirDate = tanggal_lahir ? new Date(tanggal_lahir) : undefined;
+    const validTglLahir = tglLahirDate && !isNaN(tglLahirDate.getTime()) ? tglLahirDate : null;
+
     // Simpan ke database
     const inviteToken = await this.prisma.invitationToken.create({
       data: {
@@ -194,6 +260,9 @@ export class InvitationService {
         nis: nis || null,
         kelas: kelas || null,
         jurusan: jurusan || null,
+        tanggal_lahir: validTglLahir,
+        tempat_lahir: tempat_lahir || null,
+        tahun_pendaftaran: tahun_pendaftaran || null,
         sekolah_id: sekolahId,
         expires_at: expiresAt,
       },
@@ -210,7 +279,19 @@ export class InvitationService {
 
   // 3. Undang Pengguna Secara Manual
   async inviteManual(dto: InviteUserDto) {
-    return this.createTokenAndInvite(dto.email, dto.nama, dto.role, dto.sekolah_id, dto.nis, dto.kelas, dto.jurusan);
+    const autoTahun = this.calculateGraduationYear(dto.kelas);
+    return this.createTokenAndInvite(
+      dto.email, 
+      dto.nama, 
+      dto.role, 
+      dto.sekolah_id, 
+      dto.nis, 
+      dto.kelas, 
+      dto.jurusan,
+      undefined,
+      undefined,
+      autoTahun
+    );
   }
 
   // 4. Pengunggahan Pengguna Massal via File (Excel / CSV)
@@ -224,7 +305,7 @@ export class InvitationService {
     try {
       if (file.originalname.endsWith('.xlsx') || file.originalname.endsWith('.xls')) {
         // Parsing format Excel
-        const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+        const workbook = XLSX.read(file.buffer, { type: 'buffer', cellDates: true });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         records = XLSX.utils.sheet_to_json(worksheet);
@@ -259,11 +340,11 @@ export class InvitationService {
       for (const [k, v] of Object.entries(row)) {
         if (v !== undefined && v !== null && String(v).trim() !== '') {
           const cleanK = String(k).trim().toLowerCase().replace(/[\s\-_/]+/g, '');
-          keyMap.set(cleanK, String(v).trim());
+          keyMap.set(cleanK, v);
         }
       }
 
-      const getVal = (candidates: string[], excludeKeywords: string[] = []): string => {
+      const getVal = (candidates: string[], excludeKeywords: string[] = []): any => {
         // Phase 1: Exact Key Match
         for (const cand of candidates) {
           const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
@@ -274,7 +355,7 @@ export class InvitationService {
             }
           }
         }
-        // Phase 2: Prefix/Suffix Match (Abaikan partial match pertengahan seperti namasgajurusan)
+        // Phase 2: Prefix/Suffix Match
         for (const cand of candidates) {
           const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
           for (const [k, v] of keyMap.entries()) {
@@ -288,42 +369,61 @@ export class InvitationService {
       };
 
       // 1. Deteksi Email
-      const emailStr = getVal(['emailaktif', 'email', 'emailaddress', 'e-mail', 'mail', 'alamatemail']);
+      const emailRaw = getVal(['emailaktif', 'email', 'emailaddress', 'e-mail', 'mail', 'alamatemail']);
+      const emailStr = emailRaw ? String(emailRaw).trim() : '';
 
-      // 2. Deteksi Nama Siswa / Pengguna (Kecualikan jurusan, sga, sekolah, dll.)
-      let namaStr = getVal(
+      // 2. Deteksi Nama Siswa / Pengguna
+      let namaRaw = getVal(
         ['nama', 'namalengkap', 'namasiswa', 'name', 'namasiswa/i', 'namapeserta', 'namamurid'],
         ['jurusan', 'sga', 'sekolah', 'email', 'kelas', 'kelamin', 'lahir', 'whatsapp', 'phone', 'sgajurusan']
       );
+      let namaStr = namaRaw ? String(namaRaw).trim() : '';
 
-      // Fallback: Jika 'Column1' berisi Teks Nama (seperti "AFAF HAFIZHAH")
       if (!namaStr) {
         const col1 = getVal(['column1', 'col1', 'kolom1']);
         if (col1 && isNaN(Number(col1))) {
-          namaStr = col1;
+          namaStr = String(col1).trim();
         }
       }
 
-      // 3. Deteksi Role (Default: siswa)
+      // 3. Deteksi Role
       const roleRaw = getVal(['role', 'peran', 'jabatan', 'status']);
 
       // 4. Deteksi Asal Sekolah
       const sekolahRaw = getVal(['asalsekolah', 'sekolah', 'namasekolah', 'instansi', 'school']);
 
       // 5. Deteksi NIS
-      let nis = getVal(['nis', 'nisn', 'nomorinduk', 'nomorinduksiswa', 'noinduk']);
+      let nisRaw = getVal(['nis', 'nisn', 'nomorinduk', 'nomorinduksiswa', 'noinduk']);
+      let nis = nisRaw ? String(nisRaw).trim() : '';
       if (!nis) {
         const col1 = getVal(['column1', 'col1', 'kolom1']);
         if (col1 && !isNaN(Number(col1))) {
-          nis = col1;
+          nis = String(col1).trim();
         }
       }
 
       // 6. Deteksi Kelas
-      const kelas = getVal(['kelassaatmendaftar', 'kelas', 'class', 'tingkat']);
+      const kelasRaw = getVal(['kelassaatmendaftar', 'kelas', 'class', 'tingkat']);
+      const kelas = kelasRaw ? String(kelasRaw).trim() : '';
 
       // 7. Deteksi Jurusan / SGA
-      const jurusan = getVal(['namasgajurusan', 'namasga', 'namajurusan', 'jurusan', 'sga', 'prodi', 'programkeahlian', 'kompetensikeahlian']);
+      const jurusanRaw = getVal(['namasgajurusan', 'namasga', 'namajurusan', 'jurusan', 'sga', 'prodi', 'programkeahlian', 'kompetensikeahlian']);
+      const jurusan = jurusanRaw ? String(jurusanRaw).trim() : '';
+
+      // 8. Deteksi Tanggal Lahir
+      const tglLahirRaw = getVal(['tanggallahir', 'tgllahir', 'birthdate', 'dob', 'tgl_lahir', 'tanggal_lahir', 'tgl_lh', 'tgl_lahir_siswa']);
+      const parsedTglLahir = this.parseExcelDate(tglLahirRaw);
+
+      // 9. Deteksi Tempat Lahir
+      const tempatLahirRaw = getVal(['tempatlahir', 'birthplace', 'tempat_lahir', 'tmpt_lahir', 'kota_lahir']);
+      const tempatLahir = tempatLahirRaw ? String(tempatLahirRaw).trim() : '';
+
+      // 10. Deteksi / Kalkulasi Tahun Angkatan (Tahun Lulus)
+      const tahunRaw = getVal(['tahunpendaftaran', 'tahunangkatan', 'tahunlulus', 'angkatan', 'tahun_angkatan', 'tahun_pendaftaran']);
+      let tahunAngkatan = tahunRaw && !isNaN(Number(tahunRaw)) ? parseInt(String(tahunRaw).trim(), 10) : undefined;
+      if (!tahunAngkatan) {
+        tahunAngkatan = this.calculateGraduationYear(kelas);
+      }
 
       // Validasi Field Wajib: Email dan Nama
       if (!emailStr || !namaStr) {
@@ -332,30 +432,32 @@ export class InvitationService {
         continue;
       }
 
-      // Validasi Field Wajib: Asal Sekolah & Auto Match / Auto Create Sekolah di Database
+      // Validasi Field Wajib: Asal Sekolah & Auto Match dengan Normalisasi
       let targetSekolahId: number | undefined = sekolahId && !isNaN(sekolahId) && sekolahId > 0 ? sekolahId : undefined;
-      const sekolahStr = sekolahRaw ? sekolahRaw.toString().trim() : '';
+      const sekolahStr = sekolahRaw ? String(sekolahRaw).trim() : '';
+      const normSekolahInput = this.normalizeSchoolName(sekolahStr);
 
       if (sekolahStr) {
-        const matched = allSekolah.find(s =>
-          s.nama_sekolah.toLowerCase().trim() === sekolahStr.toLowerCase() ||
-          s.nama_sekolah.toLowerCase().includes(sekolahStr.toLowerCase()) ||
-          sekolahStr.toLowerCase().includes(s.nama_sekolah.toLowerCase())
-        );
+        const matched = allSekolah.find(s => {
+          const normDB = this.normalizeSchoolName(s.nama_sekolah);
+          return (
+            normDB.toLowerCase() === normSekolahInput.toLowerCase() ||
+            normDB.toLowerCase().includes(normSekolahInput.toLowerCase()) ||
+            normSekolahInput.toLowerCase().includes(normDB.toLowerCase())
+          );
+        });
         if (matched) {
           targetSekolahId = matched.id;
         } else {
-          // Buat data Sekolah baru di DB secara otomatis jika belum terdaftar
           try {
             const newSekolah = await this.prisma.sekolah.create({
-              data: { nama_sekolah: sekolahStr },
+              data: { nama_sekolah: normSekolahInput || sekolahStr },
             });
             allSekolah.push(newSekolah);
             targetSekolahId = newSekolah.id;
           } catch (e) {
-            // Jika terjadi race condition / unique constraint, ambil data yang ada
             const existing = await this.prisma.sekolah.findFirst({
-              where: { nama_sekolah: { equals: sekolahStr, mode: 'insensitive' } },
+              where: { nama_sekolah: { equals: normSekolahInput || sekolahStr, mode: 'insensitive' } },
             });
             if (existing) {
               targetSekolahId = existing.id;
@@ -370,10 +472,9 @@ export class InvitationService {
         continue;
       }
 
-      // Standarisasi Role Enum (Wajib ada/ditentukan, default: siswa)
       let role: RoleEnum = RoleEnum.siswa;
       if (roleRaw) {
-        const rLower = roleRaw.toString().trim().toLowerCase();
+        const rLower = String(roleRaw).trim().toLowerCase();
         if (rLower === 'admin') role = RoleEnum.admin;
         else if (rLower === 'guru') role = RoleEnum.guru;
         else if (rLower === 'siswa') role = RoleEnum.siswa;
@@ -385,9 +486,12 @@ export class InvitationService {
           namaStr,
           role,
           targetSekolahId,
-          nis ? nis.toString().trim() : undefined,
-          kelas ? kelas.toString().trim() : undefined,
-          jurusan ? jurusan.toString().trim() : undefined
+          nis || undefined,
+          kelas || undefined,
+          jurusan || undefined,
+          parsedTglLahir,
+          tempatLahir || undefined,
+          tahunAngkatan
         );
         summary.success++;
       } catch (err: any) {
@@ -599,6 +703,9 @@ export class InvitationService {
       nis: invite.nis,
       kelas: invite.kelas,
       jurusan: invite.jurusan,
+      tanggal_lahir: invite.tanggal_lahir,
+      tempat_lahir: invite.tempat_lahir,
+      tahun_pendaftaran: invite.tahun_pendaftaran,
       id_sekolah: invite.sekolah_id,
       nama_sekolah: invite.sekolah.nama_sekolah,
     };
@@ -625,6 +732,9 @@ export class InvitationService {
           nis: tokenInfo.nis,
           kelas: tokenInfo.kelas,
           jurusan: tokenInfo.jurusan,
+          tanggal_lahir: tokenInfo.tanggal_lahir,
+          tempat_lahir: tokenInfo.tempat_lahir,
+          tahun_pendaftaran: tokenInfo.tahun_pendaftaran,
         },
         include: { sekolah: true },
       });
