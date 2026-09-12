@@ -39,6 +39,7 @@ interface Question {
   image_url: string | null;
   jawaban_benar?: number;
   pembahasan?: string | null;
+  jawaban_siswa?: number;
 }
 
 export default function SoalPage() {
@@ -97,34 +98,100 @@ export default function SoalPage() {
     try {
       setLoading(true);
       setExamResult(null);
+      setIsReviewMode(isReview);
       
       // Muat jawaban tersimpan jika dalam mode review
       if (isReview) {
         setReviewScoreInfo({ nilai, poin });
-        if (typeof window !== "undefined") {
-          const savedStr = window.localStorage.getItem(`lms-latsol-answers-${moduleId}`);
-          if (savedStr) {
-            try {
-              setAnswers(JSON.parse(savedStr));
-            } catch {
-              setAnswers({});
+        
+        // 1. Coba ambil dari endpoint review
+        try {
+          const reviewRes = await fetch(`${API_URL}/latsol/review/${moduleId}`, { headers });
+          if (reviewRes.ok) {
+            const reviewData = await reviewRes.json();
+            setQuestions(reviewData.questions || []);
+            if (reviewData.skor !== null && reviewData.skor !== undefined) {
+              setReviewScoreInfo({ nilai: reviewData.skor, poin: reviewData.total_poin ?? poin });
+            }
+
+            const loadedAnswers: Record<number, number> = {};
+            if (Array.isArray(reviewData.questions)) {
+              reviewData.questions.forEach((q: any) => {
+                if (q.jawaban_siswa !== undefined && q.jawaban_siswa !== null && Number(q.jawaban_siswa) >= 0) {
+                  loadedAnswers[Number(q.id)] = Number(q.jawaban_siswa);
+                }
+              });
+            }
+
+            if (Object.keys(loadedAnswers).length > 0) {
+              setAnswers(loadedAnswers);
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem(`lms-latsol-answers-${moduleId}`, JSON.stringify(loadedAnswers));
+              }
+            } else if (typeof window !== "undefined") {
+              const savedStr = window.localStorage.getItem(`lms-latsol-answers-${moduleId}`);
+              if (savedStr) {
+                try {
+                  setAnswers(JSON.parse(savedStr));
+                } catch {
+                  setAnswers({});
+                }
+              } else {
+                setAnswers({});
+              }
+            }
+
+            setActiveModuleId(moduleId);
+            setActiveModuleJudul(judul);
+            return;
+          }
+        } catch (err) {
+          console.warn("Endpoint review gagal, fallback ke endpoint modules:", err);
+        }
+
+        // Fallback: endpoint modules biasa
+        const res = await fetch(`${API_URL}/latsol/modules/${moduleId}`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          setQuestions(data);
+          const loadedAnswers: Record<number, number> = {};
+          if (Array.isArray(data)) {
+            data.forEach((q: any) => {
+              if (q.jawaban_siswa !== undefined && q.jawaban_siswa !== null && Number(q.jawaban_siswa) >= 0) {
+                loadedAnswers[Number(q.id)] = Number(q.jawaban_siswa);
+              }
+            });
+          }
+
+          if (Object.keys(loadedAnswers).length > 0) {
+            setAnswers(loadedAnswers);
+          } else if (typeof window !== "undefined") {
+            const savedStr = window.localStorage.getItem(`lms-latsol-answers-${moduleId}`);
+            if (savedStr) {
+              try {
+                setAnswers(JSON.parse(savedStr));
+              } catch {
+                setAnswers({});
+              }
             }
           }
+          setActiveModuleId(moduleId);
+          setActiveModuleJudul(judul);
+        } else {
+          alert("Gagal memuat soal latihan.");
         }
       } else {
         setReviewScoreInfo(null);
         setAnswers({});
-      }
-
-      setIsReviewMode(isReview);
-      const res = await fetch(`${API_URL}/latsol/modules/${moduleId}`, { headers });
-      if (res.ok) {
-        const data = await res.json();
-        setQuestions(data);
-        setActiveModuleId(moduleId);
-        setActiveModuleJudul(judul);
-      } else {
-        alert("Gagal memuat soal latihan.");
+        const res = await fetch(`${API_URL}/latsol/modules/${moduleId}`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          setQuestions(data);
+          setActiveModuleId(moduleId);
+          setActiveModuleJudul(judul);
+        } else {
+          alert("Gagal memuat soal latihan.");
+        }
       }
     } catch (err) {
       console.error(err);
@@ -170,7 +237,7 @@ export default function SoalPage() {
         const data = await res.json();
         setExamResult(data);
 
-        // Jika backend menyertakan kunci_jawaban, sinkronkan ke state questions langsung
+        // Sinkronkan kunci jawaban & pilihan jawaban siswa ke state questions
         if (Array.isArray(data.kunci_jawaban)) {
           const keyMap: Record<number, { jawaban_benar?: number; pembahasan?: string | null }> = {};
           data.kunci_jawaban.forEach((k: any) => {
@@ -181,6 +248,7 @@ export default function SoalPage() {
             prev.map((q) => ({
               ...q,
               ...(keyMap[q.id] || {}),
+              jawaban_siswa: answers[q.id],
             }))
           );
         }
@@ -254,6 +322,19 @@ export default function SoalPage() {
               <span className="bg-success/10 text-success text-xs font-black px-3 py-1 rounded-full border border-success/30">
                 +{reviewScoreInfo.poin} Poin Diperoleh
               </span>
+            </div>
+          </div>
+        )}
+
+        {/* Banner Riwayat Lama jika jawaban tidak terekam */}
+        {isReviewMode && !examResult && Object.keys(answers).length === 0 && !questions.some((q) => q.jawaban_siswa !== undefined && q.jawaban_siswa >= 0) && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-amber-900 text-xs shadow-xs">
+            <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Informasi Pilihan Jawaban</p>
+              <p className="text-amber-700 mt-0.5 leading-relaxed">
+                Rincian pilihan jawaban Anda tidak terekam pada riwayat pengerjaan modul ini (dikerjakan sebelum pembaruan sistem pencatatan jawaban). Anda tetap dapat meninjau kunci jawaban benar dan pembahasan lengkap di bawah ini.
+              </p>
             </div>
           </div>
         )}
@@ -341,7 +422,7 @@ export default function SoalPage() {
                       {/* Options List */}
                       <div className="pl-0 sm:pl-6 space-y-2.5">
                         {q.pilihan.map((opsi, oIdx) => {
-                          const rawSelected = (answers as Record<string | number, number>)[q.id];
+                          const rawSelected = answers[q.id] !== undefined ? answers[q.id] : q.jawaban_siswa;
                           const selectedOpt = rawSelected !== undefined && rawSelected !== null ? Number(rawSelected) : undefined;
                           const isSelected = selectedOpt !== undefined && selectedOpt === oIdx;
                           const isCorrectKey = q.jawaban_benar !== undefined && q.jawaban_benar !== null && Number(q.jawaban_benar) === oIdx;

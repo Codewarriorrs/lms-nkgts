@@ -63,6 +63,23 @@ export class LatsolController {
     return this.latsolService.submitStudentLatsol(userId, submitLatsolDto);
   }
 
+  // 5a. Ambil data review pengerjaan Latsol beserta kunci dan jawaban siswa
+  @Get('review/:id')
+  async getReview(
+    @Param('id', ParseIntPipe) moduleId: number,
+    @Req() req: any
+  ) {
+    const userId = req.user.id;
+    return this.latsolService.getReviewForModule(moduleId, userId);
+  }
+
+  // 5b. Ambil riwayat pengerjaan Latsol siswa
+  @Get('history')
+  async getHistory(@Req() req: any) {
+    const userId = req.user.id;
+    return this.latsolService.getStudentLatsolHistory(userId);
+  }
+
   // 6. Toggle izin mengulang Latsol untuk siswa tertentu (Admin saja)
   @Post('toggle-repeat')
   @UseGuards(RolesGuard)

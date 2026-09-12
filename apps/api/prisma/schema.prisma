@@ -269,6 +269,7 @@ model NilaiLatsol {
   skor           Int        // Skor persen (0-100)
   total_poin     Int        // Akumulasi poin yang didapatkan
   bisa_ulang     Boolean    @default(false)
+  jawaban        Json?      // Menyimpan riwayat jawaban siswa [{ soal_id, jawaban_siswa }]
   disubmit_at    DateTime   @default(now())
 
   @@unique([siswa_id, modul_teori_id])
