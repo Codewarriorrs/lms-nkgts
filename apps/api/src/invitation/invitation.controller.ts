@@ -27,6 +27,9 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RoleEnum } from '../../generated/prisma';
 
+import * as fs from 'fs';
+import * as path from 'path';
+
 @Controller()
 export class InvitationController {
   constructor(private readonly invitationService: InvitationService) {}
@@ -38,10 +41,22 @@ export class InvitationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async downloadTemplate(@Res() res: Response) {
-    const buffer = this.invitationService.generateTemplateExcel();
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="Template_Import_Pengguna_NKGTS.xlsx"');
-    res.send(buffer);
+    const candidatePaths = [
+      path.join(process.cwd(), '../web/public/Template_Import_Pengguna_NKGTS.xlsx'),
+      path.join(process.cwd(), 'public/Template_Import_Pengguna_NKGTS.xlsx'),
+      path.join(process.cwd(), 'Template_Import_Pengguna_NKGTS.xlsx'),
+    ];
+
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename="Template_Import_Pengguna_NKGTS.xlsx"');
+        return res.sendFile(path.resolve(p));
+      }
+    }
+
+    // Fallback redirect ke Biznet Storage S3 URL
+    return res.redirect('https://nos.wjv-1.neo.id/kaizen-files/templates/Template_Import_Pengguna_NKGTS.xlsx');
   }
 
   // 1. Import pengguna massal via Excel/CSV
