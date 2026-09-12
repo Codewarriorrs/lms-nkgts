@@ -48,6 +48,7 @@ interface Post {
 export default function GaleriPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [pendingPosts, setPendingPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -290,6 +291,7 @@ export default function GaleriPage() {
 
       if (res.ok) {
         setPosts((prev) => prev.filter((p) => p.id !== postId));
+        loadQuota();
       } else {
         const errData = await res.json();
         alert(errData.message || "Gagal menghapus postingan.");
@@ -372,47 +374,75 @@ export default function GaleriPage() {
             )}
           </div>
           
-          {/* Status Moderation Banner untuk Siswa */}
+          {/* Status Moderation Banner untuk Siswa (Collapsible) */}
           {currentUser?.role === "siswa" && quotaInfo?.posts && quotaInfo.posts.length > 0 && (
-            <div className="bg-white border border-neutral-200 rounded-2xl p-4 space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Camera size={15} className="text-[#1B3C73]" /> Status Unggahan Galeri Anda ({quotaInfo.uploadedCount ?? 0}/{quotaInfo.maxQuota || 1})
-                </h3>
-              </div>
-              <div className="divide-y divide-neutral-100">
-                {quotaInfo.posts.map((post: any) => {
-                  const isPending = post.status === "PENDING" || post.status === "pending";
-                  const isApproved = post.status === "APPROVED" || post.status === "approved";
-                  const isRejected = post.status === "REJECTED" || post.status === "rejected";
+            <div className="bg-white border border-neutral-200 rounded-2xl p-3.5 space-y-2.5 shadow-2xs">
+              <button
+                onClick={() => setIsStatusOpen(!isStatusOpen)}
+                className="w-full flex items-center justify-between text-xs font-bold text-neutral-800 hover:text-primary transition cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Camera size={15} className="text-[#1B3C73]" />
+                  <span>Status Unggahan Galeri Anda ({quotaInfo.uploadedCount ?? 0}/{quotaInfo.maxQuota || 1})</span>
+                  {quotaInfo.posts.some((p: any) => p.status === "PENDING" || p.status === "pending") && (
+                    <span className="bg-amber-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                      ⏳ Menunggu Moderasi
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 text-neutral-400 text-[11px] font-semibold">
+                  <span>{isStatusOpen ? "Sembunyikan" : "Lihat Status"}</span>
+                  <ChevronDown size={14} className={`transition-transform duration-200 ${isStatusOpen ? "rotate-180" : ""}`} />
+                </div>
+              </button>
 
-                  return (
-                    <div key={post.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <img src={post.foto_url} alt={post.judul} className="w-9 h-9 rounded-lg object-cover border shrink-0" />
-                        <span className="font-semibold text-neutral-800 truncate">{post.judul}</span>
+              {isStatusOpen && (
+                <div className="pt-2 border-t border-neutral-100 divide-y divide-neutral-100 animate-in fade-in duration-150">
+                  {quotaInfo.posts.map((post: any) => {
+                    const isPending = post.status === "PENDING" || post.status === "pending";
+                    const isApproved = post.status === "APPROVED" || post.status === "approved";
+                    const isRejected = post.status === "REJECTED" || post.status === "rejected";
+
+                    return (
+                      <div key={post.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img src={post.foto_url} alt={post.judul} className="w-9 h-9 rounded-lg object-cover border shrink-0 bg-neutral-100" />
+                          <div className="min-w-0">
+                            <span className="font-semibold text-neutral-800 truncate block">{post.judul}</span>
+                            <span className="text-[10px] text-neutral-400 font-medium">
+                              {formatDate(post.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isPending && (
+                            <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+                              ⏳ Menunggu Moderasi
+                            </span>
+                          )}
+                          {isApproved && (
+                            <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+                              ✓ Disetujui
+                            </span>
+                          )}
+                          {isRejected && (
+                            <span className="inline-flex items-center gap-1 bg-rose-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+                              ✕ Ditolak
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleDelete(post.id)}
+                            title="Hapus postingan ini secara permanen"
+                            className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="shrink-0">
-                        {isPending && (
-                          <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
-                            ⏳ Menunggu Moderasi
-                          </span>
-                        )}
-                        {isApproved && (
-                          <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
-                            ✓ Disetujui
-                          </span>
-                        )}
-                        {isRejected && (
-                          <span className="inline-flex items-center gap-1 bg-rose-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
-                            ✕ Ditolak
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
