@@ -11,6 +11,7 @@ import * as nodemailer from 'nodemailer';
 import * as XLSX from 'xlsx';
 import { parse } from 'csv-parse/sync';
 import * as bcrypt from 'bcryptjs';
+import { INVALID_SCHOOL_NAMES, isInvalidSchoolName } from '../school.utils';
 
 @Injectable()
 export class InvitationService {
@@ -351,8 +352,8 @@ export class InvitationService {
       errors: [] as string[],
     };
 
-    // Ambil data daftar sekolah di database untuk pencocokan otomatis
-    const allSekolah = await this.prisma.sekolah.findMany();
+    // Ambil data daftar sekolah di database untuk pencocokan otomatis (hanya yang valid)
+    const allSekolah = (await this.prisma.sekolah.findMany()).filter(s => !isInvalidSchoolName(s.nama_sekolah));
 
     // Validasi & Simpan setiap record secara sekuensial
     for (const [index, row] of records.entries()) {
@@ -369,13 +370,21 @@ export class InvitationService {
         }
       }
 
+      // Helper pencocokan nilai kolom dengan fallback multi-kandidat
       const getVal = (candidates: string[], excludeKeywords: string[] = []): any => {
         // Phase 1: Exact Key Match
         for (const cand of candidates) {
           const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
+          if (keyMap.has(cleanCand)) {
+            return keyMap.get(cleanCand);
+          }
+        }
+        // Phase 2: Infix Contains Match
+        for (const cand of candidates) {
+          const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
           for (const [k, v] of keyMap.entries()) {
             const isExcluded = excludeKeywords.some(ex => k.includes(ex.toLowerCase()));
-            if (!isExcluded && k === cleanCand) {
+            if (!isExcluded && k.includes(cleanCand)) {
               return v;
             }
           }
@@ -471,13 +480,17 @@ export class InvitationService {
         continue;
       }
 
-      // Validasi Field Wajib: Asal Sekolah & Auto Match dengan Normalisasi
+      // Validasi Field Wajib: Asal Sekolah & Auto Match dengan Normalisasi dan Guard Blacklist
       let targetSekolahId: number | undefined = sekolahId && !isNaN(sekolahId) && sekolahId > 0 ? sekolahId : undefined;
       const sekolahStr = sekolahRaw ? String(sekolahRaw).trim() : '';
-      const normSekolahInput = this.normalizeSchoolName(sekolahStr);
+      const isSekolahInvalid = isInvalidSchoolName(sekolahStr);
 
-      if (sekolahStr) {
+      if (sekolahStr && !isSekolahInvalid) {
+        const normSekolahInput = this.normalizeSchoolName(sekolahStr);
+        const isNormInvalid = isInvalidSchoolName(normSekolahInput);
+
         const matched = allSekolah.find(s => {
+          if (isInvalidSchoolName(s.nama_sekolah)) return false;
           const normDB = this.normalizeSchoolName(s.nama_sekolah);
           return (
             normDB.toLowerCase() === normSekolahInput.toLowerCase() ||
@@ -485,9 +498,10 @@ export class InvitationService {
             normSekolahInput.toLowerCase().includes(normDB.toLowerCase())
           );
         });
+
         if (matched) {
           targetSekolahId = matched.id;
-        } else {
+        } else if (!isNormInvalid) {
           try {
             const newSekolah = await this.prisma.sekolah.create({
               data: { nama_sekolah: normSekolahInput || sekolahStr },
@@ -498,16 +512,23 @@ export class InvitationService {
             const existing = await this.prisma.sekolah.findFirst({
               where: { nama_sekolah: { equals: normSekolahInput || sekolahStr, mode: 'insensitive' } },
             });
-            if (existing) {
+            if (existing && !isInvalidSchoolName(existing.nama_sekolah)) {
               targetSekolahId = existing.id;
             }
           }
+        }
+      } else if (isSekolahInvalid && !targetSekolahId) {
+        // Jika nama sekolah masuk blacklist (misal header "ASAL SEKOLAH") dan tidak ada sekolahId dari form,
+        // gunakan ID sekolah valid pertama sebagai fallback aman
+        const defaultValidSekolah = allSekolah.find(s => !isInvalidSchoolName(s.nama_sekolah));
+        if (defaultValidSekolah) {
+          targetSekolahId = defaultValidSekolah.id;
         }
       }
 
       if (!targetSekolahId) {
         summary.failed++;
-        summary.errors.push(`Baris ${lineNumber} (${emailStr}): Kolom 'Asal Sekolah' wajib diisi pada file Excel/CSV.`);
+        summary.errors.push(`Baris ${lineNumber} (${emailStr}): Kolom 'Asal Sekolah' tidak valid atau wajib diisi pada file Excel/CSV.`);
         continue;
       }
 

@@ -2,15 +2,9 @@ import { Controller, Get, Post, Body, HttpCode, UnauthorizedException, OnModuleI
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import * as bcrypt from 'bcryptjs';
+import { normalizeSchoolName, INVALID_SCHOOL_NAMES, isInvalidSchoolName } from './school.utils';
 
-export function normalizeSchoolName(name: string): string {
-  if (!name) return '';
-  let clean = name.trim().replace(/\s+/g, ' ');
-  clean = clean.replace(/\bSMKN\b/gi, 'SMK Negeri');
-  clean = clean.replace(/\bSMK\s+N\b/gi, 'SMK Negeri');
-  clean = clean.replace(/\bSMK\s*NEGERI\b/gi, 'SMK Negeri');
-  return clean;
-}
+export { normalizeSchoolName, INVALID_SCHOOL_NAMES, isInvalidSchoolName };
 
 @Controller()
 export class AppController implements OnModuleInit {
@@ -20,11 +14,61 @@ export class AppController implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    await this.cleanGarbageSchools();
     await this.cleanDuplicateSchools();
     await this.seedSekolahAmbassador();
     await this.seedUsersIfEmpty();
     await this.seedMateriIfEmpty();
     await this.seedTugasIfEmpty();
+  }
+
+  private async cleanGarbageSchools() {
+    try {
+      const all = await this.prisma.sekolah.findMany();
+      const garbageSchools = all.filter(s => isInvalidSchoolName(s.nama_sekolah));
+
+      if (garbageSchools.length > 0) {
+        console.log(`[Cleaner] Menemukan ${garbageSchools.length} entitas sekolah sampah:`, garbageSchools.map(s => `ID ${s.id} ("${s.nama_sekolah}")`).join(', '));
+
+        // Cari atau pastikan ada sekolah resmi default untuk menampung relasi user/token
+        let fallbackSchool = all.find(s => !isInvalidSchoolName(s.nama_sekolah) && s.nama_sekolah.includes('Pusat'))
+          || all.find(s => !isInvalidSchoolName(s.nama_sekolah) && s.nama_sekolah.includes('Negeri'))
+          || all.find(s => !isInvalidSchoolName(s.nama_sekolah));
+
+        if (!fallbackSchool) {
+          fallbackSchool = await this.prisma.sekolah.create({
+            data: { nama_sekolah: 'N-KGTS Pusat' },
+          });
+        }
+
+        const garbageIds = garbageSchools.map(s => s.id);
+
+        // Alihkan user, token undangan, dan galeri yang terhubung ke sekolah sampah
+        for (const g of garbageSchools) {
+          await this.prisma.user.updateMany({
+            where: { sekolah_id: g.id },
+            data: { sekolah_id: fallbackSchool.id },
+          });
+          await this.prisma.invitationToken.updateMany({
+            where: { sekolah_id: g.id },
+            data: { sekolah_id: fallbackSchool.id },
+          });
+          await this.prisma.galeri.updateMany({
+            where: { sekolah_id: g.id },
+            data: { sekolah_id: fallbackSchool.id, sekolah_nama: fallbackSchool.nama_sekolah },
+          });
+        }
+
+        // Hapus rekaman sekolah sampah dari database
+        const delRes = await this.prisma.sekolah.deleteMany({
+          where: { id: { in: garbageIds } },
+        });
+
+        console.log(`✅ [Cleaner] Berhasil menghapus ${delRes.count} rekaman sekolah sampah dari database.`);
+      }
+    } catch (e) {
+      console.error('[Cleaner] Gagal membersihkan sekolah sampah:', e);
+    }
   }
 
   private async cleanDuplicateSchools() {
@@ -500,6 +544,7 @@ export class AppController implements OnModuleInit {
 
   @Get('schools')
   async getSchools() {
+    await this.cleanGarbageSchools();
     await this.cleanDuplicateSchools();
     const schools = await this.prisma.sekolah.findMany({
       orderBy: { nama_sekolah: 'asc' }
@@ -507,7 +552,9 @@ export class AppController implements OnModuleInit {
 
     const uniqueMap = new Map<string, typeof schools[0]>();
     for (const s of schools) {
+      if (isInvalidSchoolName(s.nama_sekolah)) continue;
       const normName = normalizeSchoolName(s.nama_sekolah);
+      if (isInvalidSchoolName(normName)) continue;
       if (!uniqueMap.has(normName.toLowerCase())) {
         uniqueMap.set(normName.toLowerCase(), { ...s, nama_sekolah: normName });
       }

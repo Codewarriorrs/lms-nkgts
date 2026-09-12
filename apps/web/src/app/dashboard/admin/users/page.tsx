@@ -266,10 +266,13 @@ export default function AdminUsersPage() {
       const res = await fetch(`${API_URL}/schools`);
       const data = await res.json();
       if (res.ok) {
-        setSchools(data || []);
-        if (data.length > 0) {
-          setInviteForm(prev => ({ ...prev, sekolah_id: data[0].id.toString() }));
-          setImportSekolahId(data[0].id.toString());
+        const validSchools = (data || []).filter((s: any) => 
+          s.nama_sekolah && !/^(asal[\s_]*sekolah|nama[\s_]*sekolah|sekolah|school|institusi|lembaga|null|undefined|-)$/i.test(s.nama_sekolah.trim())
+        );
+        setSchools(validSchools);
+        if (validSchools.length > 0) {
+          setInviteForm(prev => ({ ...prev, sekolah_id: validSchools[0].id.toString() }));
+          setImportSekolahId(validSchools[0].id.toString());
         }
       }
     } catch (err) {
