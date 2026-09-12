@@ -63,7 +63,7 @@ export default function GaleriPage() {
   const [activeTab, setActiveTab] = useState<"public" | "pending">("public");
 
   // User quota state
-  const [quotaInfo, setQuotaInfo] = useState<{ uploadedCount: number; maxQuota: number; isQuotaExceeded: boolean } | null>(null);
+  const [quotaInfo, setQuotaInfo] = useState<{ uploadedCount: number; maxQuota: number; isQuotaExceeded: boolean; posts?: any[] } | null>(null);
 
   // Form states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -372,6 +372,50 @@ export default function GaleriPage() {
             )}
           </div>
           
+          {/* Status Moderation Banner untuk Siswa */}
+          {currentUser?.role === "siswa" && quotaInfo?.posts && quotaInfo.posts.length > 0 && (
+            <div className="bg-white border border-neutral-200 rounded-2xl p-4 space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Camera size={15} className="text-[#1B3C73]" /> Status Unggahan Galeri Anda ({quotaInfo.posts.length}/{quotaInfo.maxQuota || 3})
+                </h3>
+              </div>
+              <div className="divide-y divide-neutral-100">
+                {quotaInfo.posts.map((post: any) => {
+                  const isPending = post.status === "PENDING" || post.status === "pending";
+                  const isApproved = post.status === "APPROVED" || post.status === "approved";
+                  const isRejected = post.status === "REJECTED" || post.status === "rejected";
+
+                  return (
+                    <div key={post.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img src={post.foto_url} alt={post.judul} className="w-9 h-9 rounded-lg object-cover border shrink-0" />
+                        <span className="font-semibold text-neutral-800 truncate">{post.judul}</span>
+                      </div>
+                      <div className="shrink-0">
+                        {isPending && (
+                          <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+                            ⏳ Menunggu Moderasi
+                          </span>
+                        )}
+                        {isApproved && (
+                          <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+                            ✓ Disetujui
+                          </span>
+                        )}
+                        {isRejected && (
+                          <span className="inline-flex items-center gap-1 bg-rose-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+                            ✕ Ditolak
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Admin Moderation Tabs */}
           {currentUser?.role === "admin" && (
             <div className="flex items-center gap-2 bg-neutral-100 p-1.5 rounded-xl border border-neutral-200 text-xs font-bold">

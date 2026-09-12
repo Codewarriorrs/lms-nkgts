@@ -178,12 +178,25 @@ export class GaleriService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User tidak ditemukan');
 
-    const count = await this.prisma.galeri.count({ where: { user_id: userId } });
+    const userPosts = await this.prisma.galeri.findMany({
+      where: { user_id: userId },
+      orderBy: { created_at: 'desc' },
+      select: {
+        id: true,
+        judul: true,
+        deskripsi: true,
+        foto_url: true,
+        status: true,
+        created_at: true,
+      },
+    });
+
     const isSiswa = user.role === RoleEnum.siswa;
     return {
-      uploadedCount: count,
+      uploadedCount: userPosts.length,
       maxQuota: isSiswa ? 1 : 999,
-      isQuotaExceeded: isSiswa && count >= 1,
+      isQuotaExceeded: isSiswa && userPosts.length >= 1,
+      posts: userPosts,
     };
   }
 

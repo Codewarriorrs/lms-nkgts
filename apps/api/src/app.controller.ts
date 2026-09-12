@@ -3,6 +3,15 @@ import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import * as bcrypt from 'bcryptjs';
 
+export function normalizeSchoolName(name: string): string {
+  if (!name) return '';
+  let clean = name.trim().replace(/\s+/g, ' ');
+  clean = clean.replace(/\bSMKN\b/gi, 'SMK Negeri');
+  clean = clean.replace(/\bSMK\s+N\b/gi, 'SMK Negeri');
+  clean = clean.replace(/\bSMK\s*NEGERI\b/gi, 'SMK Negeri');
+  return clean;
+}
+
 @Controller()
 export class AppController implements OnModuleInit {
   constructor(
@@ -11,10 +20,64 @@ export class AppController implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    await this.cleanDuplicateSchools();
     await this.seedSekolahAmbassador();
     await this.seedUsersIfEmpty();
     await this.seedMateriIfEmpty();
     await this.seedTugasIfEmpty();
+  }
+
+  private async cleanDuplicateSchools() {
+    try {
+      const all = await this.prisma.sekolah.findMany();
+      const map = new Map<string, typeof all>();
+
+      for (const s of all) {
+        const normKey = normalizeSchoolName(s.nama_sekolah).toLowerCase();
+        if (!map.has(normKey)) {
+          map.set(normKey, []);
+        }
+        map.get(normKey)!.push(s);
+      }
+
+      for (const [key, group] of map.entries()) {
+        if (group.length > 1) {
+          // Cari sekolah dengan nama standar/canonical (misal mengandung 'Negeri' atau ID paling awal)
+          const canonical = group.find(s => s.nama_sekolah.includes('Negeri')) || group[0];
+          const duplicates = group.filter(s => s.id !== canonical.id);
+
+          // Update nama sekolah canonical jika perlu
+          const targetName = normalizeSchoolName(canonical.nama_sekolah);
+          if (canonical.nama_sekolah !== targetName) {
+            await this.prisma.sekolah.update({
+              where: { id: canonical.id },
+              data: { nama_sekolah: targetName },
+            });
+          }
+
+          for (const dup of duplicates) {
+            // Pindahkan relasi user & invitation token ke canonical
+            await this.prisma.user.updateMany({
+              where: { sekolah_id: dup.id },
+              data: { sekolah_id: canonical.id },
+            });
+            await this.prisma.invitationToken.updateMany({
+              where: { sekolah_id: dup.id },
+              data: { sekolah_id: canonical.id },
+            });
+            await this.prisma.galeri.updateMany({
+              where: { sekolah_id: dup.id },
+              data: { sekolah_id: canonical.id, sekolah_nama: targetName },
+            });
+            // Hapus duplikat
+            await this.prisma.sekolah.delete({ where: { id: dup.id } });
+            console.log(`Deduplicated school: merged ID ${dup.id} (${dup.nama_sekolah}) into ID ${canonical.id} (${targetName})`);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to clean duplicate schools:', e);
+    }
   }
 
   private async seedMateriIfEmpty() {

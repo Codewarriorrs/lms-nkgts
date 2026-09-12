@@ -10,6 +10,8 @@ import {
   AlertCircle,
   BookMarked,
   ChevronRight,
+  Award,
+  FileText
 } from "lucide-react";
 import Link from "next/link";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -97,6 +99,7 @@ export default function DashboardPage() {
   const [progressMap, setProgressMap] = useState<Record<string, any>>({});
   const [tasksList, setTasksList] = useState<any[]>([]);
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
+  const [nilaiPkl, setNilaiPkl] = useState<any>(null);
 
   useEffect(() => {
     setGreeting(getGreeting());
@@ -158,7 +161,7 @@ export default function DashboardPage() {
 
   const [latsolStatusList, setLatsolStatusList] = useState<any[]>([]);
 
-  // Fetch real tasks status, project files, and latsol status from database
+  // Fetch real tasks status, project files, latsol status, and PKL grade from database
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -191,6 +194,17 @@ export default function DashboardPage() {
         });
         if (latsolRes.ok) {
           setLatsolStatusList(await latsolRes.json());
+        }
+
+        // Fetch PKL Grade for student
+        const pklRes = await fetch(`${API_URL}/nilai-pkl/my-grade`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (pklRes.ok) {
+          const pklData = await pklRes.json();
+          if (pklData.data) {
+            setNilaiPkl(pklData.data);
+          }
         }
       } catch (err) {
         console.error("Gagal mengambil data dashboard:", err);
@@ -390,6 +404,32 @@ export default function DashboardPage() {
             />
           ))}
         </div>
+
+        {/* Banner Laporan Hasil Magang / Penilaian PKL (Tampil Jika Nilai Ada) */}
+        {nilaiPkl && (
+          <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white rounded-2xl p-6 shadow-md relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2 relative z-10">
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md text-white text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
+                <Award size={14} /> Laporan Hasil Magang (Penilaian PKL)
+              </div>
+              <h3 className="text-xl font-bold text-white leading-snug">
+                Nilai Akhir Magang: <span className="text-yellow-300 font-extrabold text-2xl ml-1">{nilaiPkl.nilai_akhir ?? "-"}</span> / 100
+              </h3>
+              <p className="text-xs text-emerald-100 max-w-xl leading-relaxed">
+                {nilaiPkl.nama_perusahaan ? `Perusahaan: ${nilaiPkl.nama_perusahaan} • ` : ""}
+                Rekomendasi: <span className="font-bold text-white">{nilaiPkl.rekomendasi || "Telah Diselesaikan"}</span>
+              </p>
+            </div>
+            <div className="relative z-10 shrink-0">
+              <Link
+                href="/dashboard/nilai-pkl"
+                className="inline-flex items-center gap-2 bg-white text-emerald-800 hover:bg-emerald-50 px-5 py-3 rounded-xl font-bold text-xs shadow-lg transition-all"
+              >
+                <FileText size={16} /> Lihat Rincian Laporan Hasil Magang
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Lanjutkan Belajar Section */}
         <div className="space-y-4">
