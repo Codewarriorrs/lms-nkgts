@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/lib/api";
 import { ResetProgressModal } from "@/components/dashboard/ResetProgressModal";
@@ -113,9 +113,21 @@ export default function AdminUsersPage() {
   // Filtering / Pagination Active Users
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [exportSekolahId, setExportSekolahId] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
+
+  // Multi-Select & Bulk Action States
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isBulkResetModalOpen, setIsBulkResetModalOpen] = useState(false);
+  const [isBulkCancelResetModalOpen, setIsBulkCancelResetModalOpen] = useState(false);
+
+  const masterCheckboxRef = useRef<HTMLInputElement>(null);
+  const mobileMasterCheckboxRef = useRef<HTMLInputElement>(null);
 
   // Modals & Forms
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -671,9 +683,6 @@ export default function AdminUsersPage() {
   };
 
   // 8. Handle Export Excel Nilai Siswa
-  const [exportSekolahId, setExportSekolahId] = useState<string>("");
-  const [isExporting, setIsExporting] = useState<boolean>(false);
-
   const handleExportExcel = async () => {
     setIsExporting(true);
     setErrorMsg(null);
@@ -705,6 +714,233 @@ export default function AdminUsersPage() {
       setErrorMsg(err.message || "Gagal mengunduh file Excel nilai");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  // ================= MULTI-SELECT & BULK ACTIONS LOGIC =================
+
+  // Reset selectedIds setiap kali admin berpindah tab, halaman, atau mengubah filter
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [activeTab, page, pendingPage, resetsPage, search, roleFilter, exportSekolahId]);
+
+  // Dapatkan seluruh ID data pada halaman aktif saat ini
+  const getCurrentPageIds = (): string[] => {
+    if (activeTab === "active") {
+      return users.map((u) => u.id);
+    }
+    if (activeTab === "pending") {
+      const totalPendingPages = Math.ceil(invitations.length / 10) || 1;
+      const currPage = Math.min(pendingPage, totalPendingPages);
+      return invitations.slice((currPage - 1) * 10, currPage * 10).map((inv) => String(inv.id));
+    }
+    if (activeTab === "resets") {
+      const totalResetsPages = Math.ceil(activeResets.length / 10) || 1;
+      const currPage = Math.min(resetsPage, totalResetsPages);
+      return activeResets.slice((currPage - 1) * 10, currPage * 10).map((u) => u.id);
+    }
+    return [];
+  };
+
+  const currentPageIds = getCurrentPageIds();
+  const selectedOnCurrentPage = currentPageIds.filter((id) => selectedIds.includes(id));
+  const isAllCurrentPageSelected = currentPageIds.length > 0 && selectedOnCurrentPage.length === currentPageIds.length;
+  const isSomeCurrentPageSelected = selectedOnCurrentPage.length > 0 && !isAllCurrentPageSelected;
+
+  // Set indeterminate state pada master checkbox desktop & mobile
+  useEffect(() => {
+    if (masterCheckboxRef.current) {
+      masterCheckboxRef.current.indeterminate = isSomeCurrentPageSelected;
+    }
+    if (mobileMasterCheckboxRef.current) {
+      mobileMasterCheckboxRef.current.indeterminate = isSomeCurrentPageSelected;
+    }
+  }, [isSomeCurrentPageSelected, activeTab, selectedIds, currentPageIds.length]);
+
+  // Toggle Pilih Semua pada halaman aktif
+  const handleToggleSelectAll = () => {
+    if (isAllCurrentPageSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !currentPageIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => {
+        const set = new Set([...prev, ...currentPageIds]);
+        return Array.from(set);
+      });
+    }
+  };
+
+  // Toggle Pilih Satu Baris / Kartu
+  const handleToggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // Eksekusi Hapus Massal (Pengguna Aktif, Undangan Tertunda, atau Token Reset)
+  const handleExecuteBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setBulkLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const token = localStorage.getItem("token");
+      let endpoint = "";
+      if (activeTab === "active") {
+        endpoint = `${API_URL}/admin/users/bulk-delete`;
+      } else if (activeTab === "pending") {
+        endpoint = `${API_URL}/admin/invitations/bulk-delete`;
+      } else {
+        endpoint = `${API_URL}/admin/resets/bulk-cancel`;
+      }
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal melakukan penghapusan massal");
+
+      setSuccessMsg(data.message || `Berhasil memproses aksi massal pada ${selectedIds.length} item.`);
+      setSelectedIds([]);
+      setIsBulkDeleteModalOpen(false);
+
+      if (activeTab === "active") {
+        fetchActiveUsers();
+      } else if (activeTab === "pending") {
+        fetchPendingInvitations();
+      } else {
+        fetchActiveResets();
+        fetchActiveUsers();
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  // Eksekusi Kirim Massal Link Reset Kata Sandi (Tab Pengguna Aktif)
+  const handleExecuteBulkSendReset = async () => {
+    if (selectedIds.length === 0) return;
+    setBulkLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/users/bulk-send-reset`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal mengirimkan link reset sandi massal");
+
+      setSuccessMsg(data.message || `Selesai mengirim link reset sandi.`);
+      setSelectedIds([]);
+      setIsBulkResetModalOpen(false);
+      fetchActiveResets();
+      fetchActiveUsers();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  // Eksekusi Kirim Ulang Massal Email Undangan (Tab Undangan Tertunda)
+  const handleExecuteBulkResendInvitations = async () => {
+    if (selectedIds.length === 0) return;
+    setBulkLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/invitations/bulk-resend`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal mengirim ulang undangan massal");
+
+      setSuccessMsg(data.message || `Selesai mengirim ulang undangan aktivasi.`);
+      setSelectedIds([]);
+      fetchPendingInvitations();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  // Eksekusi Perpanjang & Kirim Ulang Massal Token Reset (Tab Reset Sandi)
+  const handleExecuteBulkResendResetPassword = async () => {
+    if (selectedIds.length === 0) return;
+    setBulkLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/resets/bulk-resend`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal memperpanjang link reset sandi massal");
+
+      setSuccessMsg(data.message || `Selesai mengirim ulang link reset sandi.`);
+      setSelectedIds([]);
+      fetchActiveResets();
+      fetchActiveUsers();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  // Eksekusi Batalkan Massal Token Reset (Tab Reset Sandi)
+  const handleExecuteBulkCancelResets = async () => {
+    if (selectedIds.length === 0) return;
+    setBulkLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/resets/bulk-cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal membatalkan tautan reset massal");
+
+      setSuccessMsg(data.message || `Berhasil membatalkan tautan reset sandi.`);
+      setSelectedIds([]);
+      setIsBulkCancelResetModalOpen(false);
+      fetchActiveResets();
+      fetchActiveUsers();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -888,6 +1124,27 @@ export default function AdminUsersPage() {
               </button>
             </div>
 
+            {/* Mobile Select All Bar */}
+            {users.length > 0 && (
+              <div className="md:hidden flex items-center justify-between px-4 py-2.5 bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-600 font-semibold">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAllCurrentPageSelected}
+                    ref={activeTab === "active" ? mobileMasterCheckboxRef : undefined}
+                    onChange={handleToggleSelectAll}
+                    className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                  />
+                  <span>Pilih Semua di Halaman Ini ({users.length})</span>
+                </label>
+                {selectedOnCurrentPage.length > 0 && (
+                  <span className="text-[11px] text-primary font-bold">
+                    {selectedOnCurrentPage.length} dipilih
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Mobile Cards (< md) */}
             <div className="block md:hidden divide-y divide-neutral-100">
               {loading ? (
@@ -896,11 +1153,25 @@ export default function AdminUsersPage() {
                 <div className="p-8 text-center text-neutral-400 text-xs">Tidak ada pengguna aktif ditemukan.</div>
               ) : (
                 users.map((user) => (
-                  <div key={user.id} className="p-4 space-y-2.5 bg-white">
+                  <div
+                    key={user.id}
+                    className={`p-4 space-y-2.5 transition-colors ${
+                      selectedIds.includes(user.id) ? "bg-blue-50/50" : "bg-white"
+                    }`}
+                  >
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="font-extrabold text-neutral-900 text-xs">{user.nama}</h4>
-                        <p className="text-[11px] text-neutral-500 font-mono leading-tight">{user.email}</p>
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(user.id)}
+                          onChange={() => handleToggleSelectOne(user.id)}
+                          aria-label={`Pilih ${user.nama}`}
+                          className="mt-0.5 w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600 flex-shrink-0"
+                        />
+                        <div>
+                          <h4 className="font-extrabold text-neutral-900 text-xs">{user.nama}</h4>
+                          <p className="text-[11px] text-neutral-500 font-mono leading-tight">{user.email}</p>
+                        </div>
                       </div>
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
                         user.role === "admin" ? "bg-purple-100 text-purple-700" : user.role === "guru" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
@@ -909,7 +1180,7 @@ export default function AdminUsersPage() {
                       </span>
                     </div>
 
-                    <div className="text-[11px] text-neutral-500 space-y-0.5">
+                    <div className="text-[11px] text-neutral-500 space-y-0.5 pl-7">
                       <p>Sekolah: <strong className="text-neutral-700 font-semibold">{user.nama_sekolah || "N-KGTS"}</strong></p>
                       <p>NIS: <strong className="font-mono text-neutral-700">{user.nis || "-"}</strong></p>
                       <p>Kelas / Jurusan: <strong className="text-primary font-bold">{formatKelasDisplay(user.kelas, user.jurusan)}</strong></p>
@@ -961,6 +1232,16 @@ export default function AdminUsersPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-neutral-50/50 text-neutral-400 text-xs font-extrabold uppercase tracking-wider border-b border-neutral-50">
+                    <th className="w-12 px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        ref={activeTab === "active" ? masterCheckboxRef : undefined}
+                        checked={isAllCurrentPageSelected}
+                        onChange={handleToggleSelectAll}
+                        aria-label="Pilih semua baris pada halaman ini"
+                        className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                      />
+                    </th>
                     <th className="px-6 py-4">Nama</th>
                     <th className="px-6 py-4">Email</th>
                     <th className="px-6 py-4">NIS / Kelas / Jurusan</th>
@@ -973,7 +1254,7 @@ export default function AdminUsersPage() {
                 <tbody className="divide-y divide-neutral-50 text-sm text-neutral-700">
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-neutral-400">
+                      <td colSpan={8} className="px-6 py-12 text-center text-neutral-400">
                         <div className="flex items-center justify-center gap-2.5">
                           <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-primary"></div>
                            Memuat data pengguna...
@@ -982,13 +1263,27 @@ export default function AdminUsersPage() {
                     </tr>
                   ) : users.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-neutral-400">
+                      <td colSpan={8} className="px-6 py-12 text-center text-neutral-400">
                         Tidak ada pengguna aktif ditemukan.
                       </td>
                     </tr>
                   ) : (
                     users.map((user) => (
-                      <tr key={user.id} className="hover:bg-neutral-50/50 transition duration-150">
+                      <tr
+                        key={user.id}
+                        className={`transition duration-150 ${
+                          selectedIds.includes(user.id) ? "bg-blue-50/60 hover:bg-blue-50" : "hover:bg-neutral-50/50"
+                        }`}
+                      >
+                        <td className="w-12 px-4 py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(user.id)}
+                            onChange={() => handleToggleSelectOne(user.id)}
+                            aria-label={`Pilih ${user.nama}`}
+                            className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                          />
+                        </td>
                         <td className="px-6 py-4 font-bold text-neutral-900">
                           <div className="flex items-center gap-2">
                             <span>{user.nama}</span>
@@ -1088,10 +1383,117 @@ export default function AdminUsersPage() {
         ) : activeTab === "pending" ? (
           /* ================= TAMPILAN UNDANGAN TERTUNDA ================= */
           <div>
-            <div className="overflow-x-auto">
+            {/* Mobile Select All Bar */}
+            {invitations.length > 0 && (
+              <div className="md:hidden flex items-center justify-between px-4 py-2.5 bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-600 font-semibold">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAllCurrentPageSelected}
+                    ref={activeTab === "pending" ? mobileMasterCheckboxRef : undefined}
+                    onChange={handleToggleSelectAll}
+                    className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                  />
+                  <span>Pilih Semua di Halaman Ini ({currentPageIds.length})</span>
+                </label>
+                {selectedOnCurrentPage.length > 0 && (
+                  <span className="text-[11px] text-primary font-bold">
+                    {selectedOnCurrentPage.length} dipilih
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Mobile Cards (< md) */}
+            <div className="block md:hidden divide-y divide-neutral-100">
+              {invitations.length === 0 ? (
+                <div className="p-8 text-center text-neutral-400 text-xs">Tidak ada undangan tertunda yang aktif.</div>
+              ) : (
+                (() => {
+                  const totalPendingPages = Math.ceil(invitations.length / 10) || 1;
+                  const currentPendingPage = Math.min(pendingPage, totalPendingPages);
+                  const paginatedInvitations = invitations.slice((currentPendingPage - 1) * 10, currentPendingPage * 10);
+                  return paginatedInvitations.map((invite) => {
+                    const idStr = String(invite.id);
+                    const isSelected = selectedIds.includes(idStr);
+                    return (
+                      <div
+                        key={invite.id}
+                        className={`p-4 space-y-2.5 transition-colors ${
+                          isSelected ? "bg-blue-50/50" : "bg-white"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectOne(idStr)}
+                              aria-label={`Pilih ${invite.nama}`}
+                              className="mt-0.5 w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600 flex-shrink-0"
+                            />
+                            <div>
+                              <h4 className="font-extrabold text-neutral-900 text-xs">{invite.nama}</h4>
+                              <p className="text-[11px] text-neutral-500 font-mono leading-tight">{invite.email}</p>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                            invite.role === "admin" ? "bg-purple-100 text-purple-700" : invite.role === "guru" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+                          }`}>
+                            {invite.role}
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] text-neutral-500 space-y-0.5 pl-7">
+                          <p>Sekolah: <strong className="text-neutral-700 font-semibold">{invite.nama_sekolah || "N-KGTS"}</strong></p>
+                          <p>NIS: <strong className="font-mono text-neutral-700">{invite.nis || "-"}</strong></p>
+                          <p>Kedaluwarsa: <strong className={invite.is_expired ? "text-danger" : "text-neutral-600"}>
+                            {invite.is_expired ? "Kedaluwarsa" : new Date(invite.expires_at).toLocaleDateString("id-ID", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </strong></p>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+                          <button
+                            onClick={() => handleResendInvite(invite.id, invite.email)}
+                            disabled={loading}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs border border-blue-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                            title="Kirim ulang email undangan"
+                          >
+                            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+                            Kirim Ulang
+                          </button>
+                          <button
+                            onClick={() => setDeleteTargetId(invite.id)}
+                            disabled={loading}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs border border-rose-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                            title="Batalkan dan hapus undangan"
+                          >
+                            <Trash2 size={12} />
+                            Hapus
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
+              )}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-neutral-50/50 text-neutral-400 text-xs font-extrabold uppercase tracking-wider border-b border-neutral-50">
+                    <th className="w-12 px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        ref={activeTab === "pending" ? masterCheckboxRef : undefined}
+                        checked={isAllCurrentPageSelected}
+                        onChange={handleToggleSelectAll}
+                        aria-label="Pilih semua baris pada halaman ini"
+                        className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                      />
+                    </th>
                     <th className="px-6 py-4">Nama</th>
                     <th className="px-6 py-4">Email</th>
                     <th className="px-6 py-4">NIS</th>
@@ -1104,7 +1506,7 @@ export default function AdminUsersPage() {
                 <tbody className="divide-y divide-neutral-50 text-sm text-neutral-700">
                   {invitations.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-neutral-400">
+                      <td colSpan={8} className="px-6 py-12 text-center text-neutral-400">
                         Tidak ada undangan tertunda yang aktif.
                       </td>
                     </tr>
@@ -1113,57 +1515,75 @@ export default function AdminUsersPage() {
                       const totalPendingPages = Math.ceil(invitations.length / 10) || 1;
                       const currentPendingPage = Math.min(pendingPage, totalPendingPages);
                       const paginatedInvitations = invitations.slice((currentPendingPage - 1) * 10, currentPendingPage * 10);
-                      return paginatedInvitations.map((invite) => (
-                        <tr key={invite.id} className="hover:bg-neutral-50/50 transition duration-150">
-                          <td className="px-6 py-4 font-bold text-neutral-900">{invite.nama}</td>
-                          <td className="px-6 py-4 font-mono text-xs">{invite.email}</td>
-                          <td className="px-6 py-4 text-neutral-400">{invite.nis || "-"}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
-                              invite.role === "admin" 
-                                ? "bg-purple-100 text-purple-700" 
-                                : invite.role === "guru"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-green-100 text-green-700"
-                            }`}>
-                              {invite.role}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">{invite.nama_sekolah}</td>
-                          <td className="px-6 py-4 text-xs">
-                            <span className={`font-semibold ${invite.is_expired ? "text-danger" : "text-neutral-400"}`}>
-                              {invite.is_expired ? "Kedaluwarsa" : new Date(invite.expires_at).toLocaleDateString("id-ID", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit"
-                              })}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right whitespace-nowrap min-w-[220px]">
-                            <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                              <button
-                                onClick={() => handleResendInvite(invite.id, invite.email)}
-                                disabled={loading}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                                title="Kirim ulang email undangan"
-                              >
-                                <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-                                Kirim Ulang
-                              </button>
-                              <button
-                                onClick={() => setDeleteTargetId(invite.id)}
-                                disabled={loading}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                                title="Batalkan dan hapus undangan"
-                              >
-                                <Trash2 size={13} />
-                                Hapus
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ));
+                      return paginatedInvitations.map((invite) => {
+                        const idStr = String(invite.id);
+                        const isSelected = selectedIds.includes(idStr);
+                        return (
+                          <tr
+                            key={invite.id}
+                            className={`transition duration-150 ${
+                              isSelected ? "bg-blue-50/60 hover:bg-blue-50" : "hover:bg-neutral-50/50"
+                            }`}
+                          >
+                            <td className="w-12 px-4 py-4 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleSelectOne(idStr)}
+                                aria-label={`Pilih ${invite.nama}`}
+                                className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                              />
+                            </td>
+                            <td className="px-6 py-4 font-bold text-neutral-900">{invite.nama}</td>
+                            <td className="px-6 py-4 font-mono text-xs">{invite.email}</td>
+                            <td className="px-6 py-4 text-neutral-400">{invite.nis || "-"}</td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
+                                invite.role === "admin" 
+                                  ? "bg-purple-100 text-purple-700" 
+                                  : invite.role === "guru"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-green-100 text-green-700"
+                              }`}>
+                                {invite.role}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">{invite.nama_sekolah}</td>
+                            <td className="px-6 py-4 text-xs">
+                              <span className={`font-semibold ${invite.is_expired ? "text-danger" : "text-neutral-400"}`}>
+                                {invite.is_expired ? "Kedaluwarsa" : new Date(invite.expires_at).toLocaleDateString("id-ID", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right whitespace-nowrap min-w-[220px]">
+                              <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                                <button
+                                  onClick={() => handleResendInvite(invite.id, invite.email)}
+                                  disabled={loading}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                                  title="Kirim ulang email undangan"
+                                >
+                                  <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+                                  Kirim Ulang
+                                </button>
+                                <button
+                                  onClick={() => setDeleteTargetId(invite.id)}
+                                  disabled={loading}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                                  title="Batalkan dan hapus undangan"
+                                >
+                                  <Trash2 size={13} />
+                                  Hapus
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      });
                     })()
                   )}
                 </tbody>
@@ -1199,10 +1619,114 @@ export default function AdminUsersPage() {
               </button>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Select All Bar */}
+            {activeResets.length > 0 && (
+              <div className="md:hidden flex items-center justify-between px-4 py-2.5 bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-600 font-semibold">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAllCurrentPageSelected}
+                    ref={activeTab === "resets" ? mobileMasterCheckboxRef : undefined}
+                    onChange={handleToggleSelectAll}
+                    className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                  />
+                  <span>Pilih Semua di Halaman Ini ({currentPageIds.length})</span>
+                </label>
+                {selectedOnCurrentPage.length > 0 && (
+                  <span className="text-[11px] text-primary font-bold">
+                    {selectedOnCurrentPage.length} dipilih
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Mobile Cards (< md) */}
+            <div className="block md:hidden divide-y divide-neutral-100">
+              {loadingResets ? (
+                <div className="p-8 text-center text-neutral-400 text-xs">Memuat data token aktif...</div>
+              ) : activeResets.length === 0 ? (
+                <div className="p-8 text-center text-neutral-400 text-xs">Tidak ada token reset password yang sedang aktif saat ini.</div>
+              ) : (
+                (() => {
+                  const totalResetsPages = Math.ceil(activeResets.length / 10) || 1;
+                  const currentResetsPage = Math.min(resetsPage, totalResetsPages);
+                  const paginatedResets = activeResets.slice((currentResetsPage - 1) * 10, currentResetsPage * 10);
+                  return paginatedResets.map((user) => {
+                    const isSelected = selectedIds.includes(user.id);
+                    return (
+                      <div
+                        key={user.id}
+                        className={`p-4 space-y-2.5 transition-colors ${
+                          isSelected ? "bg-blue-50/50" : "bg-white"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectOne(user.id)}
+                              aria-label={`Pilih ${user.nama}`}
+                              className="mt-0.5 w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600 flex-shrink-0"
+                            />
+                            <div>
+                              <h4 className="font-extrabold text-neutral-900 text-xs">{user.nama}</h4>
+                              <p className="text-[11px] text-neutral-500 font-mono leading-tight">{user.email}</p>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                            user.role === "admin" ? "bg-purple-100 text-purple-700" : user.role === "guru" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+                          }`}>
+                            {user.role}
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] text-neutral-500 space-y-0.5 pl-7">
+                          <p>Sekolah: <strong className="text-neutral-700 font-semibold">{user.nama_sekolah || "N-KGTS"}</strong></p>
+                          <p>NIS: <strong className="font-mono text-neutral-700">{user.nis || "-"}</strong></p>
+                          <p>Kedaluwarsa: <strong className="text-amber-700 font-semibold">
+                            {new Date(user.reset_password_expires).toLocaleDateString("id-ID", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </strong> ({formatTimeRemaining(user.reset_password_expires)})</p>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+                          <button
+                            onClick={() => setSendResetTargetUser(user)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs border border-blue-700/30 cursor-pointer"
+                          >
+                            <RefreshCw size={12} />
+                            Kirim Ulang
+                          </button>
+                          <button
+                            onClick={() => setCancelResetTargetUser(user)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs border border-rose-700/30 cursor-pointer"
+                          >
+                            <X size={12} />
+                            Batalkan
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
+              )}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-neutral-50/50 text-neutral-400 text-xs font-extrabold uppercase tracking-wider border-b border-neutral-50">
+                    <th className="w-12 px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        ref={activeTab === "resets" ? masterCheckboxRef : undefined}
+                        checked={isAllCurrentPageSelected}
+                        onChange={handleToggleSelectAll}
+                        aria-label="Pilih semua baris pada halaman ini"
+                        className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                      />
+                    </th>
                     <th className="px-6 py-4">Nama</th>
                     <th className="px-6 py-4">Email</th>
                     <th className="px-6 py-4">NIS</th>
@@ -1215,7 +1739,7 @@ export default function AdminUsersPage() {
                 <tbody className="divide-y divide-neutral-50 text-sm text-neutral-700">
                   {loadingResets ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-neutral-400">
+                      <td colSpan={8} className="px-6 py-12 text-center text-neutral-400">
                         <div className="flex items-center justify-center gap-2.5">
                           <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-primary"></div>
                           Memuat data token aktif...
@@ -1224,7 +1748,7 @@ export default function AdminUsersPage() {
                     </tr>
                   ) : activeResets.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-neutral-400">
+                      <td colSpan={8} className="px-6 py-12 text-center text-neutral-400">
                         Tidak ada token reset password yang sedang aktif saat ini.
                       </td>
                     </tr>
@@ -1233,60 +1757,77 @@ export default function AdminUsersPage() {
                       const totalResetsPages = Math.ceil(activeResets.length / 10) || 1;
                       const currentResetsPage = Math.min(resetsPage, totalResetsPages);
                       const paginatedResets = activeResets.slice((currentResetsPage - 1) * 10, currentResetsPage * 10);
-                      return paginatedResets.map((user) => (
-                        <tr key={user.id} className="hover:bg-neutral-50/50 transition duration-150">
-                          <td className="px-6 py-4 font-bold text-neutral-900">{user.nama}</td>
-                          <td className="px-6 py-4 font-mono text-xs">{user.email}</td>
-                          <td className="px-6 py-4 text-neutral-400">{user.nis || "-"}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
-                              user.role === "admin" 
-                                ? "bg-purple-100 text-purple-700" 
-                                : user.role === "guru"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-green-100 text-green-700"
-                            }`}>
-                              {user.role}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">{user.nama_sekolah}</td>
-                          <td className="px-6 py-4 text-xs">
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-amber-700">
-                                {new Date(user.reset_password_expires).toLocaleDateString("id-ID", {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit"
-                                })}
+                      return paginatedResets.map((user) => {
+                        const isSelected = selectedIds.includes(user.id);
+                        return (
+                          <tr
+                            key={user.id}
+                            className={`transition duration-150 ${
+                              isSelected ? "bg-blue-50/60 hover:bg-blue-50" : "hover:bg-neutral-50/50"
+                            }`}
+                          >
+                            <td className="w-12 px-4 py-4 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleSelectOne(user.id)}
+                                aria-label={`Pilih ${user.nama}`}
+                                className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                              />
+                            </td>
+                            <td className="px-6 py-4 font-bold text-neutral-900">{user.nama}</td>
+                            <td className="px-6 py-4 font-mono text-xs">{user.email}</td>
+                            <td className="px-6 py-4 text-neutral-400">{user.nis || "-"}</td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
+                                user.role === "admin" 
+                                  ? "bg-purple-100 text-purple-700" 
+                                  : user.role === "guru"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-green-100 text-green-700"
+                              }`}>
+                                {user.role}
                               </span>
-                              <span className="text-[11px] text-neutral-400">
-                                {formatTimeRemaining(user.reset_password_expires)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-right whitespace-nowrap min-w-[220px]">
-                            <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                              <button
-                                onClick={() => setSendResetTargetUser(user)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer whitespace-nowrap"
-                                title="Kirim ulang email reset kata sandi (perpanjang 24 jam)"
-                              >
-                                <RefreshCw size={13} />
-                                Kirim Ulang
-                              </button>
-                              <button
-                                onClick={() => setCancelResetTargetUser(user)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer whitespace-nowrap"
-                                title="Batalkan tautan token reset sandi"
-                              >
-                                <X size={13} />
-                                Batalkan
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ));
+                            </td>
+                            <td className="px-6 py-4">{user.nama_sekolah}</td>
+                            <td className="px-6 py-4 text-xs">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-amber-700">
+                                  {new Date(user.reset_password_expires).toLocaleDateString("id-ID", {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                  })}
+                                </span>
+                                <span className="text-[11px] text-neutral-400">
+                                  {formatTimeRemaining(user.reset_password_expires)}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right whitespace-nowrap min-w-[220px]">
+                              <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                                <button
+                                  onClick={() => setSendResetTargetUser(user)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer whitespace-nowrap"
+                                  title="Kirim ulang email reset kata sandi (perpanjang 24 jam)"
+                                >
+                                  <RefreshCw size={13} />
+                                  Kirim Ulang
+                                </button>
+                                <button
+                                  onClick={() => setCancelResetTargetUser(user)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer whitespace-nowrap"
+                                  title="Batalkan tautan token reset sandi"
+                                >
+                                  <X size={13} />
+                                  Batalkan
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      });
                     })()
                   )}
                 </tbody>
@@ -1934,6 +2475,242 @@ export default function AdminUsersPage() {
                   </>
                 ) : (
                   "Ya, Batalkan Tautan"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= FLOATING ACTION BAR (BILAH AKSI MELAYANG) ================= */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-40 max-w-3xl bg-slate-900/95 backdrop-blur-md text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-slate-700/60 flex flex-wrap items-center justify-between sm:justify-start gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-5 duration-200">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full bg-blue-600 text-white font-black text-xs shadow-xs">
+              {selectedIds.length}
+            </span>
+            <span className="text-xs font-bold text-slate-100 whitespace-nowrap">
+              {activeTab === "pending" ? "Undangan Dipilih" : "Pengguna Dipilih"}
+            </span>
+          </div>
+
+          <div className="h-4 w-px bg-slate-700 hidden sm:block" />
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Contextual Action per Tab */}
+            {activeTab === "active" && (
+              <button
+                type="button"
+                onClick={() => setIsBulkResetModalOpen(true)}
+                disabled={bulkLoading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <KeyRound size={13} />
+                Kirim Link Reset Terpilih
+              </button>
+            )}
+
+            {activeTab === "pending" && (
+              <button
+                type="button"
+                onClick={handleExecuteBulkResendInvitations}
+                disabled={bulkLoading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw size={13} className={bulkLoading ? "animate-spin" : ""} />
+                Kirim Ulang Undangan Terpilih
+              </button>
+            )}
+
+            {activeTab === "resets" && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleExecuteBulkResendResetPassword}
+                  disabled={bulkLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw size={13} className={bulkLoading ? "animate-spin" : ""} />
+                  Kirim Ulang Terpilih
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsBulkCancelResetModalOpen(true)}
+                  disabled={bulkLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  <X size={13} />
+                  Batalkan Tautan Terpilih
+                </button>
+              </>
+            )}
+
+            {/* Batch Delete Button */}
+            <button
+              type="button"
+              onClick={() => setIsBulkDeleteModalOpen(true)}
+              disabled={bulkLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 size={13} />
+              Hapus Terpilih
+            </button>
+
+            {/* Deselect All */}
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              disabled={bulkLoading}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Batalkan Pilihan
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL KONFIRMASI HAPUS MASSAL ================= */}
+      {isBulkDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-100 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-danger">
+              <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600">
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-neutral-900">
+                  Konfirmasi Hapus {selectedIds.length} {activeTab === "pending" ? "Undangan" : "Pengguna"}
+                </h3>
+                <p className="text-xs text-neutral-400">Penghapusan data secara massal</p>
+              </div>
+            </div>
+            <p className="text-sm text-neutral-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus <strong>{selectedIds.length}</strong> data yang dipilih? Tindakan ini bersifat permanen dan akan menghapus data terpilih dari sistem.
+            </p>
+            {activeTab === "active" && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs leading-relaxed">
+                Akun Admin utama (<strong>admin@nkgts.com</strong>) dan akun Anda yang sedang aktif dilindungi secara otomatis dan tidak akan ikut terhapus.
+              </div>
+            )}
+            <div className="flex items-center gap-3 justify-end pt-2">
+              <button
+                type="button"
+                disabled={bulkLoading}
+                onClick={() => setIsBulkDeleteModalOpen(false)}
+                className="rounded-xl border border-neutral-200 text-neutral-600 px-4 py-2 text-sm font-semibold transition hover:bg-neutral-50 cursor-pointer disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={bulkLoading}
+                onClick={handleExecuteBulkDelete}
+                className="flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-sm font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {bulkLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Menghapus...
+                  </>
+                ) : (
+                  "Ya, Hapus Semua"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL KONFIRMASI KIRIM RESET MASSAL ================= */}
+      {isBulkResetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-100 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-blue-600">
+              <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+                <KeyRound size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-neutral-900">
+                  Kirim Link Reset ke {selectedIds.length} Pengguna?
+                </h3>
+                <p className="text-xs text-neutral-400">Instruksi atur ulang kata sandi via email resmi</p>
+              </div>
+            </div>
+            <p className="text-sm text-neutral-600 leading-relaxed">
+              Sistem akan mengirimkan email instruksi atur ulang kata sandi ke <strong>{selectedIds.length}</strong> akun pengguna terpilih. Tautan pada email ini berlaku selama <strong>24 jam</strong>.
+            </p>
+            <div className="flex items-center gap-3 justify-end pt-2">
+              <button
+                type="button"
+                disabled={bulkLoading}
+                onClick={() => setIsBulkResetModalOpen(false)}
+                className="rounded-xl border border-neutral-200 text-neutral-600 px-4 py-2 text-sm font-semibold transition hover:bg-neutral-50 cursor-pointer disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={bulkLoading}
+                onClick={handleExecuteBulkSendReset}
+                className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {bulkLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Mengirim Email...
+                  </>
+                ) : (
+                  <>
+                    <Send size={15} />
+                    Ya, Kirim Semua
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL KONFIRMASI BATALKAN RESET MASSAL ================= */}
+      {isBulkCancelResetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-100 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-amber-600">
+              <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600">
+                <X size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-neutral-900">
+                  Batalkan {selectedIds.length} Tautan Reset?
+                </h3>
+                <p className="text-xs text-neutral-400">Nonaktifkan token atur ulang sandi aktif</p>
+              </div>
+            </div>
+            <p className="text-sm text-neutral-600 leading-relaxed">
+              Apakah Anda yakin ingin membatalkan <strong>{selectedIds.length}</strong> tautan reset kata sandi yang dipilih? Tautan yang sebelumnya dikirim via email tidak akan dapat digunakan lagi.
+            </p>
+            <div className="flex items-center gap-3 justify-end pt-2">
+              <button
+                type="button"
+                disabled={bulkLoading}
+                onClick={() => setIsBulkCancelResetModalOpen(false)}
+                className="rounded-xl border border-neutral-200 text-neutral-600 px-4 py-2 text-sm font-semibold transition hover:bg-neutral-50 cursor-pointer disabled:opacity-50"
+              >
+                Kembali
+              </button>
+              <button
+                type="button"
+                disabled={bulkLoading}
+                onClick={handleExecuteBulkCancelResets}
+                className="flex items-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 text-sm font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {bulkLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Membatalkan...
+                  </>
+                ) : (
+                  "Ya, Batalkan Semua"
                 )}
               </button>
             </div>

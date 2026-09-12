@@ -13,6 +13,7 @@ import {
   UploadedFile, 
   BadRequestException,
   Res,
+  Req,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -23,6 +24,7 @@ import { ActivateAccountDto } from './dto/activate-account.dto';
 import { ResetProgressDto } from './dto/reset-progress.dto';
 import { ExportNilaiDto } from './dto/export-nilai.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { BulkActionDto } from './dto/bulk-action.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -240,6 +242,62 @@ export class InvitationController {
   @Roles(RoleEnum.admin)
   async cancelResetPasswordToken(@Param('id') id: string) {
     return this.invitationService.cancelResetPasswordToken(id);
+  }
+
+  // ================= BULK ACTIONS (AKSI MASSAL) =================
+
+  // 18. Hapus massal akun pengguna aktif (Admin only)
+  @Post('admin/users/bulk-delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkDeleteUsers(@Body() dto: BulkActionDto, @Req() req: any) {
+    return this.invitationService.bulkDeleteUsers(dto.ids, req.user?.id);
+  }
+
+  // 19. Kirim massal link reset sandi pengguna aktif (Admin only)
+  @Post('admin/users/bulk-send-reset')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkSendResetPassword(@Body() dto: BulkActionDto) {
+    return this.invitationService.bulkSendResetPassword(dto.ids);
+  }
+
+  // 20. Hapus massal undangan tertunda (Admin only)
+  @Post('admin/invitations/bulk-delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkDeleteInvitations(@Body() dto: BulkActionDto) {
+    return this.invitationService.bulkDeleteInvitations(dto.ids);
+  }
+
+  // 21. Kirim ulang massal email undangan (Admin only)
+  @Post('admin/invitations/bulk-resend')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkResendInvitations(@Body() dto: BulkActionDto) {
+    return this.invitationService.bulkResendInvitations(dto.ids);
+  }
+
+  // 22. Batalkan/Hapus massal tautan reset sandi aktif (Admin only)
+  @Post('admin/resets/bulk-cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkCancelResetPassword(@Body() dto: BulkActionDto) {
+    return this.invitationService.bulkCancelResetPassword(dto.ids);
+  }
+
+  @Post('admin/resets/bulk-delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkDeleteResets(@Body() dto: BulkActionDto) {
+    return this.invitationService.bulkCancelResetPassword(dto.ids);
+  }
+
+  @Post('admin/resets/bulk-resend')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkResendResetPassword(@Body() dto: BulkActionDto) {
+    return this.invitationService.bulkSendResetPassword(dto.ids);
   }
 }
 
