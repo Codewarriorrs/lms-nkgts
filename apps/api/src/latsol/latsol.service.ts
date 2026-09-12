@@ -74,6 +74,20 @@ export class LatsolService {
           return rest;
         });
       }
+
+      // Siswa telah menyelesaikan pengerjaan: sertakan pilihan siswa jika tersimpan di database
+      const savedAnswers = Array.isArray(hasCompleted.jawaban) ? (hasCompleted.jawaban as any[]) : [];
+      const answerMap = new Map<number, number>();
+      for (const item of savedAnswers) {
+        if (item && item.soal_id !== undefined && item.jawaban_siswa !== undefined) {
+          answerMap.set(Number(item.soal_id), Number(item.jawaban_siswa));
+        }
+      }
+
+      return questions.map((q) => ({
+        ...q,
+        jawaban_siswa: answerMap.has(q.id) ? answerMap.get(q.id) : undefined,
+      }));
     }
 
     return questions;
@@ -115,7 +129,7 @@ export class LatsolService {
     // Hitung persentase skor akhir (0-100)
     const skorPersen = Math.round((totalPoinDiperoleh / totalPoinMaksimum) * 100);
 
-    // Simpan atau update rekap nilai
+    // Simpan atau update rekap nilai beserta rekaman jawaban siswa
     const result = await this.prisma.nilaiLatsol.upsert({
       where: {
         siswa_id_modul_teori_id: {
@@ -129,11 +143,14 @@ export class LatsolService {
         skor: skorPersen,
         total_poin: totalPoinDiperoleh,
         bisa_ulang: false,
+        jawaban: jawaban as any,
       },
       update: {
         skor: skorPersen,
         total_poin: totalPoinDiperoleh,
         bisa_ulang: false,
+        jawaban: jawaban as any,
+        disubmit_at: new Date(),
       },
     });
 
@@ -143,6 +160,7 @@ export class LatsolService {
       total_soal: dbQuestions.length,
       poin_diperoleh: totalPoinDiperoleh,
       poin_maksimum: totalPoinMaksimum,
+      jawaban_siswa: jawaban,
       kunci_jawaban: dbQuestions.map((q) => ({
         id: q.id,
         jawaban_benar: q.jawaban_benar,
@@ -283,5 +301,84 @@ export class LatsolService {
         latsol_bisa_ulang: bisaUlang,
       },
     });
+  }
+
+  // 8. Ambil data review pengerjaan Latsol beserta kunci dan jawaban siswa
+  async getReviewForModule(moduleId: number, userId: string) {
+    const mod = await this.prisma.modulTeori.findUnique({
+      where: { id: moduleId },
+    });
+    if (!mod) {
+      throw new NotFoundException('Modul tidak ditemukan.');
+    }
+
+    const hasCompleted = await this.prisma.nilaiLatsol.findUnique({
+      where: {
+        siswa_id_modul_teori_id: {
+          siswa_id: userId,
+          modul_teori_id: moduleId,
+        },
+      },
+    });
+
+    if (!hasCompleted) {
+      throw new BadRequestException('Anda belum menyelesaikan latihan soal untuk modul ini.');
+    }
+
+    const questions = await this.prisma.latihanSoal.findMany({
+      where: { modul_teori_id: moduleId },
+      orderBy: { id: 'asc' },
+    });
+
+    const savedAnswers = Array.isArray(hasCompleted.jawaban) ? (hasCompleted.jawaban as any[]) : [];
+    const answerMap = new Map<number, number>();
+    for (const item of savedAnswers) {
+      if (item && item.soal_id !== undefined && item.jawaban_siswa !== undefined) {
+        answerMap.set(Number(item.soal_id), Number(item.jawaban_siswa));
+      }
+    }
+
+    return {
+      modul_id: moduleId,
+      judul: mod.judul,
+      skor: hasCompleted.skor,
+      total_poin: hasCompleted.total_poin,
+      disubmit_at: hasCompleted.disubmit_at,
+      jawaban_siswa: hasCompleted.jawaban,
+      questions: questions.map((q) => ({
+        ...q,
+        jawaban_siswa: answerMap.has(q.id) ? answerMap.get(q.id) : undefined,
+      })),
+    };
+  }
+
+  // 9. Ambil riwayat seluruh pengerjaan Latsol siswa
+  async getStudentLatsolHistory(userId: string) {
+    const records = await this.prisma.nilaiLatsol.findMany({
+      where: { siswa_id: userId },
+      include: {
+        modul_teori: {
+          select: {
+            id: true,
+            judul: true,
+            slug: true,
+            urutan: true,
+          },
+        },
+      },
+      orderBy: { modul_teori: { urutan: 'asc' } },
+    });
+
+    return records.map((r) => ({
+      modul_id: r.modul_teori_id,
+      judul: r.modul_teori.judul,
+      slug: r.modul_teori.slug,
+      urutan: r.modul_teori.urutan,
+      skor: r.skor,
+      total_poin: r.total_poin,
+      bisa_ulang: r.bisa_ulang,
+      disubmit_at: r.disubmit_at,
+      has_answers: !!r.jawaban,
+    }));
   }
 }

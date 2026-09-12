@@ -535,23 +535,26 @@ export default function DashboardPage() {
         </div>
 
         {/* Project Kaizen Status */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0 max-w-full">
           <h3 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
             <FolderKanban size={14} className="text-neutral-400" />
             Project Kaizen
           </h3>
-          <div className="p-4 bg-neutral-50 border border-neutral-100 rounded-xl hover:border-neutral-200 transition-colors duration-200 cursor-pointer">
-            <div className="flex items-start justify-between gap-3 mb-3.5">
-              <p className="text-neutral-900 text-xs font-bold leading-snug flex-1">
+          <div className="p-4 bg-neutral-50 border border-neutral-100 rounded-xl hover:border-neutral-200 transition-colors duration-200 cursor-pointer overflow-hidden min-w-0 max-w-full">
+            <div className="flex items-start justify-between gap-2.5 mb-3.5 min-w-0 max-w-full">
+              <p 
+                className="text-neutral-900 text-xs font-bold leading-snug flex-1 min-w-0 truncate break-all break-words"
+                title={statusProject.judul}
+              >
                 {statusProject.judul}
               </p>
               <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${statusProject.statusColor}`}
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusProject.statusColor}`}
               >
                 {statusProject.status}
               </span>
             </div>
-            <p className="text-neutral-400 text-xs font-medium mb-4">
+            <p className="text-neutral-400 text-xs font-medium mb-4 truncate">
               Diperbarui {statusProject.lastUpdate}
             </p>
             <div className="space-y-2">

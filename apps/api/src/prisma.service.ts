@@ -32,7 +32,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         `ALTER TABLE "progres_teori" ADD COLUMN IF NOT EXISTS "persentase" INTEGER DEFAULT 0`,
         `ALTER TABLE "submisi_praktek" ADD COLUMN IF NOT EXISTS "detail_jawaban" JSONB`,
         `ALTER TABLE "invitation_tokens" ADD COLUMN IF NOT EXISTS "kelas" VARCHAR(20)`,
-        `ALTER TABLE "invitation_tokens" ADD COLUMN IF NOT EXISTS "jurusan" VARCHAR(150)`
+        `ALTER TABLE "invitation_tokens" ADD COLUMN IF NOT EXISTS "jurusan" VARCHAR(150)`,
+        `ALTER TABLE "invitation_tokens" ADD COLUMN IF NOT EXISTS "tanggal_lahir" DATE`,
+        `ALTER TABLE "invitation_tokens" ADD COLUMN IF NOT EXISTS "tempat_lahir" VARCHAR(100)`,
+        `ALTER TABLE "invitation_tokens" ADD COLUMN IF NOT EXISTS "tahun_pendaftaran" INTEGER`,
+        `ALTER TABLE "nilai_latsol" ADD COLUMN IF NOT EXISTS "jawaban" JSONB`
       ];
 
       for (const sql of schemaSqlStatements) {
