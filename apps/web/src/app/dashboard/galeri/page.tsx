@@ -377,7 +377,7 @@ export default function GaleriPage() {
             <div className="bg-white border border-neutral-200 rounded-2xl p-4 space-y-3 shadow-2xs">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Camera size={15} className="text-[#1B3C73]" /> Status Unggahan Galeri Anda ({quotaInfo.posts.length}/{quotaInfo.maxQuota || 3})
+                  <Camera size={15} className="text-[#1B3C73]" /> Status Unggahan Galeri Anda ({quotaInfo.uploadedCount ?? 0}/{quotaInfo.maxQuota || 1})
                 </h3>
               </div>
               <div className="divide-y divide-neutral-100">
