@@ -781,7 +781,22 @@ export default function AdminUsersPage() {
 
   // Eksekusi Hapus Massal (Pengguna Aktif, Undangan Tertunda, atau Token Reset)
   const handleExecuteBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
+    if (!selectedIds || !Array.isArray(selectedIds) || selectedIds.length === 0) {
+      setErrorMsg("Silakan pilih setidaknya satu pengguna / data untuk dihapus.");
+      setIsBulkDeleteModalOpen(false);
+      return;
+    }
+
+    const targetIds = selectedIds
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0 && id !== "undefined" && id !== "null");
+
+    if (targetIds.length === 0) {
+      setErrorMsg("Tidak ada data valid yang dipilih untuk dihapus.");
+      setIsBulkDeleteModalOpen(false);
+      return;
+    }
+
     setBulkLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -802,12 +817,12 @@ export default function AdminUsersPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: targetIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Gagal melakukan penghapusan massal");
 
-      setSuccessMsg(data.message || `Berhasil memproses aksi massal pada ${selectedIds.length} item.`);
+      setSuccessMsg(data.message || `Berhasil memproses penghapusan massal pada ${targetIds.length} item.`);
       setSelectedIds([]);
       setIsBulkDeleteModalOpen(false);
 
@@ -828,7 +843,22 @@ export default function AdminUsersPage() {
 
   // Eksekusi Kirim Massal Link Reset Kata Sandi (Tab Pengguna Aktif)
   const handleExecuteBulkSendReset = async () => {
-    if (selectedIds.length === 0) return;
+    if (!selectedIds || !Array.isArray(selectedIds) || selectedIds.length === 0) {
+      setErrorMsg("Silakan pilih setidaknya satu pengguna.");
+      setIsBulkResetModalOpen(false);
+      return;
+    }
+
+    const targetIds = selectedIds
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0 && id !== "undefined" && id !== "null");
+
+    if (targetIds.length === 0) {
+      setErrorMsg("Tidak ada pengguna valid yang dipilih.");
+      setIsBulkResetModalOpen(false);
+      return;
+    }
+
     setBulkLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -840,12 +870,12 @@ export default function AdminUsersPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: targetIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Gagal mengirimkan link reset sandi massal");
 
-      setSuccessMsg(data.message || `Selesai mengirim link reset sandi.`);
+      setSuccessMsg(data.message || `Selesai mengirim link reset sandi ke ${targetIds.length} pengguna.`);
       setSelectedIds([]);
       setIsBulkResetModalOpen(false);
       fetchActiveResets();
@@ -859,7 +889,20 @@ export default function AdminUsersPage() {
 
   // Eksekusi Kirim Ulang Massal Email Undangan (Tab Undangan Tertunda)
   const handleExecuteBulkResendInvitations = async () => {
-    if (selectedIds.length === 0) return;
+    if (!selectedIds || !Array.isArray(selectedIds) || selectedIds.length === 0) {
+      setErrorMsg("Silakan pilih setidaknya satu undangan.");
+      return;
+    }
+
+    const targetIds = selectedIds
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0 && id !== "undefined" && id !== "null");
+
+    if (targetIds.length === 0) {
+      setErrorMsg("Tidak ada undangan valid yang dipilih.");
+      return;
+    }
+
     setBulkLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -871,12 +914,12 @@ export default function AdminUsersPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: targetIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Gagal mengirim ulang undangan massal");
 
-      setSuccessMsg(data.message || `Selesai mengirim ulang undangan aktivasi.`);
+      setSuccessMsg(data.message || `Selesai mengirim ulang ${targetIds.length} undangan aktivasi.`);
       setSelectedIds([]);
       fetchPendingInvitations();
     } catch (err: any) {
@@ -888,7 +931,20 @@ export default function AdminUsersPage() {
 
   // Eksekusi Perpanjang & Kirim Ulang Massal Token Reset (Tab Reset Sandi)
   const handleExecuteBulkResendResetPassword = async () => {
-    if (selectedIds.length === 0) return;
+    if (!selectedIds || !Array.isArray(selectedIds) || selectedIds.length === 0) {
+      setErrorMsg("Silakan pilih setidaknya satu token reset.");
+      return;
+    }
+
+    const targetIds = selectedIds
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0 && id !== "undefined" && id !== "null");
+
+    if (targetIds.length === 0) {
+      setErrorMsg("Tidak ada token reset valid yang dipilih.");
+      return;
+    }
+
     setBulkLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -900,12 +956,12 @@ export default function AdminUsersPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: targetIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Gagal memperpanjang link reset sandi massal");
 
-      setSuccessMsg(data.message || `Selesai mengirim ulang link reset sandi.`);
+      setSuccessMsg(data.message || `Selesai mengirim ulang link reset sandi ke ${targetIds.length} pengguna.`);
       setSelectedIds([]);
       fetchActiveResets();
       fetchActiveUsers();
@@ -918,7 +974,22 @@ export default function AdminUsersPage() {
 
   // Eksekusi Batalkan Massal Token Reset (Tab Reset Sandi)
   const handleExecuteBulkCancelResets = async () => {
-    if (selectedIds.length === 0) return;
+    if (!selectedIds || !Array.isArray(selectedIds) || selectedIds.length === 0) {
+      setErrorMsg("Silakan pilih setidaknya satu token reset.");
+      setIsBulkCancelResetModalOpen(false);
+      return;
+    }
+
+    const targetIds = selectedIds
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0 && id !== "undefined" && id !== "null");
+
+    if (targetIds.length === 0) {
+      setErrorMsg("Tidak ada token reset valid yang dipilih.");
+      setIsBulkCancelResetModalOpen(false);
+      return;
+    }
+
     setBulkLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -930,12 +1001,12 @@ export default function AdminUsersPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: targetIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Gagal membatalkan tautan reset massal");
 
-      setSuccessMsg(data.message || `Berhasil membatalkan tautan reset sandi.`);
+      setSuccessMsg(data.message || `Berhasil membatalkan ${targetIds.length} tautan reset sandi.`);
       setSelectedIds([]);
       setIsBulkCancelResetModalOpen(false);
       fetchActiveResets();
@@ -2504,7 +2575,13 @@ export default function AdminUsersPage() {
             {activeTab === "active" && (
               <button
                 type="button"
-                onClick={() => setIsBulkResetModalOpen(true)}
+                onClick={() => {
+                  if (!selectedIds || selectedIds.length === 0) {
+                    setErrorMsg("Silakan pilih setidaknya satu pengguna terlebih dahulu.");
+                    return;
+                  }
+                  setIsBulkResetModalOpen(true);
+                }}
                 disabled={bulkLoading}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
               >
@@ -2538,7 +2615,13 @@ export default function AdminUsersPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsBulkCancelResetModalOpen(true)}
+                  onClick={() => {
+                    if (!selectedIds || selectedIds.length === 0) {
+                      setErrorMsg("Silakan pilih setidaknya satu token terlebih dahulu.");
+                      return;
+                    }
+                    setIsBulkCancelResetModalOpen(true);
+                  }}
                   disabled={bulkLoading}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
                 >
@@ -2551,7 +2634,13 @@ export default function AdminUsersPage() {
             {/* Batch Delete Button */}
             <button
               type="button"
-              onClick={() => setIsBulkDeleteModalOpen(true)}
+              onClick={() => {
+                if (!selectedIds || selectedIds.length === 0) {
+                  setErrorMsg("Silakan pilih setidaknya satu data terlebih dahulu.");
+                  return;
+                }
+                setIsBulkDeleteModalOpen(true);
+              }}
               disabled={bulkLoading}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
             >
@@ -2606,7 +2695,7 @@ export default function AdminUsersPage() {
               </button>
               <button
                 type="button"
-                disabled={bulkLoading}
+                disabled={bulkLoading || !selectedIds || selectedIds.length === 0}
                 onClick={handleExecuteBulkDelete}
                 className="flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-sm font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
               >
@@ -2616,7 +2705,7 @@ export default function AdminUsersPage() {
                     Menghapus...
                   </>
                 ) : (
-                  "Ya, Hapus Semua"
+                  selectedIds.length > 1 ? `Ya, Hapus ${selectedIds.length} Data` : "Ya, Hapus Data"
                 )}
               </button>
             </div>
@@ -2653,7 +2742,7 @@ export default function AdminUsersPage() {
               </button>
               <button
                 type="button"
-                disabled={bulkLoading}
+                disabled={bulkLoading || !selectedIds || selectedIds.length === 0}
                 onClick={handleExecuteBulkSendReset}
                 className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
               >
@@ -2703,7 +2792,7 @@ export default function AdminUsersPage() {
               </button>
               <button
                 type="button"
-                disabled={bulkLoading}
+                disabled={bulkLoading || !selectedIds || selectedIds.length === 0}
                 onClick={handleExecuteBulkCancelResets}
                 className="flex items-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 text-sm font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
               >
