@@ -1361,28 +1361,42 @@ export class InvitationService {
 
   // 18. Batch Delete Pengguna Aktif (Admin Only)
   async bulkDeleteUsers(ids: (string | number)[], currentUserId?: string) {
-    if (!ids || ids.length === 0) {
-      return { success: 0, message: 'Tidak ada ID pengguna yang diberikan' };
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
     }
-    const stringIds = ids.map(id => String(id));
+
+    // Normalisasi dan pastikan ID berupa string murni yang tidak kosong
+    const validIds = ids
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0 && id !== 'undefined' && id !== 'null');
+
+    if (validIds.length === 0) {
+      throw new BadRequestException('Tidak ada ID valid yang ditemukan untuk diproses.');
+    }
 
     // Lindungi akun admin utama dan akun yang sedang aktif login
     const usersToDelete = await this.prisma.user.findMany({
       where: {
-        id: { in: stringIds },
+        id: { in: validIds },
         email: { not: 'admin@nkgts.com' },
+        role: { not: RoleEnum.admin },
         ...(currentUserId ? { id: { not: currentUserId } } : {}),
       },
       select: { id: true },
     });
 
-    const safeIds = usersToDelete.map(u => u.id);
+    const safeIds = usersToDelete.map((u) => u.id);
     if (safeIds.length === 0) {
       return { success: 0, message: 'Tidak ada pengguna yang dapat dihapus (akun admin dilindungi).' };
     }
 
     const res = await this.prisma.user.deleteMany({
-      where: { id: { in: safeIds } },
+      where: {
+        id: { in: safeIds },
+        email: { not: 'admin@nkgts.com' },
+        role: { not: RoleEnum.admin },
+        ...(currentUserId ? { id: { not: currentUserId } } : {}),
+      },
     });
 
     return {
@@ -1393,17 +1407,24 @@ export class InvitationService {
 
   // 19. Batch Kirim Link Reset Password Pengguna Aktif (Admin Only)
   async bulkSendResetPassword(ids: (string | number)[]) {
-    if (!ids || ids.length === 0) {
-      return { success: 0, failed: 0, message: 'Tidak ada pengguna yang dipilih' };
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
     }
-    const stringIds = ids.map(id => String(id));
+
+    const validIds = ids
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0 && id !== 'undefined' && id !== 'null');
+
+    if (validIds.length === 0) {
+      throw new BadRequestException('Tidak ada ID valid yang ditemukan untuk diproses.');
+    }
 
     let successCount = 0;
     let failCount = 0;
 
     // Proses dalam kelompok (batch 5) agar tidak membebani transport email
-    for (let i = 0; i < stringIds.length; i += 5) {
-      const chunk = stringIds.slice(i, i + 5);
+    for (let i = 0; i < validIds.length; i += 5) {
+      const chunk = validIds.slice(i, i + 5);
       await Promise.all(
         chunk.map(async (id) => {
           try {
@@ -1412,7 +1433,7 @@ export class InvitationService {
           } catch (e) {
             failCount++;
           }
-        })
+        }),
       );
     }
 
@@ -1425,12 +1446,16 @@ export class InvitationService {
 
   // 20. Batch Hapus Undangan Tertunda (Admin Only)
   async bulkDeleteInvitations(ids: (string | number)[]) {
-    if (!ids || ids.length === 0) {
-      return { success: 0, message: 'Tidak ada undangan yang dipilih' };
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
     }
-    const numericIds = ids.map(id => Number(id)).filter(id => !isNaN(id) && id > 0);
+
+    const numericIds = ids
+      .map((id) => Number(id))
+      .filter((id) => !isNaN(id) && id > 0);
+
     if (numericIds.length === 0) {
-      return { success: 0, message: 'ID undangan tidak valid' };
+      throw new BadRequestException('Tidak ada ID valid yang ditemukan untuk diproses.');
     }
 
     const res = await this.prisma.invitationToken.deleteMany({
@@ -1448,10 +1473,17 @@ export class InvitationService {
 
   // 21. Batch Kirim Ulang Email Undangan (Admin Only)
   async bulkResendInvitations(ids: (string | number)[]) {
-    if (!ids || ids.length === 0) {
-      return { success: 0, failed: 0, message: 'Tidak ada undangan yang dipilih' };
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
     }
-    const numericIds = ids.map(id => Number(id)).filter(id => !isNaN(id) && id > 0);
+
+    const numericIds = ids
+      .map((id) => Number(id))
+      .filter((id) => !isNaN(id) && id > 0);
+
+    if (numericIds.length === 0) {
+      throw new BadRequestException('Tidak ada ID valid yang ditemukan untuk diproses.');
+    }
 
     let successCount = 0;
     let failCount = 0;
@@ -1466,7 +1498,7 @@ export class InvitationService {
           } catch (e) {
             failCount++;
           }
-        })
+        }),
       );
     }
 
@@ -1479,13 +1511,20 @@ export class InvitationService {
 
   // 22. Batch Batalkan Token Reset Password Aktif (Admin Only)
   async bulkCancelResetPassword(ids: (string | number)[]) {
-    if (!ids || ids.length === 0) {
-      return { success: 0, message: 'Tidak ada token yang dipilih' };
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
     }
-    const stringIds = ids.map(id => String(id));
+
+    const validIds = ids
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0 && id !== 'undefined' && id !== 'null');
+
+    if (validIds.length === 0) {
+      throw new BadRequestException('Tidak ada ID valid yang ditemukan untuk diproses.');
+    }
 
     const res = await this.prisma.user.updateMany({
-      where: { id: { in: stringIds } },
+      where: { id: { in: validIds } },
       data: {
         reset_password_token: null,
         reset_password_expires: null,

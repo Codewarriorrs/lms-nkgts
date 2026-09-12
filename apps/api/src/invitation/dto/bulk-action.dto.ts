@@ -1,7 +1,16 @@
-import { IsArray, IsNotEmpty } from 'class-validator';
+import { IsArray, IsOptional } from 'class-validator';
 
 export class BulkActionDto {
   @IsArray()
-  @IsNotEmpty()
-  ids: (string | number)[];
+  @IsOptional()
+  ids?: (string | number)[];
+
+  @IsArray()
+  @IsOptional()
+  userIds?: (string | number)[];
+
+  @IsArray()
+  @IsOptional()
+  invitationIds?: (string | number)[];
 }
+

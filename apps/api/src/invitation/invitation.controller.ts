@@ -251,7 +251,8 @@ export class InvitationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async bulkDeleteUsers(@Body() dto: BulkActionDto, @Req() req: any) {
-    return this.invitationService.bulkDeleteUsers(dto.ids, req.user?.id);
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids);
+    return this.invitationService.bulkDeleteUsers(ids, req.user?.id);
   }
 
   // 19. Kirim massal link reset sandi pengguna aktif (Admin only)
@@ -259,7 +260,8 @@ export class InvitationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async bulkSendResetPassword(@Body() dto: BulkActionDto) {
-    return this.invitationService.bulkSendResetPassword(dto.ids);
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids);
+    return this.invitationService.bulkSendResetPassword(ids);
   }
 
   // 20. Hapus massal undangan tertunda (Admin only)
@@ -267,7 +269,8 @@ export class InvitationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async bulkDeleteInvitations(@Body() dto: BulkActionDto) {
-    return this.invitationService.bulkDeleteInvitations(dto.ids);
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.invitationIds) ? dto.invitationIds : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids));
+    return this.invitationService.bulkDeleteInvitations(ids);
   }
 
   // 21. Kirim ulang massal email undangan (Admin only)
@@ -275,7 +278,8 @@ export class InvitationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async bulkResendInvitations(@Body() dto: BulkActionDto) {
-    return this.invitationService.bulkResendInvitations(dto.ids);
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.invitationIds) ? dto.invitationIds : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids));
+    return this.invitationService.bulkResendInvitations(ids);
   }
 
   // 22. Batalkan/Hapus massal tautan reset sandi aktif (Admin only)
@@ -283,21 +287,24 @@ export class InvitationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async bulkCancelResetPassword(@Body() dto: BulkActionDto) {
-    return this.invitationService.bulkCancelResetPassword(dto.ids);
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids);
+    return this.invitationService.bulkCancelResetPassword(ids);
   }
 
   @Post('admin/resets/bulk-delete')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async bulkDeleteResets(@Body() dto: BulkActionDto) {
-    return this.invitationService.bulkCancelResetPassword(dto.ids);
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids);
+    return this.invitationService.bulkCancelResetPassword(ids);
   }
 
   @Post('admin/resets/bulk-resend')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async bulkResendResetPassword(@Body() dto: BulkActionDto) {
-    return this.invitationService.bulkSendResetPassword(dto.ids);
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids);
+    return this.invitationService.bulkSendResetPassword(ids);
   }
 }
 
