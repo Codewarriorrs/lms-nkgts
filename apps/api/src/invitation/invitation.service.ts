@@ -251,22 +251,43 @@ export class InvitationService {
     const validTglLahir = tglLahirDate && !isNaN(tglLahirDate.getTime()) ? tglLahirDate : null;
 
     // Simpan ke database
-    const inviteToken = await this.prisma.invitationToken.create({
-      data: {
-        email: emailLower,
-        token,
-        role,
-        nama,
-        nis: nis || null,
-        kelas: kelas || null,
-        jurusan: jurusan || null,
-        tanggal_lahir: validTglLahir,
-        tempat_lahir: tempat_lahir || null,
-        tahun_pendaftaran: tahun_pendaftaran || null,
-        sekolah_id: sekolahId,
-        expires_at: expiresAt,
-      },
-    });
+    let inviteToken;
+    try {
+      inviteToken = await this.prisma.invitationToken.create({
+        data: {
+          email: emailLower,
+          token,
+          role,
+          nama,
+          nis: nis || null,
+          kelas: kelas || null,
+          jurusan: jurusan || null,
+          tanggal_lahir: validTglLahir,
+          tempat_lahir: tempat_lahir || null,
+          tahun_pendaftaran: tahun_pendaftaran || null,
+          sekolah_id: sekolahId,
+          expires_at: expiresAt,
+        },
+      });
+    } catch (err: any) {
+      if (err?.message?.includes('tanggal_lahir')) {
+        inviteToken = await this.prisma.invitationToken.create({
+          data: {
+            email: emailLower,
+            token,
+            role,
+            nama,
+            nis: nis || null,
+            kelas: kelas || null,
+            jurusan: jurusan || null,
+            sekolah_id: sekolahId,
+            expires_at: expiresAt,
+          },
+        });
+      } else {
+        throw err;
+      }
+    }
 
     // Kirim email undangan secara sinkron dengan batas timeout 5 detik
     const emailError = await this.sendInvitationEmail(emailLower, nama, token, role, sekolah.nama_sekolah);

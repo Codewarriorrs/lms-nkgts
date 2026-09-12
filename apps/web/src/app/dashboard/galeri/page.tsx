@@ -448,7 +448,7 @@ export default function GaleriPage() {
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-3 text-amber-800 text-xs font-semibold">
               <AlertCircle size={18} className="shrink-0 text-amber-600" />
               <div>
-                <p className="font-bold">Kuota Unggahan Terpakai (1/1 Foto)</p>
+                <p className="font-bold">Kuota Unggahan Terpakai ({quotaInfo?.uploadedCount ?? 1}/{quotaInfo?.maxQuota ?? 1} Foto)</p>
                 <p className="text-[11px] text-amber-700 font-normal">
                   Siswa hanya diperbolehkan mengunggah 1 kali foto ke Galeri N-KGTS. Hapus foto lama Anda jika ingin mengganti.
                 </p>

@@ -195,10 +195,12 @@ export class GaleriService {
     });
 
     const isSiswa = user.role === RoleEnum.siswa;
+    const activePostsCount = userPosts.filter(p => p.status !== ApprovalStatus.REJECTED).length;
+
     return {
-      uploadedCount: userPosts.length,
+      uploadedCount: activePostsCount,
       maxQuota: isSiswa ? 1 : 999,
-      isQuotaExceeded: isSiswa && userPosts.length >= 1,
+      isQuotaExceeded: isSiswa && activePostsCount >= 1,
       posts: userPosts,
     };
   }

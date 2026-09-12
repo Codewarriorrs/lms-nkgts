@@ -413,7 +413,7 @@ export default function DashboardPage() {
                 <Award size={16} /> Laporan Hasil Magang (Penilaian PKL)
               </div>
               <h3 className="text-xl font-bold text-white leading-snug">
-                Nilai Akhir Magang: <span className="text-yellow-300 font-extrabold text-2xl ml-1">{nilaiPkl.nilai_akhir ?? "-"}</span> / 100
+                Nilai Akhir Magang: <span className="text-yellow-300 font-extrabold text-2xl ml-1">{nilaiPkl.nilai ?? nilaiPkl.nilai_akhir ?? "-"}</span> / 100
               </h3>
               <p className="text-xs text-emerald-100 max-w-xl leading-relaxed">
                 {nilaiPkl.nama_perusahaan ? `Perusahaan: ${nilaiPkl.nama_perusahaan} • ` : ""}
