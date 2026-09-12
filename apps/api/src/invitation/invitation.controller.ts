@@ -22,6 +22,7 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 import { ActivateAccountDto } from './dto/activate-account.dto';
 import { ResetProgressDto } from './dto/reset-progress.dto';
 import { ExportNilaiDto } from './dto/export-nilai.dto';
+import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -162,46 +163,26 @@ export class InvitationController {
     return this.invitationService.activateAccount(activateAccountDto);
   }
 
-  // 11. Perbarui role dan kelas user (Admin only)
+  // 11. Update role & data pengguna (Admin only)
   @Patch('admin/users/:id/role')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async updateRole(
     @Param('id') id: string,
-    @Body('role') role?: string,
-    @Body('kelas') kelas?: string,
+    @Body() dto: AdminUpdateUserDto,
   ) {
-    let roleEnum: RoleEnum | undefined;
-    if (role) {
-      if (role === 'admin') roleEnum = RoleEnum.admin;
-      else if (role === 'guru') roleEnum = RoleEnum.guru;
-      else if (role === 'siswa') roleEnum = RoleEnum.siswa;
-      else {
-        throw new BadRequestException('Role tidak valid');
-      }
-    }
-    return this.invitationService.updateUserRole(id, roleEnum, kelas);
+    return this.invitationService.updateUser(id, dto);
   }
 
-  // 11b. Update data user langsung (Admin only)
+  // 11b. Update data profil lengkap pengguna (Admin only)
   @Patch('admin/users/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async updateUser(
     @Param('id') id: string,
-    @Body('role') role?: string,
-    @Body('kelas') kelas?: string,
+    @Body() dto: AdminUpdateUserDto,
   ) {
-    let roleEnum: RoleEnum | undefined;
-    if (role) {
-      if (role === 'admin') roleEnum = RoleEnum.admin;
-      else if (role === 'guru') roleEnum = RoleEnum.guru;
-      else if (role === 'siswa') roleEnum = RoleEnum.siswa;
-      else {
-        throw new BadRequestException('Role tidak valid');
-      }
-    }
-    return this.invitationService.updateUserRole(id, roleEnum, kelas);
+    return this.invitationService.updateUser(id, dto);
   }
 
   // 12. Hapus pengguna (Admin only)

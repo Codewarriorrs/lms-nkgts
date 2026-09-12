@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { ActivateAccountDto } from './dto/activate-account.dto';
+import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { RoleEnum } from '../../generated/prisma';
 import { AuthService } from '../auth/auth.service';
 import * as crypto from 'crypto';
@@ -582,6 +583,7 @@ export class InvitationService {
           tanggal_lahir: user.tanggal_lahir,
           tempat_lahir: user.tempat_lahir,
           tahun_pendaftaran: user.tahun_pendaftaran,
+          sekolah_id: user.sekolah_id,
           nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
           created_at: user.created_at,
           reset_password_expires: user.reset_password_expires,
@@ -797,7 +799,8 @@ export class InvitationService {
   }
 
   // 11. Memperbarui role dan data pengguna aktif (admin, guru, siswa)
-  async updateUserRole(userId: string, role?: RoleEnum, kelas?: string | null) {
+  // 11. Memperbarui role dan data lengkap pengguna aktif (admin, guru, siswa)
+  async updateUser(userId: string, dto: AdminUpdateUserDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -806,17 +809,52 @@ export class InvitationService {
     }
 
     const updateData: any = {};
-    if (role) {
-      updateData.role = role;
+    if (dto.nama !== undefined && dto.nama.trim() !== '') {
+      updateData.nama = dto.nama.trim();
     }
-    if (kelas !== undefined) {
-      updateData.kelas = kelas && kelas.trim() !== '' ? kelas.trim() : null;
+    if (dto.role !== undefined) {
+      updateData.role = dto.role;
+    }
+    if (dto.sekolah_id !== undefined && !isNaN(Number(dto.sekolah_id))) {
+      updateData.sekolah_id = Number(dto.sekolah_id);
+    }
+    if (dto.nis !== undefined) {
+      updateData.nis = dto.nis && dto.nis.trim() !== '' ? dto.nis.trim() : null;
+    }
+    if (dto.kelas !== undefined) {
+      updateData.kelas = dto.kelas && dto.kelas.trim() !== '' ? dto.kelas.trim() : null;
+    }
+    if (dto.jurusan !== undefined) {
+      updateData.jurusan = dto.jurusan && dto.jurusan.trim() !== '' ? dto.jurusan.trim() : null;
+    }
+    if (dto.no_hp !== undefined) {
+      updateData.no_hp = dto.no_hp && dto.no_hp.trim() !== '' ? dto.no_hp.trim() : null;
+    }
+    if (dto.tempat_lahir !== undefined) {
+      updateData.tempat_lahir = dto.tempat_lahir && dto.tempat_lahir.trim() !== '' ? dto.tempat_lahir.trim() : null;
+    }
+    if (dto.tanggal_lahir !== undefined) {
+      if (dto.tanggal_lahir && dto.tanggal_lahir.trim() !== '') {
+        const d = new Date(dto.tanggal_lahir);
+        updateData.tanggal_lahir = !isNaN(d.getTime()) ? d : null;
+      } else {
+        updateData.tanggal_lahir = null;
+      }
+    }
+    if (dto.tahun_pendaftaran !== undefined) {
+      updateData.tahun_pendaftaran = dto.tahun_pendaftaran && !isNaN(Number(dto.tahun_pendaftaran)) ? Number(dto.tahun_pendaftaran) : null;
     }
 
     return this.prisma.user.update({
       where: { id: userId },
       data: updateData,
+      include: { sekolah: true },
     });
+  }
+
+  // 11b. Helper kompatibilitas updateUserRole
+  async updateUserRole(userId: string, role?: RoleEnum, kelas?: string | null) {
+    return this.updateUser(userId, { role, kelas: kelas ?? undefined });
   }
 
   // 12. Menghapus pengguna aktif
