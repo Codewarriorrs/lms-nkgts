@@ -36,6 +36,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         `ALTER TABLE "invitation_tokens" ADD COLUMN IF NOT EXISTS "tanggal_lahir" DATE`,
         `ALTER TABLE "invitation_tokens" ADD COLUMN IF NOT EXISTS "tempat_lahir" VARCHAR(100)`,
         `ALTER TABLE "invitation_tokens" ADD COLUMN IF NOT EXISTS "tahun_pendaftaran" INTEGER`,
+        `ALTER TABLE "invitation_tokens" ADD COLUMN IF NOT EXISTS "no_hp" VARCHAR(20)`,
         `ALTER TABLE "nilai_latsol" ADD COLUMN IF NOT EXISTS "jawaban" JSONB`
       ];
 
