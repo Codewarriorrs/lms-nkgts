@@ -17,14 +17,17 @@ export class GaleriService {
       throw new NotFoundException('User tidak ditemukan');
     }
 
-    // Pengecekan Kuota Upload: Siswa hanya dapat mengunggah 1 kali foto ke Galeri
+    // Pengecekan Kuota Upload: Siswa hanya dapat mengunggah jika tidak ada postingan aktif (PENDING / APPROVED)
     if (user.role === RoleEnum.siswa) {
-      const uploadCount = await this.prisma.galeri.count({
-        where: { user_id: userId },
+      const activeUploadCount = await this.prisma.galeri.count({
+        where: {
+          user_id: userId,
+          status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
+        },
       });
 
-      if (uploadCount >= 1) {
-        throw new ForbiddenException('Siswa hanya diperbolehkan mengunggah 1 kali foto ke Galeri N-KGTS.');
+      if (activeUploadCount >= 1) {
+        throw new ForbiddenException('Siswa hanya diperbolehkan memiliki 1 postingan aktif (Pending/Approved) di Galeri N-KGTS.');
       }
     }
 
