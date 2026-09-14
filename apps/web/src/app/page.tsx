@@ -860,7 +860,7 @@ function GaleriSection() {
     fetchLandingPosts();
   }, []);
 
-  if (loading || posts.length === 0) return null;
+  if (loading) return null;
 
   return (
     <section id="galeri" className="bg-white py-20 border-t border-neutral-100">
@@ -877,40 +877,62 @@ function GaleriSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {posts.map((post, idx) => (
-            <div
-              key={post.id}
-              className="bg-neutral-50 border border-neutral-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 transform hover:-translate-y-1"
-            >
-              <div className="relative aspect-[4/3] w-full bg-neutral-200 overflow-hidden">
-                <img
-                  src={post.foto_url}
-                  alt={post.judul}
-                  className="w-full h-full object-cover hover:scale-[1.02] transition duration-300"
-                  loading="lazy"
-                />
-              </div>
-              <div className="p-4 space-y-2">
-                <div>
-                  <h3 className="font-extrabold text-neutral-900 text-sm line-clamp-1">{post.judul}</h3>
-                  {post.deskripsi && (
-                    <p className="text-neutral-500 text-xs line-clamp-2 mt-1 leading-relaxed break-words">{post.deskripsi}</p>
-                  )}
-                </div>
-                
-                <div className="flex items-center justify-between text-[10px] text-neutral-400 font-bold border-t border-neutral-200/50 pt-2.5 mt-2">
-                  <span className="flex items-center gap-0.5 truncate max-w-[150px] text-neutral-500">
-                    <MapPin size={10} className="text-primary" /> {post.sekolah_nama || "N-KGTS Pusat"}
-                  </span>
-                  <span className="flex items-center gap-0.5">
-                    <Calendar size={10} /> {new Date(post.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
-                  </span>
-                </div>
-              </div>
+        {posts.length === 0 ? (
+          <div className="max-w-xl mx-auto bg-neutral-50 border border-dashed border-neutral-300 rounded-3xl p-8 text-center space-y-4">
+            <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto">
+              <Camera size={32} />
             </div>
-          ))}
-        </div>
+            <div>
+              <h3 className="text-lg font-bold text-neutral-900">Belum Ada Dokumentasi Galeri</h3>
+              <p className="text-xs text-neutral-500 max-w-md mx-auto mt-1 leading-relaxed">
+                Dokumentasi kegiatan dan implementasi budaya Kaizen dari sekolah-sekolah Duta NKGTS akan segera ditampilkan di sini.
+              </p>
+            </div>
+            <div className="pt-2">
+              <Link
+                href="/dashboard/galeri"
+                className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-xs font-bold px-6 py-3 rounded-xl transition-all shadow-md shadow-primary/20"
+              >
+                Upload Dokumentasi Anda
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {posts.map((post, idx) => (
+              <div
+                key={post.id}
+                className="bg-neutral-50 border border-neutral-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 transform hover:-translate-y-1"
+              >
+                <div className="relative aspect-[4/3] w-full bg-neutral-200 overflow-hidden">
+                  <img
+                    src={post.foto_url}
+                    alt={post.judul}
+                    className="w-full h-full object-cover hover:scale-[1.02] transition duration-300"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="p-4 space-y-2">
+                  <div>
+                    <h3 className="font-extrabold text-neutral-900 text-sm line-clamp-1">{post.judul}</h3>
+                    {post.deskripsi && (
+                      <p className="text-neutral-500 text-xs line-clamp-2 mt-1 leading-relaxed break-words">{post.deskripsi}</p>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-[10px] text-neutral-400 font-bold border-t border-neutral-200/50 pt-2.5 mt-2">
+                    <span className="flex items-center gap-0.5 truncate max-w-[150px] text-neutral-500">
+                      <MapPin size={10} className="text-primary" /> {post.sekolah_nama || "N-KGTS Pusat"}
+                    </span>
+                    <span className="flex items-center gap-0.5">
+                      <Calendar size={10} /> {new Date(post.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

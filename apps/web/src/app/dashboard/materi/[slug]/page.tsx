@@ -499,7 +499,7 @@ export default function MateriDetailPage() {
   return (
     <div className="px-3 sm:px-6 py-4 sm:py-8 space-y-6">
       {/* Header navigasi */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <BackButton href="/dashboard/materi" label="Kembali ke Daftar Modul" variant="outline" size="sm" />
         <div className="flex items-center gap-3">
           {/* Tombol Edit khusus Admin */}

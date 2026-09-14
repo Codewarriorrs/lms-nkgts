@@ -69,7 +69,7 @@ export function BackButton({
 
   const content = (
     <>
-      <span className="transition-opacity duration-500 group-hover:opacity-0 whitespace-nowrap">
+      <span className="transition-opacity duration-500 group-hover:opacity-0 whitespace-nowrap truncate max-w-[140px] xs:max-w-[200px] sm:max-w-none">
         {label}
       </span>
       <i
@@ -85,7 +85,7 @@ export function BackButton({
   );
 
   const baseClassName = cn(
-    "group relative inline-flex items-center justify-center overflow-hidden rounded-xl transition-all duration-300 font-semibold cursor-pointer select-none",
+    "group relative inline-flex items-center justify-center overflow-hidden rounded-xl transition-all duration-300 font-semibold cursor-pointer select-none shrink-0 max-w-full",
     sizeClasses[size],
     variantClasses[variant],
     className
