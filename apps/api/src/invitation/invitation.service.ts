@@ -77,7 +77,43 @@ export class InvitationService {
       </div>
     `;
 
-    // 1. Coba Mengirim Lewat Brevo API (HTTPS Port 443, gratis 300 email/hari & mendukung verifikasi satu email Gmail/Sekolah tanpa domain kustom)
+    // 1. Coba Mengirim Lewat Gmail SMTP Terlebih Dahulu (Pengiriman Langsung 1-2 Detik via Server Google)
+    if (hasGmail) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false,
+          auth: {
+            user: gmailUser,
+            pass: gmailPass,
+          },
+          connectionTimeout: 5000,
+          greetingTimeout: 5000,
+          socketTimeout: 5000,
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
+
+        await transporter.sendMail({
+          from: `"Kaizenesia" <${gmailUser}>`,
+          to: email,
+          subject: 'Undangan Aktivasi Akun - Kaizenesia',
+          html: mailHtmlContent,
+        });
+
+        console.log('Email undangan berhasil dikirim INSTAN via Gmail SMTP ke:', email);
+        return undefined; // Sukses instan
+      } catch (err: any) {
+        console.error('Gagal mengirim email via Gmail SMTP, mencoba Brevo API:', err);
+        if (!hasBrevo) {
+          return `Gmail SMTP: ${err.message || 'Gagal mengirim email'}`;
+        }
+      }
+    }
+
+    // 2. Fallback ke Brevo API (jika Gmail SMTP tidak aktif/gagal)
     if (hasBrevo) {
       const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
       try {
@@ -97,60 +133,21 @@ export class InvitationService {
             subject: 'Undangan Aktivasi Akun - Kaizenesia',
             htmlContent: mailHtmlContent,
           }),
-          signal: AbortSignal.timeout(5000), // Timeout 5 detik
+          signal: AbortSignal.timeout(5000),
         });
 
         if (response.ok) {
           console.log('Email undangan berhasil dikirim via Brevo API ke:', email);
-          return undefined; // Sukses
+          return undefined;
         } else {
           const errData = await response.json();
           const errMsg = errData.message || 'Error API Brevo';
           console.error('Gagal mengirim email via Brevo API:', errData);
-          if (!hasGmail) {
-            return `Brevo API: ${errMsg}`;
-          }
+          return `Brevo API: ${errMsg}`;
         }
       } catch (err: any) {
         console.error('Error saat menghubungi API Brevo:', err);
-        if (!hasGmail) {
-          return `Brevo API: ${err.message || 'Koneksi timeout'}`;
-        }
-      }
-    }
-
-    // 3. Fallback ke Gmail SMTP (dengan timeout 5 detik)
-    if (hasGmail) {
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        auth: {
-          user: gmailUser,
-          pass: gmailPass,
-        },
-        connectionTimeout: 5000, // Timeout koneksi 5 detik
-        greetingTimeout: 5000,
-        socketTimeout: 5000,
-        tls: {
-          rejectUnauthorized: false
-        }
-      });
-
-      const mailOptions = {
-        from: `"Kaizenesia" <${gmailUser}>`,
-        to: email,
-        subject: 'Undangan Aktivasi Akun - Kaizenesia',
-        html: mailHtmlContent,
-      };
-
-      try {
-        await transporter.sendMail(mailOptions);
-        console.log('Email undangan berhasil dikirim via Gmail SMTP ke:', email);
-        return undefined; // Sukses
-      } catch (err: any) {
-        console.error('Gagal mengirim email undangan via Gmail SMTP ke:', email, err);
-        return `Gmail SMTP: ${err.message || 'Koneksi timeout'}`;
+        return `Brevo API: ${err.message || 'Koneksi timeout'}`;
       }
     }
 
@@ -1159,7 +1156,43 @@ export class InvitationService {
       </div>
     `;
 
-    // 1. Coba Brevo API
+    // 1. Coba Gmail SMTP (Instan 1-2 Detik via Server Google)
+    if (hasGmail) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false,
+          auth: {
+            user: gmailUser,
+            pass: gmailPass,
+          },
+          connectionTimeout: 5000,
+          greetingTimeout: 5000,
+          socketTimeout: 5000,
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
+
+        await transporter.sendMail({
+          from: `"Kaizenesia" <${gmailUser}>`,
+          to: email,
+          subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
+          html: mailHtmlContent,
+        });
+
+        console.log('Email reset password berhasil dikirim INSTAN via Gmail SMTP ke:', email);
+        return undefined;
+      } catch (err: any) {
+        console.error('Gagal mengirim email reset via Gmail SMTP, mencoba Brevo API:', err);
+        if (!hasBrevo) {
+          return `Gmail SMTP: ${err.message || 'Gagal mengirim email'}`;
+        }
+      }
+    }
+
+    // 2. Fallback Brevo API
     if (hasBrevo) {
       const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
       try {
@@ -1189,50 +1222,11 @@ export class InvitationService {
           const errData = await response.json();
           const errMsg = errData.message || 'Error API Brevo';
           console.error('Gagal mengirim email reset via Brevo API:', errData);
-          if (!hasGmail) {
-            return `Brevo API: ${errMsg}`;
-          }
+          return `Brevo API: ${errMsg}`;
         }
       } catch (err: any) {
         console.error('Error saat menghubungi API Brevo:', err);
-        if (!hasGmail) {
-          return `Brevo API: ${err.message || 'Koneksi timeout'}`;
-        }
-      }
-    }
-
-    // 2. Fallback Gmail SMTP
-    if (hasGmail) {
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        auth: {
-          user: gmailUser,
-          pass: gmailPass,
-        },
-        connectionTimeout: 5000,
-        greetingTimeout: 5000,
-        socketTimeout: 5000,
-        tls: {
-          rejectUnauthorized: false
-        }
-      });
-
-      const mailOptions = {
-        from: `"Kaizenesia" <${gmailUser}>`,
-        to: email,
-        subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
-        html: mailHtmlContent,
-      };
-
-      try {
-        await transporter.sendMail(mailOptions);
-        console.log('Email reset password berhasil dikirim via Gmail SMTP ke:', email);
-        return undefined;
-      } catch (err: any) {
-        console.error('Gagal mengirim email reset via Gmail SMTP ke:', email, err);
-        return `Gmail SMTP: ${err.message || 'Koneksi timeout'}`;
+        return `Brevo API: ${err.message || 'Koneksi timeout'}`;
       }
     }
 
