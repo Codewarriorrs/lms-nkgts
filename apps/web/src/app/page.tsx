@@ -20,6 +20,7 @@ import {
   ArrowRight,
   Calendar,
   MapPin,
+  Camera,
   Image as ImageIcon
 } from "lucide-react";
 import CardSwap, { Card } from "@/components/ui/CardSwap";
