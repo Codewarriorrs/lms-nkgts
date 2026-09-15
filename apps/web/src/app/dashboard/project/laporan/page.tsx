@@ -8,9 +8,9 @@ export default function LaporanPage() {
 
   return (
     <div className="px-6 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Kumpulkan Laporan</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 leading-tight">Kumpulkan Laporan</h1>
           <p className="text-neutral-400 text-xs mt-1">Unggah laporan akhir proyek kelompok Anda di halaman ini.</p>
         </div>
         <BackButton href="/dashboard/project" label="Kembali ke Proyek" variant="outline" size="sm" />

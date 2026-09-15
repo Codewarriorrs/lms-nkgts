@@ -218,9 +218,81 @@ export default function PenilaianPklPage() {
         </button>
       </div>
 
-      {/* Table Container */}
+      {/* Table & Cards Container */}
       <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile View (Cards) */}
+        <div className="block md:hidden divide-y divide-neutral-100">
+          {loading ? (
+            <div className="text-center py-12 text-neutral-400">
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                <span>Sedang memuat data siswa...</span>
+              </div>
+            </div>
+          ) : students.length === 0 ? (
+            <div className="text-center py-12 text-neutral-400 italic text-sm">
+              Tidak ditemukan data siswa dalam PKL.
+            </div>
+          ) : (
+            students.map((student) => {
+              const hasGrade = !!student.nilai_pkl;
+              return (
+                <div key={student.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-extrabold text-primary flex-shrink-0">
+                        {student.nama.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-extrabold text-neutral-900 block leading-tight text-sm truncate">{student.nama}</span>
+                        <span className="text-xs text-neutral-500 font-medium block truncate mt-0.5">
+                          {student.email}
+                        </span>
+                        <span className="text-[11px] text-neutral-400 block truncate">
+                          {student.kelas ? `Kelas ${student.kelas} • ` : ""}{student.sekolah?.nama_sekolah || "N-KGTS"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 text-xs pt-1 border-t border-neutral-100">
+                    <span className="text-neutral-500 font-mono">NIS: {student.nis || "-"}</span>
+                    <div>
+                      {hasGrade ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[11px] border border-emerald-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Nilai: {student.nilai_pkl?.nilai} ({student.nilai_pkl?.rekomendasi})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-neutral-100 text-neutral-500 rounded-full font-bold text-[11px]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
+                          Belum Dinilai
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleOpenGrading(student)}
+                    className={`
+                      w-full py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2
+                      ${
+                        hasGrade
+                          ? "bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200"
+                          : "bg-primary hover:bg-primary/95 text-white shadow-primary/10"
+                      }
+                    `}
+                  >
+                    {hasGrade ? "Ubah Nilai" : "Beri Nilai"}
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop View (Table) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-100 text-neutral-500 font-bold text-xs uppercase">
