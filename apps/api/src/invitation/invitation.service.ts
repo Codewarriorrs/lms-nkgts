@@ -45,7 +45,12 @@ export class InvitationService {
     const cpWaSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_whatsapp' } });
 
     const cpName = cpNameSettings?.value || 'Admin N-KGTS';
-    const cpWa = cpWaSettings?.value || '6281234567890';
+    let rawCpWa = cpWaSettings?.value || '6281234567890';
+    let cpWa = rawCpWa.replace(/\D/g, '');
+    if (cpWa.startsWith('0')) {
+      cpWa = '62' + cpWa.slice(1);
+    }
+    if (!cpWa) cpWa = '6281234567890';
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const activationLink = `${frontendUrl}/register?token=${token}`;
@@ -759,6 +764,12 @@ export class InvitationService {
 
   // 10. Edit Kontak Pengaturan CP
   async updateContactSettings(dto: UpdateContactDto) {
+    let sanitizedWa = (dto.cp_whatsapp || '').replace(/\D/g, '');
+    if (sanitizedWa.startsWith('0')) {
+      sanitizedWa = '62' + sanitizedWa.slice(1);
+    }
+    if (!sanitizedWa) sanitizedWa = dto.cp_whatsapp;
+
     await this.prisma.settings.upsert({
       where: { key: 'cp_name' },
       update: { value: dto.cp_name },
@@ -767,8 +778,8 @@ export class InvitationService {
 
     await this.prisma.settings.upsert({
       where: { key: 'cp_whatsapp' },
-      update: { value: dto.cp_whatsapp },
-      create: { key: 'cp_whatsapp', value: dto.cp_whatsapp },
+      update: { value: sanitizedWa },
+      create: { key: 'cp_whatsapp', value: sanitizedWa },
     });
 
     return {
@@ -1110,7 +1121,12 @@ export class InvitationService {
     const cpWaSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_whatsapp' } });
 
     const cpName = cpNameSettings?.value || 'Admin N-KGTS';
-    const cpWa = cpWaSettings?.value || '6281234567890';
+    let rawCpWa = cpWaSettings?.value || '6281234567890';
+    let cpWa = rawCpWa.replace(/\D/g, '');
+    if (cpWa.startsWith('0')) {
+      cpWa = '62' + cpWa.slice(1);
+    }
+    if (!cpWa) cpWa = '6281234567890';
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;

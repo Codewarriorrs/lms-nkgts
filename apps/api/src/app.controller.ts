@@ -18,8 +18,47 @@ export class AppController implements OnModuleInit {
     await this.cleanDuplicateSchools();
     await this.seedSekolahAmbassador();
     await this.seedUsersIfEmpty();
+    await this.ensureAdminPassword();
     await this.seedMateriIfEmpty();
     await this.seedTugasIfEmpty();
+  }
+
+  private async ensureAdminPassword() {
+    try {
+      const adminEmails = ['admin@nkgts.com', 'admin@nkgts.sch.id'];
+      const targetHash = bcrypt.hashSync('kaizenuntukindonesia1945', 10);
+
+      for (const email of adminEmails) {
+        const user = await this.prisma.user.findUnique({ where: { email } });
+        if (user) {
+          const isMatch = bcrypt.compareSync('kaizenuntukindonesia1945', user.password_hash);
+          if (!isMatch) {
+            await this.prisma.user.update({
+              where: { email },
+              data: { password_hash: targetHash }
+            });
+            console.log(`[AdminPassword] Password untuk ${email} berhasil dipastikan ke 'kaizenuntukindonesia1945'`);
+          }
+        } else if (email === 'admin@nkgts.com') {
+          let sekolah = await this.prisma.sekolah.findFirst();
+          if (!sekolah) {
+            sekolah = await this.prisma.sekolah.create({ data: { nama_sekolah: 'N-KGTS Pusat' } });
+          }
+          await this.prisma.user.create({
+            data: {
+              email: 'admin@nkgts.com',
+              nama: 'Administrator NKGTS',
+              password_hash: targetHash,
+              role: 'admin',
+              sekolah_id: sekolah.id,
+            }
+          });
+          console.log(`[AdminPassword] Akun admin@nkgts.com baru berhasil dibuat dengan password 'kaizenuntukindonesia1945'`);
+        }
+      }
+    } catch (e) {
+      console.error('[AdminPassword] Gagal memastikan password admin:', e);
+    }
   }
 
   private async cleanGarbageSchools() {
