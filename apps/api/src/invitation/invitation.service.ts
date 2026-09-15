@@ -245,9 +245,9 @@ export class InvitationService {
       throw new NotFoundException(`Sekolah dengan ID ${sekolahId} tidak ditemukan`);
     }
 
-    // Cek jika sudah ada invitation token lama yang belum terpakai, hapus dulu
+    // Hapus semua invitation token lama untuk email ini agar token baru sepenuhnya bersih
     await this.prisma.invitationToken.deleteMany({
-      where: { email: emailLower, is_used: false },
+      where: { email: emailLower },
     });
 
     // Buat token aktivasi acak 64 karakter heksadesimal
@@ -799,7 +799,7 @@ export class InvitationService {
       throw new NotFoundException('Token aktivasi tidak valid atau tidak terdaftar');
     }
     if (invite.is_used) {
-      throw new BadRequestException('Token aktivasi sudah pernah digunakan');
+      throw new BadRequestException('Tautan aktivasi ini sudah pernah digunakan. Jika akun Anda telah dihapus oleh Admin, silakan minta Admin untuk mengirimkan Undangan Baru.');
     }
     if (new Date() > invite.expires_at) {
       throw new BadRequestException('Masa berlaku token aktivasi telah kedaluwarsa');
@@ -935,6 +935,11 @@ export class InvitationService {
     if (!user) {
       throw new NotFoundException('Pengguna tidak ditemukan!');
     }
+    // Hapus juga token undangan lama pengguna ini jika ada
+    await this.prisma.invitationToken.deleteMany({
+      where: { email: user.email.toLowerCase() },
+    });
+
     return this.prisma.user.delete({
       where: { id: userId },
     });
