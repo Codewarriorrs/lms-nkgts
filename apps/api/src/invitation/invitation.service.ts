@@ -790,8 +790,9 @@ export class InvitationService {
 
   // 11. Validasi Token Aktivasi (Halaman Registrasi Publik)
   async validateActivationToken(token: string) {
+    const cleanToken = (token || '').trim();
     const invite = await this.prisma.invitationToken.findUnique({
-      where: { token },
+      where: { token: cleanToken },
       include: { sekolah: true },
     });
 
