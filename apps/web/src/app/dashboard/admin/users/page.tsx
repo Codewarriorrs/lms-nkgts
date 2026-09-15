@@ -266,9 +266,19 @@ export default function AdminUsersPage() {
       const res = await fetch(`${API_URL}/schools`);
       const data = await res.json();
       if (res.ok) {
-        const validSchools = (data || []).filter((s: any) => 
-          s.nama_sekolah && !/^(asal[\s_]*sekolah|nama[\s_]*sekolah|sekolah|school|institusi|lembaga|null|undefined|-)$/i.test(s.nama_sekolah.trim())
-        );
+        const invalidHeaderRegex = /^(asal[\s_]*sekolah|nama[\s_]*sekolah|sekolah|school|institusi|lembaga|null|undefined|-)$/i;
+        const academicTitlesRegex = /(\b|,|\s)(s\.?pd|m\.?pd|s\.?t|m\.?t|s\.?kom|dr\.|drs\.)/i;
+        const knownCoords = ['anang waskito', 'budi setiawan', 'hasan ismail', 'heri suryono', 'tohadi', 'tri mardiyanto', 'windhu pinundi'];
+
+        const validSchools = (data || []).filter((s: any) => {
+          if (!s?.nama_sekolah) return false;
+          const trimmed = s.nama_sekolah.trim();
+          if (invalidHeaderRegex.test(trimmed)) return false;
+          if (academicTitlesRegex.test(trimmed)) return false;
+          if (knownCoords.some(c => trimmed.toLowerCase().includes(c))) return false;
+          return true;
+        });
+
         setSchools(validSchools);
         if (validSchools.length > 0) {
           setInviteForm(prev => ({ ...prev, sekolah_id: validSchools[0].id.toString() }));

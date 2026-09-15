@@ -11,7 +11,16 @@ import * as nodemailer from 'nodemailer';
 import * as XLSX from 'xlsx';
 import { parse } from 'csv-parse/sync';
 import * as bcrypt from 'bcryptjs';
-import { INVALID_SCHOOL_NAMES, isInvalidSchoolName } from '../school.utils';
+import {
+  INVALID_SCHOOL_NAMES,
+  isInvalidSchoolName,
+  isLikelyPersonOrCoordinator,
+  isValidInstitutionName,
+  getCanonicalSchoolKey,
+  normalizeSchoolName,
+  CANONICAL_NKGTS,
+  isNKGTS,
+} from '../school.utils';
 
 @Injectable()
 export class InvitationService {
@@ -154,12 +163,7 @@ export class InvitationService {
 
   // Helper normalisasi nama sekolah & kalkulasi tahun angkatan
   private normalizeSchoolName(name: string): string {
-    if (!name) return '';
-    let clean = name.trim().replace(/\s+/g, ' ');
-    clean = clean.replace(/\bSMKN\b/gi, 'SMK Negeri');
-    clean = clean.replace(/\bSMK\s+N\b/gi, 'SMK Negeri');
-    clean = clean.replace(/\bSMK\s*NEGERI\b/gi, 'SMK Negeri');
-    return clean;
+    return normalizeSchoolName(name);
   }
 
   private calculateGraduationYear(kelas?: string): number | undefined {
@@ -433,8 +437,11 @@ export class InvitationService {
         }
       }
 
-      // 4. Deteksi Asal Sekolah
-      const sekolahRaw = getVal(['asalsekolah', 'sekolah', 'namasekolah', 'instansi', 'school']);
+      // 4. Deteksi Asal Sekolah - DILARANG KERAS memetakan kolom koordinator, nama orang, PIC, atau jabatan
+      const sekolahRaw = getVal(
+        ['asalsekolah', 'sekolah', 'namasekolah', 'instansi', 'school'],
+        ['koordinator', 'nama', 'praktisi', 'jabatan', 'pic', 'guru', 'pendamping', 'kontak', 'person', 'cp']
+      );
 
       // 5. Deteksi NIS
       let nisRaw = getVal(['nis', 'nisn', 'nomorinduk', 'nomorinduksiswa', 'noinduk']);
@@ -480,56 +487,72 @@ export class InvitationService {
         continue;
       }
 
-      // Validasi Field Wajib: Asal Sekolah & Auto Match dengan Normalisasi dan Guard Blacklist
+      // Validasi Field Wajib: Asal Sekolah & Auto Match dengan Normalisasi, Canonical Key, dan Guard Blacklist
       let targetSekolahId: number | undefined = sekolahId && !isNaN(sekolahId) && sekolahId > 0 ? sekolahId : undefined;
       const sekolahStr = sekolahRaw ? String(sekolahRaw).trim() : '';
-      const isSekolahInvalid = isInvalidSchoolName(sekolahStr);
+      const isSekolahInvalid = isInvalidSchoolName(sekolahStr) || isLikelyPersonOrCoordinator(sekolahStr);
 
       if (sekolahStr && !isSekolahInvalid) {
-        const normSekolahInput = this.normalizeSchoolName(sekolahStr);
-        const isNormInvalid = isInvalidSchoolName(normSekolahInput);
-
-        const matched = allSekolah.find(s => {
-          if (isInvalidSchoolName(s.nama_sekolah)) return false;
-          const normDB = this.normalizeSchoolName(s.nama_sekolah);
-          return (
-            normDB.toLowerCase() === normSekolahInput.toLowerCase() ||
-            normDB.toLowerCase().includes(normSekolahInput.toLowerCase()) ||
-            normSekolahInput.toLowerCase().includes(normDB.toLowerCase())
-          );
-        });
-
-        if (matched) {
-          targetSekolahId = matched.id;
-        } else if (!isNormInvalid) {
-          try {
-            const newSekolah = await this.prisma.sekolah.create({
-              data: { nama_sekolah: normSekolahInput || sekolahStr },
+        // 1. Jika nama sekolah adalah variasi NKGTS -> Wajib dialihkan ke 'N-KGTS Pusat' (DILARANG buat record baru)
+        if (isNKGTS(sekolahStr)) {
+          let nkgts = allSekolah.find(s => isNKGTS(s.nama_sekolah));
+          if (!nkgts) {
+            nkgts = await this.prisma.sekolah.upsert({
+              where: { nama_sekolah: CANONICAL_NKGTS },
+              update: {},
+              create: { nama_sekolah: CANONICAL_NKGTS },
             });
-            allSekolah.push(newSekolah);
-            targetSekolahId = newSekolah.id;
-          } catch (e) {
-            const existing = await this.prisma.sekolah.findFirst({
-              where: { nama_sekolah: { equals: normSekolahInput || sekolahStr, mode: 'insensitive' } },
-            });
-            if (existing && !isInvalidSchoolName(existing.nama_sekolah)) {
-              targetSekolahId = existing.id;
+            allSekolah.push(nkgts);
+          }
+          targetSekolahId = nkgts.id;
+        } else {
+          // 2. Normalisasi & pencocokan kanonikal untuk institusi sekolah lain
+          const inputKey = getCanonicalSchoolKey(sekolahStr);
+          const matched = allSekolah.find(s => {
+            if (isInvalidSchoolName(s.nama_sekolah)) return false;
+            return getCanonicalSchoolKey(s.nama_sekolah) === inputKey;
+          });
+
+          if (matched) {
+            targetSekolahId = matched.id;
+          } else if (isValidInstitutionName(sekolahStr) && !isLikelyPersonOrCoordinator(sekolahStr)) {
+            // Hanya buat record baru jika terbukti nama institusi sekolah sah (BUKAN nama koordinator/gelar)
+            const normName = normalizeSchoolName(sekolahStr);
+            try {
+              const newSekolah = await this.prisma.sekolah.create({
+                data: { nama_sekolah: normName },
+              });
+              allSekolah.push(newSekolah);
+              targetSekolahId = newSekolah.id;
+            } catch (e) {
+              const existing = await this.prisma.sekolah.findFirst({
+                where: { nama_sekolah: { equals: normName, mode: 'insensitive' } },
+              });
+              if (existing && !isInvalidSchoolName(existing.nama_sekolah)) {
+                targetSekolahId = existing.id;
+              }
             }
           }
         }
-      } else if (isSekolahInvalid && !targetSekolahId) {
-        // Jika nama sekolah masuk blacklist (misal header "ASAL SEKOLAH") dan tidak ada sekolahId dari form,
-        // gunakan ID sekolah valid pertama sebagai fallback aman
-        const defaultValidSekolah = allSekolah.find(s => !isInvalidSchoolName(s.nama_sekolah));
-        if (defaultValidSekolah) {
-          targetSekolahId = defaultValidSekolah.id;
-        }
       }
 
+      // Fallback jika sekolah invalid (nama koordinator/sampah) dan targetSekolahId belum terisi:
       if (!targetSekolahId) {
-        summary.failed++;
-        summary.errors.push(`Baris ${lineNumber} (${emailStr}): Kolom 'Asal Sekolah' tidak valid atau wajib diisi pada file Excel/CSV.`);
-        continue;
+        if (sekolahId && !isNaN(sekolahId) && sekolahId > 0) {
+          targetSekolahId = sekolahId;
+        } else {
+          // Fallback ke N-KGTS Pusat resmi agar data tidak hilang atau terasosiasi ke sampah
+          let fallback = allSekolah.find(s => isNKGTS(s.nama_sekolah));
+          if (!fallback) {
+            fallback = await this.prisma.sekolah.upsert({
+              where: { nama_sekolah: CANONICAL_NKGTS },
+              update: {},
+              create: { nama_sekolah: CANONICAL_NKGTS },
+            });
+            allSekolah.push(fallback);
+          }
+          targetSekolahId = fallback.id;
+        }
       }
 
       // Deteksi Cerdas Role Guru/Praktisi vs Siswa

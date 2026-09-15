@@ -2,9 +2,27 @@ import { Controller, Get, Post, Body, HttpCode, UnauthorizedException, OnModuleI
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import * as bcrypt from 'bcryptjs';
-import { normalizeSchoolName, INVALID_SCHOOL_NAMES, isInvalidSchoolName } from './school.utils';
+import {
+  normalizeSchoolName,
+  INVALID_SCHOOL_NAMES,
+  isInvalidSchoolName,
+  isLikelyPersonOrCoordinator,
+  isValidInstitutionName,
+  getCanonicalSchoolKey,
+  CANONICAL_NKGTS,
+  isNKGTS,
+} from './school.utils';
 
-export { normalizeSchoolName, INVALID_SCHOOL_NAMES, isInvalidSchoolName };
+export {
+  normalizeSchoolName,
+  INVALID_SCHOOL_NAMES,
+  isInvalidSchoolName,
+  isLikelyPersonOrCoordinator,
+  isValidInstitutionName,
+  getCanonicalSchoolKey,
+  CANONICAL_NKGTS,
+  isNKGTS,
+};
 
 @Controller()
 export class AppController implements OnModuleInit {
@@ -22,29 +40,52 @@ export class AppController implements OnModuleInit {
     await this.seedTugasIfEmpty();
   }
 
+  private async ensureCanonicalNKGTS() {
+    let nkgts = await this.prisma.sekolah.findFirst({
+      where: {
+        OR: [
+          { nama_sekolah: { equals: CANONICAL_NKGTS, mode: 'insensitive' } },
+          { nama_sekolah: { equals: 'NKGTS PUSAT', mode: 'insensitive' } },
+          { nama_sekolah: { equals: 'NKGTS', mode: 'insensitive' } },
+          { nama_sekolah: { equals: 'N-KGTS', mode: 'insensitive' } },
+        ],
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    if (!nkgts) {
+      nkgts = await this.prisma.sekolah.create({
+        data: { nama_sekolah: CANONICAL_NKGTS },
+      });
+    } else if (nkgts.nama_sekolah !== CANONICAL_NKGTS) {
+      nkgts = await this.prisma.sekolah.update({
+        where: { id: nkgts.id },
+        data: { nama_sekolah: CANONICAL_NKGTS },
+      });
+    }
+    return nkgts;
+  }
+
   private async cleanGarbageSchools() {
     try {
+      const fallbackSchool = await this.ensureCanonicalNKGTS();
       const all = await this.prisma.sekolah.findMany();
-      const garbageSchools = all.filter(s => isInvalidSchoolName(s.nama_sekolah));
+
+      // Deteksi entitas sekolah sampah: invalid, nama koordinator/perorangan, bergelar akademik, atau bukan institusi sah
+      const garbageSchools = all.filter(s => {
+        if (s.id === fallbackSchool.id) return false;
+        if (isNKGTS(s.nama_sekolah)) return false; // Ditangani di cleanDuplicateSchools
+        return isInvalidSchoolName(s.nama_sekolah) || isLikelyPersonOrCoordinator(s.nama_sekolah) || !isValidInstitutionName(s.nama_sekolah);
+      });
 
       if (garbageSchools.length > 0) {
-        console.log(`[Cleaner] Menemukan ${garbageSchools.length} entitas sekolah sampah:`, garbageSchools.map(s => `ID ${s.id} ("${s.nama_sekolah}")`).join(', '));
+        console.log(
+          `[Cleaner] Menemukan ${garbageSchools.length} entitas sekolah sampah / nama koordinator:`,
+          garbageSchools.map(s => `ID ${s.id} ("${s.nama_sekolah}")`).join(', ')
+        );
 
-        // Cari atau pastikan ada sekolah resmi default untuk menampung relasi user/token
-        let fallbackSchool = all.find(s => !isInvalidSchoolName(s.nama_sekolah) && s.nama_sekolah.includes('Pusat'))
-          || all.find(s => !isInvalidSchoolName(s.nama_sekolah) && s.nama_sekolah.includes('Negeri'))
-          || all.find(s => !isInvalidSchoolName(s.nama_sekolah));
-
-        if (!fallbackSchool) {
-          fallbackSchool = await this.prisma.sekolah.create({
-            data: { nama_sekolah: 'N-KGTS Pusat' },
-          });
-        }
-
-        const garbageIds = garbageSchools.map(s => s.id);
-
-        // Alihkan user, token undangan, dan galeri yang terhubung ke sekolah sampah
         for (const g of garbageSchools) {
+          // Pindahkan seluruh relasi user, invitation token, dan galeri ke canonical 'N-KGTS Pusat'
           await this.prisma.user.updateMany({
             where: { sekolah_id: g.id },
             data: { sekolah_id: fallbackSchool.id },
@@ -57,14 +98,14 @@ export class AppController implements OnModuleInit {
             where: { sekolah_id: g.id },
             data: { sekolah_id: fallbackSchool.id, sekolah_nama: fallbackSchool.nama_sekolah },
           });
+
+          // Hapus record sampah
+          await this.prisma.sekolah.delete({
+            where: { id: g.id },
+          });
         }
 
-        // Hapus rekaman sekolah sampah dari database
-        const delRes = await this.prisma.sekolah.deleteMany({
-          where: { id: { in: garbageIds } },
-        });
-
-        console.log(`✅ [Cleaner] Berhasil menghapus ${delRes.count} rekaman sekolah sampah dari database.`);
+        console.log(`✅ [Cleaner] Berhasil membersihkan dan menghapus ${garbageSchools.length} rekaman koordinator/sekolah sampah.`);
       }
     } catch (e) {
       console.error('[Cleaner] Gagal membersihkan sekolah sampah:', e);
@@ -73,24 +114,49 @@ export class AppController implements OnModuleInit {
 
   private async cleanDuplicateSchools() {
     try {
+      const canonicalNkgts = await this.ensureCanonicalNKGTS();
       const all = await this.prisma.sekolah.findMany();
-      const map = new Map<string, typeof all>();
 
-      for (const s of all) {
-        const normKey = normalizeSchoolName(s.nama_sekolah).toLowerCase();
-        if (!map.has(normKey)) {
-          map.set(normKey, []);
+      // 1. Deduplikasi Variasi NKGTS (misal "NKGTS PUSAT", "NKGTS", "N-KGTS") ke canonical "N-KGTS Pusat"
+      const nkgtsDuplicates = all.filter(s => isNKGTS(s.nama_sekolah) && s.id !== canonicalNkgts.id);
+      for (const dup of nkgtsDuplicates) {
+        await this.prisma.user.updateMany({
+          where: { sekolah_id: dup.id },
+          data: { sekolah_id: canonicalNkgts.id },
+        });
+        await this.prisma.invitationToken.updateMany({
+          where: { sekolah_id: dup.id },
+          data: { sekolah_id: canonicalNkgts.id },
+        });
+        await this.prisma.galeri.updateMany({
+          where: { sekolah_id: dup.id },
+          data: { sekolah_id: canonicalNkgts.id, sekolah_nama: canonicalNkgts.nama_sekolah },
+        });
+        await this.prisma.sekolah.delete({ where: { id: dup.id } });
+        console.log(`✅ [Deduplicator] Menggabungkan variasi NKGTS ID ${dup.id} ("${dup.nama_sekolah}") ke ID ${canonicalNkgts.id} ("${canonicalNkgts.nama_sekolah}")`);
+      }
+
+      // 2. Deduplikasi Sekolah Lain berdasarkan Canonical Key (misal "SMK Negeri 2 GEDANGARI" -> "SMK Negeri 2 Gedangsari")
+      const remainingSchools = await this.prisma.sekolah.findMany();
+      const map = new Map<string, typeof remainingSchools>();
+
+      for (const s of remainingSchools) {
+        if (s.id === canonicalNkgts.id) continue;
+        const key = getCanonicalSchoolKey(s.nama_sekolah);
+        if (!map.has(key)) {
+          map.set(key, []);
         }
-        map.get(normKey)!.push(s);
+        map.get(key)!.push(s);
       }
 
       for (const [key, group] of map.entries()) {
         if (group.length > 1) {
-          // Cari sekolah dengan nama standar/canonical (misal mengandung 'Negeri' atau ID paling awal)
-          const canonical = group.find(s => s.nama_sekolah.includes('Negeri')) || group[0];
+          // Cari sekolah dengan nama standar / canonical (misal ejaan Gedangsari atau yang memiliki nama paling standar)
+          const canonical = group.find(s => s.nama_sekolah.includes('Gedangsari'))
+            || group.find(s => s.nama_sekolah.includes('Negeri'))
+            || group[0];
           const duplicates = group.filter(s => s.id !== canonical.id);
 
-          // Update nama sekolah canonical jika perlu
           const targetName = normalizeSchoolName(canonical.nama_sekolah);
           if (canonical.nama_sekolah !== targetName) {
             await this.prisma.sekolah.update({
@@ -100,7 +166,6 @@ export class AppController implements OnModuleInit {
           }
 
           for (const dup of duplicates) {
-            // Pindahkan relasi user & invitation token ke canonical
             await this.prisma.user.updateMany({
               where: { sekolah_id: dup.id },
               data: { sekolah_id: canonical.id },
@@ -113,14 +178,13 @@ export class AppController implements OnModuleInit {
               where: { sekolah_id: dup.id },
               data: { sekolah_id: canonical.id, sekolah_nama: targetName },
             });
-            // Hapus duplikat
             await this.prisma.sekolah.delete({ where: { id: dup.id } });
-            console.log(`Deduplicated school: merged ID ${dup.id} (${dup.nama_sekolah}) into ID ${canonical.id} (${targetName})`);
+            console.log(`✅ [Deduplicator] Menggabungkan duplikat sekolah ID ${dup.id} ("${dup.nama_sekolah}") ke ID ${canonical.id} ("${targetName}")`);
           }
         }
       }
     } catch (e) {
-      console.error('Failed to clean duplicate schools:', e);
+      console.error('[Deduplicator] Gagal membersihkan duplikasi sekolah:', e);
     }
   }
 
@@ -547,19 +611,31 @@ export class AppController implements OnModuleInit {
     await this.cleanGarbageSchools();
     await this.cleanDuplicateSchools();
     const schools = await this.prisma.sekolah.findMany({
-      orderBy: { nama_sekolah: 'asc' }
+      orderBy: { nama_sekolah: 'asc' },
     });
 
     const uniqueMap = new Map<string, typeof schools[0]>();
     for (const s of schools) {
       if (isInvalidSchoolName(s.nama_sekolah)) continue;
+      if (isLikelyPersonOrCoordinator(s.nama_sekolah)) continue;
+      if (!isValidInstitutionName(s.nama_sekolah)) continue;
+
       const normName = normalizeSchoolName(s.nama_sekolah);
-      if (isInvalidSchoolName(normName)) continue;
-      if (!uniqueMap.has(normName.toLowerCase())) {
-        uniqueMap.set(normName.toLowerCase(), { ...s, nama_sekolah: normName });
+      const canonKey = getCanonicalSchoolKey(normName);
+
+      if (!uniqueMap.has(canonKey)) {
+        uniqueMap.set(canonKey, { ...s, nama_sekolah: normName });
       }
     }
-    return Array.from(uniqueMap.values()).sort((a, b) => a.nama_sekolah.localeCompare(b.nama_sekolah));
+
+    const result = Array.from(uniqueMap.values());
+    result.sort((a, b) => {
+      if (isNKGTS(a.nama_sekolah)) return -1;
+      if (isNKGTS(b.nama_sekolah)) return 1;
+      return a.nama_sekolah.localeCompare(b.nama_sekolah);
+    });
+
+    return result;
   }
 }
 
