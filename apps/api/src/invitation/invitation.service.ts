@@ -77,7 +77,45 @@ export class InvitationService {
       </div>
     `;
 
-    // 1. Coba Mengirim Lewat Gmail SMTP Terlebih Dahulu (Pengiriman Langsung 1-2 Detik via Server Google)
+    // 1. Coba Mengirim Lewat Brevo API Terlebih Dahulu
+    if (hasBrevo) {
+      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: {
+              name: brevoSenderName,
+              email: brevoSenderEmail,
+            },
+            to: [{ email, name: nama }],
+            subject: 'Undangan Aktivasi Akun - Kaizenesia',
+            htmlContent: mailHtmlContent,
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (response.ok) {
+          console.log('Email undangan berhasil dikirim via Brevo API ke:', email);
+          return undefined;
+        } else {
+          const errData = await response.json();
+          const errMsg = errData.message || 'Error API Brevo';
+          console.error('Gagal mengirim email via Brevo API:', errData);
+          if (!hasGmail) return `Brevo API: ${errMsg}`;
+        }
+      } catch (err: any) {
+        console.error('Error saat menghubungi API Brevo:', err);
+        if (!hasGmail) return `Brevo API: ${err.message || 'Koneksi timeout'}`;
+      }
+    }
+
+    // 2. Fallback ke Gmail SMTP (jika Brevo API tidak aktif/gagal)
     if (hasGmail) {
       try {
         const transporter = nodemailer.createTransport({
@@ -103,51 +141,11 @@ export class InvitationService {
           html: mailHtmlContent,
         });
 
-        console.log('Email undangan berhasil dikirim INSTAN via Gmail SMTP ke:', email);
-        return undefined; // Sukses instan
+        console.log('Email undangan berhasil dikirim via Gmail SMTP fallback ke:', email);
+        return undefined;
       } catch (err: any) {
-        console.error('Gagal mengirim email via Gmail SMTP, mencoba Brevo API:', err);
-        if (!hasBrevo) {
-          return `Gmail SMTP: ${err.message || 'Gagal mengirim email'}`;
-        }
-      }
-    }
-
-    // 2. Fallback ke Brevo API (jika Gmail SMTP tidak aktif/gagal)
-    if (hasBrevo) {
-      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
-      try {
-        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: {
-            'accept': 'application/json',
-            'api-key': brevoApiKey,
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            sender: {
-              name: brevoSenderName,
-              email: brevoSenderEmail,
-            },
-            to: [{ email, name: nama }],
-            subject: 'Undangan Aktivasi Akun - Kaizenesia',
-            htmlContent: mailHtmlContent,
-          }),
-          signal: AbortSignal.timeout(5000),
-        });
-
-        if (response.ok) {
-          console.log('Email undangan berhasil dikirim via Brevo API ke:', email);
-          return undefined;
-        } else {
-          const errData = await response.json();
-          const errMsg = errData.message || 'Error API Brevo';
-          console.error('Gagal mengirim email via Brevo API:', errData);
-          return `Brevo API: ${errMsg}`;
-        }
-      } catch (err: any) {
-        console.error('Error saat menghubungi API Brevo:', err);
-        return `Brevo API: ${err.message || 'Koneksi timeout'}`;
+        console.error('Gagal mengirim email via Gmail SMTP fallback:', err);
+        return `Gmail SMTP: ${err.message || 'Gagal mengirim email'}`;
       }
     }
 
@@ -1156,7 +1154,45 @@ export class InvitationService {
       </div>
     `;
 
-    // 1. Coba Gmail SMTP (Instan 1-2 Detik via Server Google)
+    // 1. Coba Brevo API Terlebih Dahulu
+    if (hasBrevo) {
+      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: {
+              name: brevoSenderName,
+              email: brevoSenderEmail,
+            },
+            to: [{ email, name: nama }],
+            subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
+            htmlContent: mailHtmlContent,
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (response.ok) {
+          console.log('Email reset password berhasil dikirim via Brevo API ke:', email);
+          return undefined;
+        } else {
+          const errData = await response.json();
+          const errMsg = errData.message || 'Error API Brevo';
+          console.error('Gagal mengirim email reset via Brevo API:', errData);
+          if (!hasGmail) return `Brevo API: ${errMsg}`;
+        }
+      } catch (err: any) {
+        console.error('Error saat menghubungi API Brevo:', err);
+        if (!hasGmail) return `Brevo API: ${err.message || 'Koneksi timeout'}`;
+      }
+    }
+
+    // 2. Fallback Gmail SMTP
     if (hasGmail) {
       try {
         const transporter = nodemailer.createTransport({
@@ -1182,51 +1218,11 @@ export class InvitationService {
           html: mailHtmlContent,
         });
 
-        console.log('Email reset password berhasil dikirim INSTAN via Gmail SMTP ke:', email);
+        console.log('Email reset password berhasil dikirim via Gmail SMTP fallback ke:', email);
         return undefined;
       } catch (err: any) {
-        console.error('Gagal mengirim email reset via Gmail SMTP, mencoba Brevo API:', err);
-        if (!hasBrevo) {
-          return `Gmail SMTP: ${err.message || 'Gagal mengirim email'}`;
-        }
-      }
-    }
-
-    // 2. Fallback Brevo API
-    if (hasBrevo) {
-      const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
-      try {
-        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: {
-            'accept': 'application/json',
-            'api-key': brevoApiKey,
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            sender: {
-              name: brevoSenderName,
-              email: brevoSenderEmail,
-            },
-            to: [{ email, name: nama }],
-            subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
-            htmlContent: mailHtmlContent,
-          }),
-          signal: AbortSignal.timeout(5000),
-        });
-
-        if (response.ok) {
-          console.log('Email reset password berhasil dikirim via Brevo API ke:', email);
-          return undefined;
-        } else {
-          const errData = await response.json();
-          const errMsg = errData.message || 'Error API Brevo';
-          console.error('Gagal mengirim email reset via Brevo API:', errData);
-          return `Brevo API: ${errMsg}`;
-        }
-      } catch (err: any) {
-        console.error('Error saat menghubungi API Brevo:', err);
-        return `Brevo API: ${err.message || 'Koneksi timeout'}`;
+        console.error('Gagal mengirim email reset via Gmail SMTP fallback:', err);
+        return `Gmail SMTP: ${err.message || 'Gagal mengirim email'}`;
       }
     }
 
