@@ -150,6 +150,12 @@ export class InvitationController {
 
   // ================= PUBLIC ROUTE ENDPOINTS =================
 
+  // Ambil kontak CP publik (untuk registrasi & reset password)
+  @Get('public/contact-settings')
+  async getPublicContactSettings() {
+    return this.invitationService.getContactSettings();
+  }
+
   // 9. Validasi token undangan di halaman registrasi
   @Get('auth/activate')
   async validateToken(@Query('token') token: string) {
