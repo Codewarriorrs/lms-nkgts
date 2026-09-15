@@ -13,6 +13,7 @@ import {
   UploadedFile, 
   BadRequestException,
   Res,
+  Req,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -22,6 +23,8 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 import { ActivateAccountDto } from './dto/activate-account.dto';
 import { ResetProgressDto } from './dto/reset-progress.dto';
 import { ExportNilaiDto } from './dto/export-nilai.dto';
+import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { BulkActionDto } from './dto/bulk-action.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -162,46 +165,26 @@ export class InvitationController {
     return this.invitationService.activateAccount(activateAccountDto);
   }
 
-  // 11. Perbarui role dan kelas user (Admin only)
+  // 11. Update role & data pengguna (Admin only)
   @Patch('admin/users/:id/role')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async updateRole(
     @Param('id') id: string,
-    @Body('role') role?: string,
-    @Body('kelas') kelas?: string,
+    @Body() dto: AdminUpdateUserDto,
   ) {
-    let roleEnum: RoleEnum | undefined;
-    if (role) {
-      if (role === 'admin') roleEnum = RoleEnum.admin;
-      else if (role === 'guru') roleEnum = RoleEnum.guru;
-      else if (role === 'siswa') roleEnum = RoleEnum.siswa;
-      else {
-        throw new BadRequestException('Role tidak valid');
-      }
-    }
-    return this.invitationService.updateUserRole(id, roleEnum, kelas);
+    return this.invitationService.updateUser(id, dto);
   }
 
-  // 11b. Update data user langsung (Admin only)
+  // 11b. Update data profil lengkap pengguna (Admin only)
   @Patch('admin/users/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleEnum.admin)
   async updateUser(
     @Param('id') id: string,
-    @Body('role') role?: string,
-    @Body('kelas') kelas?: string,
+    @Body() dto: AdminUpdateUserDto,
   ) {
-    let roleEnum: RoleEnum | undefined;
-    if (role) {
-      if (role === 'admin') roleEnum = RoleEnum.admin;
-      else if (role === 'guru') roleEnum = RoleEnum.guru;
-      else if (role === 'siswa') roleEnum = RoleEnum.siswa;
-      else {
-        throw new BadRequestException('Role tidak valid');
-      }
-    }
-    return this.invitationService.updateUserRole(id, roleEnum, kelas);
+    return this.invitationService.updateUser(id, dto);
   }
 
   // 12. Hapus pengguna (Admin only)
@@ -259,6 +242,69 @@ export class InvitationController {
   @Roles(RoleEnum.admin)
   async cancelResetPasswordToken(@Param('id') id: string) {
     return this.invitationService.cancelResetPasswordToken(id);
+  }
+
+  // ================= BULK ACTIONS (AKSI MASSAL) =================
+
+  // 18. Hapus massal akun pengguna aktif (Admin only)
+  @Post('admin/users/bulk-delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkDeleteUsers(@Body() dto: BulkActionDto, @Req() req: any) {
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids);
+    return this.invitationService.bulkDeleteUsers(ids, req.user?.id);
+  }
+
+  // 19. Kirim massal link reset sandi pengguna aktif (Admin only)
+  @Post('admin/users/bulk-send-reset')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkSendResetPassword(@Body() dto: BulkActionDto) {
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids);
+    return this.invitationService.bulkSendResetPassword(ids);
+  }
+
+  // 20. Hapus massal undangan tertunda (Admin only)
+  @Post('admin/invitations/bulk-delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkDeleteInvitations(@Body() dto: BulkActionDto) {
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.invitationIds) ? dto.invitationIds : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids));
+    return this.invitationService.bulkDeleteInvitations(ids);
+  }
+
+  // 21. Kirim ulang massal email undangan (Admin only)
+  @Post('admin/invitations/bulk-resend')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkResendInvitations(@Body() dto: BulkActionDto) {
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.invitationIds) ? dto.invitationIds : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids));
+    return this.invitationService.bulkResendInvitations(ids);
+  }
+
+  // 22. Batalkan/Hapus massal tautan reset sandi aktif (Admin only)
+  @Post('admin/resets/bulk-cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkCancelResetPassword(@Body() dto: BulkActionDto) {
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids);
+    return this.invitationService.bulkCancelResetPassword(ids);
+  }
+
+  @Post('admin/resets/bulk-delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkDeleteResets(@Body() dto: BulkActionDto) {
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids);
+    return this.invitationService.bulkCancelResetPassword(ids);
+  }
+
+  @Post('admin/resets/bulk-resend')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async bulkResendResetPassword(@Body() dto: BulkActionDto) {
+    const ids = Array.isArray(dto?.ids) ? dto.ids : (Array.isArray(dto?.userIds) ? dto.userIds : (dto as any)?.ids);
+    return this.invitationService.bulkSendResetPassword(ids);
   }
 }
 

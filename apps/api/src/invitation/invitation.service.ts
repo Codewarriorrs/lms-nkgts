@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { ActivateAccountDto } from './dto/activate-account.dto';
+import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { RoleEnum } from '../../generated/prisma';
 import { AuthService } from '../auth/auth.service';
 import * as crypto from 'crypto';
@@ -10,6 +11,7 @@ import * as nodemailer from 'nodemailer';
 import * as XLSX from 'xlsx';
 import { parse } from 'csv-parse/sync';
 import * as bcrypt from 'bcryptjs';
+import { INVALID_SCHOOL_NAMES, isInvalidSchoolName } from '../school.utils';
 
 @Injectable()
 export class InvitationService {
@@ -350,8 +352,8 @@ export class InvitationService {
       errors: [] as string[],
     };
 
-    // Ambil data daftar sekolah di database untuk pencocokan otomatis
-    const allSekolah = await this.prisma.sekolah.findMany();
+    // Ambil data daftar sekolah di database untuk pencocokan otomatis (hanya yang valid)
+    const allSekolah = (await this.prisma.sekolah.findMany()).filter(s => !isInvalidSchoolName(s.nama_sekolah));
 
     // Validasi & Simpan setiap record secara sekuensial
     for (const [index, row] of records.entries()) {
@@ -368,13 +370,21 @@ export class InvitationService {
         }
       }
 
+      // Helper pencocokan nilai kolom dengan fallback multi-kandidat
       const getVal = (candidates: string[], excludeKeywords: string[] = []): any => {
         // Phase 1: Exact Key Match
         for (const cand of candidates) {
           const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
+          if (keyMap.has(cleanCand)) {
+            return keyMap.get(cleanCand);
+          }
+        }
+        // Phase 2: Infix Contains Match
+        for (const cand of candidates) {
+          const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
           for (const [k, v] of keyMap.entries()) {
             const isExcluded = excludeKeywords.some(ex => k.includes(ex.toLowerCase()));
-            if (!isExcluded && k === cleanCand) {
+            if (!isExcluded && k.includes(cleanCand)) {
               return v;
             }
           }
@@ -396,9 +406,9 @@ export class InvitationService {
       const emailRaw = getVal(['emailaktif', 'email', 'emailaddress', 'e-mail', 'mail', 'alamatemail']);
       const emailStr = emailRaw ? String(emailRaw).trim() : '';
 
-      // 2. Deteksi Nama Siswa / Pengguna
+      // 2. Deteksi Nama Siswa / Pengguna / Praktisi
       let namaRaw = getVal(
-        ['nama', 'namalengkap', 'namasiswa', 'name', 'namasiswa/i', 'namapeserta', 'namamurid'],
+        ['namapraktisi', 'namaguru', 'namalengkap', 'nama', 'namasiswa', 'name', 'namasiswa/i', 'namapeserta', 'namamurid', 'praktisi'],
         ['jurusan', 'sga', 'sekolah', 'email', 'kelas', 'kelamin', 'lahir', 'whatsapp', 'phone', 'sgajurusan']
       );
       let namaStr = namaRaw ? String(namaRaw).trim() : '';
@@ -410,8 +420,18 @@ export class InvitationService {
         }
       }
 
-      // 3. Deteksi Role
-      const roleRaw = getVal(['role', 'peran', 'jabatan', 'status']);
+      // 3. Deteksi Role & Jabatan
+      let roleRaw = getVal(['role', 'peran', 'jabatan', 'posisi', 'status', 'profesi', 'jabatandisekolah', 'jabatandisga']);
+      if (!roleRaw) {
+        for (const [k, v] of keyMap.entries()) {
+          if (k.includes('jabatan') || k.includes('posisi') || k.includes('peran') || k.includes('role')) {
+            if (v && String(v).trim() !== '') {
+              roleRaw = v;
+              break;
+            }
+          }
+        }
+      }
 
       // 4. Deteksi Asal Sekolah
       const sekolahRaw = getVal(['asalsekolah', 'sekolah', 'namasekolah', 'instansi', 'school']);
@@ -434,8 +454,8 @@ export class InvitationService {
       const jurusanRaw = getVal(['namasgajurusan', 'namasga', 'namajurusan', 'jurusan', 'sga', 'prodi', 'programkeahlian', 'kompetensikeahlian']);
       const jurusan = jurusanRaw ? String(jurusanRaw).trim() : '';
 
-      // 8. Deteksi No HP / WhatsApp
-      const noHpRaw = getVal(['nohp', 'nowa', 'whatsapp', 'nomorhp', 'nomorwhatsapp', 'telepon', 'phone', 'no_hp', 'no_wa', 'hp', 'wa']);
+      // 8. Deteksi No HP / WhatsApp / Telepon
+      const noHpRaw = getVal(['nohp', 'nowa', 'whatsapp', 'nomorhp', 'nomorwhatsapp', 'telepon', 'phone', 'no_hp', 'no_wa', 'hp', 'wa', 'notlp', 'notelp', 'telp', 'tlp']);
       const noHp = noHpRaw ? String(noHpRaw).trim() : '';
 
       // 9. Deteksi Tanggal Lahir
@@ -460,13 +480,17 @@ export class InvitationService {
         continue;
       }
 
-      // Validasi Field Wajib: Asal Sekolah & Auto Match dengan Normalisasi
+      // Validasi Field Wajib: Asal Sekolah & Auto Match dengan Normalisasi dan Guard Blacklist
       let targetSekolahId: number | undefined = sekolahId && !isNaN(sekolahId) && sekolahId > 0 ? sekolahId : undefined;
       const sekolahStr = sekolahRaw ? String(sekolahRaw).trim() : '';
-      const normSekolahInput = this.normalizeSchoolName(sekolahStr);
+      const isSekolahInvalid = isInvalidSchoolName(sekolahStr);
 
-      if (sekolahStr) {
+      if (sekolahStr && !isSekolahInvalid) {
+        const normSekolahInput = this.normalizeSchoolName(sekolahStr);
+        const isNormInvalid = isInvalidSchoolName(normSekolahInput);
+
         const matched = allSekolah.find(s => {
+          if (isInvalidSchoolName(s.nama_sekolah)) return false;
           const normDB = this.normalizeSchoolName(s.nama_sekolah);
           return (
             normDB.toLowerCase() === normSekolahInput.toLowerCase() ||
@@ -474,9 +498,10 @@ export class InvitationService {
             normSekolahInput.toLowerCase().includes(normDB.toLowerCase())
           );
         });
+
         if (matched) {
           targetSekolahId = matched.id;
-        } else {
+        } else if (!isNormInvalid) {
           try {
             const newSekolah = await this.prisma.sekolah.create({
               data: { nama_sekolah: normSekolahInput || sekolahStr },
@@ -487,25 +512,60 @@ export class InvitationService {
             const existing = await this.prisma.sekolah.findFirst({
               where: { nama_sekolah: { equals: normSekolahInput || sekolahStr, mode: 'insensitive' } },
             });
-            if (existing) {
+            if (existing && !isInvalidSchoolName(existing.nama_sekolah)) {
               targetSekolahId = existing.id;
             }
           }
+        }
+      } else if (isSekolahInvalid && !targetSekolahId) {
+        // Jika nama sekolah masuk blacklist (misal header "ASAL SEKOLAH") dan tidak ada sekolahId dari form,
+        // gunakan ID sekolah valid pertama sebagai fallback aman
+        const defaultValidSekolah = allSekolah.find(s => !isInvalidSchoolName(s.nama_sekolah));
+        if (defaultValidSekolah) {
+          targetSekolahId = defaultValidSekolah.id;
         }
       }
 
       if (!targetSekolahId) {
         summary.failed++;
-        summary.errors.push(`Baris ${lineNumber} (${emailStr}): Kolom 'Asal Sekolah' wajib diisi pada file Excel/CSV.`);
+        summary.errors.push(`Baris ${lineNumber} (${emailStr}): Kolom 'Asal Sekolah' tidak valid atau wajib diisi pada file Excel/CSV.`);
         continue;
       }
 
+      // Deteksi Cerdas Role Guru/Praktisi vs Siswa
+      const hasPraktisiCol = Array.from(keyMap.keys()).some(
+        k => k.includes('praktisi') || k === 'namapraktisi' || k === 'namaguru'
+      );
+
+      // Regex fleksibel kata kunci jabatan / peran guru & praktisi
+      const guruKeywordRegex = /guru|bk|konseling|kaprodi|pengajar|kepala|wakasek|koordinator|pembimbing|instruktur|praktisi|notulen|fasilitator|leader/i;
+
+      // Kumpulkan seluruh teks indikator jabatan/peran dari kolom baris tersebut
+      const jabatanValues: string[] = [];
+      if (roleRaw) jabatanValues.push(String(roleRaw));
+      for (const [k, v] of keyMap.entries()) {
+        if (k.includes('jabatan') || k.includes('posisi') || k.includes('peran') || k.includes('profesi') || k.includes('role')) {
+          if (v && String(v).trim() !== '') {
+            jabatanValues.push(String(v));
+          }
+        }
+      }
+      const combinedJabatanText = jabatanValues.join(' ');
+
       let role: RoleEnum = RoleEnum.siswa;
-      if (roleRaw) {
+
+      if (/admin/i.test(String(roleRaw || '')) && !guruKeywordRegex.test(String(roleRaw || ''))) {
+        role = RoleEnum.admin;
+      } else if (hasPraktisiCol || guruKeywordRegex.test(combinedJabatanText)) {
+        role = RoleEnum.guru;
+      } else if (roleRaw) {
         const rLower = String(roleRaw).trim().toLowerCase();
         if (rLower === 'admin') role = RoleEnum.admin;
-        else if (rLower === 'guru') role = RoleEnum.guru;
+        else if (rLower === 'guru' || guruKeywordRegex.test(rLower)) role = RoleEnum.guru;
         else if (rLower === 'siswa') role = RoleEnum.siswa;
+        else {
+          role = RoleEnum.siswa;
+        }
       }
 
       try {
@@ -582,6 +642,7 @@ export class InvitationService {
           tanggal_lahir: user.tanggal_lahir,
           tempat_lahir: user.tempat_lahir,
           tahun_pendaftaran: user.tahun_pendaftaran,
+          sekolah_id: user.sekolah_id,
           nama_sekolah: user.sekolah?.nama_sekolah || 'N-KGTS Pusat',
           created_at: user.created_at,
           reset_password_expires: user.reset_password_expires,
@@ -797,7 +858,8 @@ export class InvitationService {
   }
 
   // 11. Memperbarui role dan data pengguna aktif (admin, guru, siswa)
-  async updateUserRole(userId: string, role?: RoleEnum, kelas?: string | null) {
+  // 11. Memperbarui role dan data lengkap pengguna aktif (admin, guru, siswa)
+  async updateUser(userId: string, dto: AdminUpdateUserDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -806,17 +868,52 @@ export class InvitationService {
     }
 
     const updateData: any = {};
-    if (role) {
-      updateData.role = role;
+    if (dto.nama !== undefined && dto.nama.trim() !== '') {
+      updateData.nama = dto.nama.trim();
     }
-    if (kelas !== undefined) {
-      updateData.kelas = kelas && kelas.trim() !== '' ? kelas.trim() : null;
+    if (dto.role !== undefined) {
+      updateData.role = dto.role;
+    }
+    if (dto.sekolah_id !== undefined && !isNaN(Number(dto.sekolah_id))) {
+      updateData.sekolah_id = Number(dto.sekolah_id);
+    }
+    if (dto.nis !== undefined) {
+      updateData.nis = dto.nis && dto.nis.trim() !== '' ? dto.nis.trim() : null;
+    }
+    if (dto.kelas !== undefined) {
+      updateData.kelas = dto.kelas && dto.kelas.trim() !== '' ? dto.kelas.trim() : null;
+    }
+    if (dto.jurusan !== undefined) {
+      updateData.jurusan = dto.jurusan && dto.jurusan.trim() !== '' ? dto.jurusan.trim() : null;
+    }
+    if (dto.no_hp !== undefined) {
+      updateData.no_hp = dto.no_hp && dto.no_hp.trim() !== '' ? dto.no_hp.trim() : null;
+    }
+    if (dto.tempat_lahir !== undefined) {
+      updateData.tempat_lahir = dto.tempat_lahir && dto.tempat_lahir.trim() !== '' ? dto.tempat_lahir.trim() : null;
+    }
+    if (dto.tanggal_lahir !== undefined) {
+      if (dto.tanggal_lahir && dto.tanggal_lahir.trim() !== '') {
+        const d = new Date(dto.tanggal_lahir);
+        updateData.tanggal_lahir = !isNaN(d.getTime()) ? d : null;
+      } else {
+        updateData.tanggal_lahir = null;
+      }
+    }
+    if (dto.tahun_pendaftaran !== undefined) {
+      updateData.tahun_pendaftaran = dto.tahun_pendaftaran && !isNaN(Number(dto.tahun_pendaftaran)) ? Number(dto.tahun_pendaftaran) : null;
     }
 
     return this.prisma.user.update({
       where: { id: userId },
       data: updateData,
+      include: { sekolah: true },
     });
+  }
+
+  // 11b. Helper kompatibilitas updateUserRole
+  async updateUserRole(userId: string, role?: RoleEnum, kelas?: string | null) {
+    return this.updateUser(userId, { role, kelas: kelas ?? undefined });
   }
 
   // 12. Menghapus pengguna aktif
@@ -1260,6 +1357,184 @@ export class InvitationService {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Template Undangan');
     return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  }
+
+  // 18. Batch Delete Pengguna Aktif (Admin Only)
+  async bulkDeleteUsers(ids: (string | number)[], currentUserId?: string) {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Normalisasi dan validasi: pastikan string UUID valid dan buang jika sama dengan currentUserId
+    const cleanIds = ids
+      .map((id) => String(id).trim())
+      .filter((id) => uuidRegex.test(id) && (!currentUserId || id !== currentUserId));
+
+    if (cleanIds.length === 0) {
+      if (ids.some((id) => String(id).trim() === currentUserId)) {
+        return {
+          success: 0,
+          message: 'Akun admin yang sedang aktif login dilindungi dan tidak dapat dihapus.',
+        };
+      }
+      throw new BadRequestException('Tidak ada ID pengguna valid yang dapat diproses.');
+    }
+
+    // Eksekusi penghapusan HANYA untuk cleanIds yang secara eksplisit dicentang/dikirim
+    // DILINDUNGI: akun admin utama (admin@nkgts.com) dan seluruh akun dengan role admin
+    const res = await this.prisma.user.deleteMany({
+      where: {
+        id: { in: cleanIds },
+        email: { not: 'admin@nkgts.com' },
+        role: { not: RoleEnum.admin },
+      },
+    });
+
+    if (res.count === 0) {
+      return {
+        success: 0,
+        message: 'Tidak ada akun pengguna yang dihapus (akun dengan role admin dilindungi dari penghapusan massal).',
+      };
+    }
+
+    return {
+      success: res.count,
+      message: `Berhasil menghapus ${res.count} akun pengguna secara massal.`,
+    };
+  }
+
+  // 19. Batch Kirim Link Reset Password Pengguna Aktif (Admin Only)
+  async bulkSendResetPassword(ids: (string | number)[]) {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
+    }
+
+    const validIds = ids
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0 && id !== 'undefined' && id !== 'null');
+
+    if (validIds.length === 0) {
+      throw new BadRequestException('Tidak ada ID valid yang ditemukan untuk diproses.');
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    // Proses dalam kelompok (batch 5) agar tidak membebani transport email
+    for (let i = 0; i < validIds.length; i += 5) {
+      const chunk = validIds.slice(i, i + 5);
+      await Promise.all(
+        chunk.map(async (id) => {
+          try {
+            await this.sendResetPasswordEmail(id);
+            successCount++;
+          } catch (e) {
+            failCount++;
+          }
+        }),
+      );
+    }
+
+    return {
+      success: successCount,
+      failed: failCount,
+      message: `Selesai mengirim link reset kata sandi ke ${successCount} pengguna (${failCount} gagal).`,
+    };
+  }
+
+  // 20. Batch Hapus Undangan Tertunda (Admin Only)
+  async bulkDeleteInvitations(ids: (string | number)[]) {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
+    }
+
+    const numericIds = ids
+      .map((id) => Number(id))
+      .filter((id) => !isNaN(id) && id > 0);
+
+    if (numericIds.length === 0) {
+      throw new BadRequestException('Tidak ada ID valid yang ditemukan untuk diproses.');
+    }
+
+    const res = await this.prisma.invitationToken.deleteMany({
+      where: {
+        id: { in: numericIds },
+        is_used: false,
+      },
+    });
+
+    return {
+      success: res.count,
+      message: `Berhasil membatalkan dan menghapus ${res.count} undangan tertunda.`,
+    };
+  }
+
+  // 21. Batch Kirim Ulang Email Undangan (Admin Only)
+  async bulkResendInvitations(ids: (string | number)[]) {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
+    }
+
+    const numericIds = ids
+      .map((id) => Number(id))
+      .filter((id) => !isNaN(id) && id > 0);
+
+    if (numericIds.length === 0) {
+      throw new BadRequestException('Tidak ada ID valid yang ditemukan untuk diproses.');
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < numericIds.length; i += 5) {
+      const chunk = numericIds.slice(i, i + 5);
+      await Promise.all(
+        chunk.map(async (id) => {
+          try {
+            await this.resendInvitation(id);
+            successCount++;
+          } catch (e) {
+            failCount++;
+          }
+        }),
+      );
+    }
+
+    return {
+      success: successCount,
+      failed: failCount,
+      message: `Berhasil mengirim ulang ${successCount} email undangan (${failCount} gagal).`,
+    };
+  }
+
+  // 22. Batch Batalkan Token Reset Password Aktif (Admin Only)
+  async bulkCancelResetPassword(ids: (string | number)[]) {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Daftar ID yang dipilih tidak boleh kosong.');
+    }
+
+    const validIds = ids
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0 && id !== 'undefined' && id !== 'null');
+
+    if (validIds.length === 0) {
+      throw new BadRequestException('Tidak ada ID valid yang ditemukan untuk diproses.');
+    }
+
+    const res = await this.prisma.user.updateMany({
+      where: { id: { in: validIds } },
+      data: {
+        reset_password_token: null,
+        reset_password_expires: null,
+      },
+    });
+
+    return {
+      success: res.count,
+      message: `Berhasil membatalkan ${res.count} tautan reset sandi aktif.`,
+    };
   }
 }
 
