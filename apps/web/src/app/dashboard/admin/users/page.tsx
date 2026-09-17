@@ -25,8 +25,14 @@ import {
   RotateCcw,
   GraduationCap,
   Phone,
-  Lock
+  Lock,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
+
+type SortField = "none" | "nama" | "date";
+type SortOrder = "asc" | "desc";
 
 interface UserType {
   id: string;
@@ -150,6 +156,10 @@ export default function AdminUsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
 
+  // Sorting State
+  const [sortField, setSortField] = useState<SortField>("none");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+
   // Multi-Select & Bulk Action States
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -159,6 +169,66 @@ export default function AdminUsersPage() {
 
   const masterCheckboxRef = useRef<HTMLInputElement>(null);
   const mobileMasterCheckboxRef = useRef<HTMLInputElement>(null);
+
+  // Filter & Search Handlers (Auto-reset pagination across all tabs)
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    setPage(1);
+    setPendingPage(1);
+    setResetsPage(1);
+  };
+
+  const handleRoleFilterChange = (val: string) => {
+    setRoleFilter(val);
+    setPage(1);
+    setPendingPage(1);
+    setResetsPage(1);
+  };
+
+  const handleSekolahFilterChange = (val: string) => {
+    setExportSekolahId(val);
+    setPage(1);
+    setPendingPage(1);
+    setResetsPage(1);
+  };
+
+  // Toggle Sorting Handlers
+  const handleToggleSortNama = () => {
+    if (sortField !== "nama") {
+      setSortField("nama");
+      setSortOrder("asc");
+    } else {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    }
+  };
+
+  const handleToggleSortBergabung = () => {
+    if (sortField !== "date") {
+      setSortField("date");
+      setSortOrder("desc"); // Default: terbaru lebih dahulu
+    } else {
+      setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+    }
+  };
+
+  const handleToggleSortKedaluwarsa = () => {
+    if (sortField !== "date") {
+      setSortField("date");
+      setSortOrder("asc"); // Default: kedaluwarsa terdekat lebih dahulu
+    } else {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    }
+  };
+
+  const renderSortIcon = (field: "nama" | "date") => {
+    if (sortField !== field) {
+      return <ArrowUpDown size={14} className="text-neutral-400 group-hover:text-neutral-600 transition shrink-0" />;
+    }
+    if (sortOrder === "asc") {
+      return <ArrowUp size={14} className="text-blue-600 shrink-0 stroke-[2.5]" />;
+    }
+    return <ArrowDown size={14} className="text-blue-600 shrink-0 stroke-[2.5]" />;
+  };
 
   // Modals & Forms
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -957,27 +1027,135 @@ export default function AdminUsersPage() {
     }
   };
 
+  // ================= DATA PROCESSING PIPELINE (FILTER & SORT) =================
+  const selectedSchool = schools.find((s) => s.id.toString() === exportSekolahId);
+  const selectedSchoolName = selectedSchool?.nama_sekolah?.trim().toLowerCase();
+
+  // 1. Process Active Users
+  const processedUsers = users.filter((u) => {
+    if (exportSekolahId) {
+      const matchSekolah =
+        (u.sekolah_id && u.sekolah_id.toString() === exportSekolahId) ||
+        (selectedSchoolName && u.nama_sekolah && u.nama_sekolah.trim().toLowerCase() === selectedSchoolName);
+      if (!matchSekolah) return false;
+    }
+    return true;
+  });
+
+  const sortedUsers = [...processedUsers].sort((a, b) => {
+    if (sortField === "nama") {
+      const cmp = a.nama.localeCompare(b.nama, "id", { sensitivity: "base" });
+      return sortOrder === "asc" ? cmp : -cmp;
+    }
+    if (sortField === "date") {
+      const timeA = new Date(a.created_at).getTime() || 0;
+      const timeB = new Date(b.created_at).getTime() || 0;
+      return sortOrder === "desc" ? timeB - timeA : timeA - timeB;
+    }
+    return 0;
+  });
+
+  // 2. Process Pending Invitations
+  const filteredInvitations = invitations.filter((inv) => {
+    const term = search.toLowerCase().trim();
+    if (term) {
+      const matchSearch =
+        (inv.nama && inv.nama.toLowerCase().includes(term)) ||
+        (inv.email && inv.email.toLowerCase().includes(term)) ||
+        (inv.nis && inv.nis.toLowerCase().includes(term)) ||
+        (inv.nama_sekolah && inv.nama_sekolah.toLowerCase().includes(term));
+      if (!matchSearch) return false;
+    }
+    if (roleFilter && inv.role.toLowerCase() !== roleFilter.toLowerCase()) {
+      return false;
+    }
+    if (exportSekolahId) {
+      const matchSekolah =
+        selectedSchoolName && inv.nama_sekolah && inv.nama_sekolah.trim().toLowerCase() === selectedSchoolName;
+      if (!matchSekolah) return false;
+    }
+    return true;
+  });
+
+  const sortedInvitations = [...filteredInvitations].sort((a, b) => {
+    if (sortField === "nama") {
+      const cmp = a.nama.localeCompare(b.nama, "id", { sensitivity: "base" });
+      return sortOrder === "asc" ? cmp : -cmp;
+    }
+    if (sortField === "date") {
+      const timeA = new Date(a.expires_at).getTime() || 0;
+      const timeB = new Date(b.expires_at).getTime() || 0;
+      return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
+    }
+    return 0;
+  });
+
+  const totalPendingPages = Math.ceil(sortedInvitations.length / 10) || 1;
+  const currentPendingPage = Math.min(pendingPage, totalPendingPages);
+  const paginatedInvitations = sortedInvitations.slice(
+    (currentPendingPage - 1) * 10,
+    currentPendingPage * 10
+  );
+
+  // 3. Process Active Password Resets
+  const filteredResets = activeResets.filter((u) => {
+    const term = search.toLowerCase().trim();
+    if (term) {
+      const matchSearch =
+        (u.nama && u.nama.toLowerCase().includes(term)) ||
+        (u.email && u.email.toLowerCase().includes(term)) ||
+        (u.nis && u.nis.toLowerCase().includes(term)) ||
+        (u.nama_sekolah && u.nama_sekolah.toLowerCase().includes(term));
+      if (!matchSearch) return false;
+    }
+    if (roleFilter && u.role.toLowerCase() !== roleFilter.toLowerCase()) {
+      return false;
+    }
+    if (exportSekolahId) {
+      const matchSekolah =
+        selectedSchoolName && u.nama_sekolah && u.nama_sekolah.trim().toLowerCase() === selectedSchoolName;
+      if (!matchSekolah) return false;
+    }
+    return true;
+  });
+
+  const sortedResets = [...filteredResets].sort((a, b) => {
+    if (sortField === "nama") {
+      const cmp = a.nama.localeCompare(b.nama, "id", { sensitivity: "base" });
+      return sortOrder === "asc" ? cmp : -cmp;
+    }
+    if (sortField === "date") {
+      const timeA = new Date(a.reset_password_expires).getTime() || 0;
+      const timeB = new Date(b.reset_password_expires).getTime() || 0;
+      return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
+    }
+    return 0;
+  });
+
+  const totalResetsPages = Math.ceil(sortedResets.length / 10) || 1;
+  const currentResetsPage = Math.min(resetsPage, totalResetsPages);
+  const paginatedResets = sortedResets.slice(
+    (currentResetsPage - 1) * 10,
+    currentResetsPage * 10
+  );
+
   // ================= MULTI-SELECT & BULK ACTIONS LOGIC =================
 
-  // Reset selectedIds setiap kali admin berpindah tab, halaman, atau mengubah filter
+  // Reset selectedIds setiap kali admin berpindah tab, halaman, filter, atau sort
   useEffect(() => {
     setSelectedIds([]);
-  }, [activeTab, page, pendingPage, resetsPage, search, roleFilter, exportSekolahId]);
+  }, [activeTab, page, pendingPage, resetsPage, search, roleFilter, exportSekolahId, sortField, sortOrder]);
 
   // Dapatkan seluruh ID data pada halaman aktif saat ini
   const getCurrentPageIds = (): string[] => {
     if (activeTab === "active") {
-      return users.map((u) => u.id);
+      return sortedUsers.map((u) => u.id);
     }
     if (activeTab === "pending") {
-      const totalPendingPages = Math.ceil(invitations.length / 10) || 1;
-      const currPage = Math.min(pendingPage, totalPendingPages);
-      return invitations.slice((currPage - 1) * 10, currPage * 10).map((inv) => String(inv.id));
+      return paginatedInvitations.map((inv) => String(inv.id));
     }
     if (activeTab === "resets") {
-      const totalResetsPages = Math.ceil(activeResets.length / 10) || 1;
-      const currPage = Math.min(resetsPage, totalResetsPages);
-      return activeResets.slice((currPage - 1) * 10, currPage * 10).map((u) => u.id);
+      return paginatedResets.map((u) => u.id);
     }
     return [];
   };
@@ -1336,6 +1514,7 @@ export default function AdminUsersPage() {
           onClick={() => {
             setActiveTab("active");
             setPage(1);
+            setSortField("none");
           }}
           className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
             activeTab === "active"
@@ -1350,6 +1529,7 @@ export default function AdminUsersPage() {
           onClick={() => {
             setActiveTab("pending");
             setPendingPage(1);
+            setSortField("none");
           }}
           className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
             activeTab === "pending"
@@ -1364,6 +1544,7 @@ export default function AdminUsersPage() {
           onClick={() => {
             setActiveTab("resets");
             setResetsPage(1);
+            setSortField("none");
           }}
           className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
             activeTab === "resets"
@@ -1378,67 +1559,65 @@ export default function AdminUsersPage() {
 
       {/* Main Tab Content */}
       <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm overflow-hidden">
+        {/* Universal Filter & Search Bar (Tampil di Seluruh Tab) */}
+        <div className={`p-4 sm:p-5 border-b border-neutral-100 grid grid-cols-1 sm:grid-cols-2 ${
+          activeTab === "active" ? "lg:grid-cols-4" : "lg:grid-cols-3"
+        } gap-3 items-center`}>
+          <div className="relative w-full">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-neutral-400">
+              <Search size={16} />
+            </span>
+            <input
+              type="text"
+              placeholder="Cari nama, email, NIS..."
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-neutral-200 rounded-xl text-xs focus:outline-none focus:border-primary transition"
+            />
+          </div>
+
+          <select
+            value={roleFilter}
+            onChange={(e) => handleRoleFilterChange(e.target.value)}
+            className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white text-neutral-700 focus:outline-none focus:border-primary transition cursor-pointer font-semibold"
+          >
+            <option value="">Semua Role</option>
+            <option value="admin">Admin</option>
+            <option value="guru">Guru</option>
+            <option value="siswa">Siswa</option>
+          </select>
+
+          <select
+            value={exportSekolahId}
+            onChange={(e) => handleSekolahFilterChange(e.target.value)}
+            className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white text-neutral-700 focus:outline-none focus:border-primary transition cursor-pointer truncate font-semibold"
+          >
+            <option value="">Semua Sekolah</option>
+            {schools.map((s) => (
+              <option key={s.id} value={s.id.toString()}>
+                {s.nama_sekolah}
+              </option>
+            ))}
+          </select>
+
+          {activeTab === "active" && (
+            <button
+              onClick={handleExportExcel}
+              disabled={isExporting}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white shadow-xs transition cursor-pointer"
+              title="Tarik Rekapitulasi Nilai Siswa Ke Format Excel"
+            >
+              <FileSpreadsheet size={15} />
+              {isExporting ? "Mengekspor..." : "Export Excel Nilai"}
+            </button>
+          )}
+        </div>
+
         {activeTab === "active" ? (
           /* ================= TAMPILAN PENGGUNA AKTIF ================= */
           <div>
-            {/* Filter & Search Bar */}
-            <div className="p-4 sm:p-5 border-b border-neutral-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-center">
-              <div className="relative w-full">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-neutral-400">
-                  <Search size={16} />
-                </span>
-                <input
-                  type="text"
-                  placeholder="Cari nama, email, NIS..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full pl-9 pr-3 py-2 border border-neutral-200 rounded-xl text-xs focus:outline-none focus:border-primary transition"
-                />
-              </div>
-
-              <select
-                value={roleFilter}
-                onChange={(e) => {
-                  setRoleFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white text-neutral-700 focus:outline-none focus:border-primary transition cursor-pointer font-semibold"
-              >
-                <option value="">Semua Role</option>
-                <option value="admin">Admin</option>
-                <option value="guru">Guru</option>
-                <option value="siswa">Siswa</option>
-              </select>
-
-              <select
-                value={exportSekolahId}
-                onChange={(e) => setExportSekolahId(e.target.value)}
-                className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white text-neutral-700 focus:outline-none focus:border-primary transition cursor-pointer truncate font-semibold"
-              >
-                <option value="">Semua Sekolah</option>
-                {schools.map((s) => (
-                  <option key={s.id} value={s.id.toString()}>
-                    {s.nama_sekolah}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                onClick={handleExportExcel}
-                disabled={isExporting}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white shadow-xs transition cursor-pointer"
-                title="Tarik Rekapitulasi Nilai Siswa Ke Format Excel"
-              >
-                <FileSpreadsheet size={15} />
-                {isExporting ? "Mengekspor..." : "Export Excel Nilai"}
-              </button>
-            </div>
-
             {/* Mobile Select All Bar */}
-            {users.length > 0 && (
+            {sortedUsers.length > 0 && (
               <div className="md:hidden flex items-center justify-between px-4 py-2.5 bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-600 font-semibold">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
@@ -1448,7 +1627,7 @@ export default function AdminUsersPage() {
                     onChange={handleToggleSelectAll}
                     className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
                   />
-                  <span>Pilih Semua di Halaman Ini ({users.length})</span>
+                  <span>Pilih Semua di Halaman Ini ({sortedUsers.length})</span>
                 </label>
                 {selectedOnCurrentPage.length > 0 && (
                   <span className="text-[11px] text-primary font-bold">
@@ -1462,10 +1641,14 @@ export default function AdminUsersPage() {
             <div className="block md:hidden divide-y divide-neutral-100">
               {loading ? (
                 <div className="p-8 text-center text-neutral-400 text-xs">Memuat data pengguna...</div>
-              ) : users.length === 0 ? (
-                <div className="p-8 text-center text-neutral-400 text-xs">Tidak ada pengguna aktif ditemukan.</div>
+              ) : sortedUsers.length === 0 ? (
+                <div className="p-8 text-center text-neutral-400 text-xs">
+                  {search || roleFilter || exportSekolahId
+                    ? "Tidak ada data pengguna yang cocok dengan pencarian."
+                    : "Tidak ada pengguna aktif ditemukan."}
+                </div>
               ) : (
-                users.map((user) => (
+                sortedUsers.map((user) => (
                   <div
                     key={user.id}
                     className={`p-4 space-y-2.5 transition-colors ${
@@ -1555,12 +1738,34 @@ export default function AdminUsersPage() {
                         className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
                       />
                     </th>
-                    <th className="px-6 py-4">Nama</th>
+                    <th className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={handleToggleSortNama}
+                        className={`cursor-pointer select-none hover:text-neutral-900 transition flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider ${
+                          sortField === "nama" ? "text-neutral-900" : "text-neutral-400"
+                        } group`}
+                      >
+                        <span>Nama</span>
+                        {renderSortIcon("nama")}
+                      </button>
+                    </th>
                     <th className="px-6 py-4">Email</th>
                     <th className="px-6 py-4">NIS / Kelas / Jurusan</th>
                     <th className="px-6 py-4">Role</th>
                     <th className="px-6 py-4">Sekolah</th>
-                    <th className="px-6 py-4">Bergabung</th>
+                    <th className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={handleToggleSortBergabung}
+                        className={`cursor-pointer select-none hover:text-neutral-900 transition flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider ${
+                          sortField === "date" ? "text-neutral-900" : "text-neutral-400"
+                        } group`}
+                      >
+                        <span>Bergabung</span>
+                        {renderSortIcon("date")}
+                      </button>
+                    </th>
                     <th className="px-6 py-4 text-right">Aksi</th>
                   </tr>
                 </thead>
@@ -1574,14 +1779,16 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                     </tr>
-                  ) : users.length === 0 ? (
+                  ) : sortedUsers.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center text-neutral-400">
-                        Tidak ada pengguna aktif ditemukan.
+                        {search || roleFilter || exportSekolahId
+                          ? "Tidak ada data pengguna yang cocok dengan pencarian."
+                          : "Tidak ada pengguna aktif ditemukan."}
                       </td>
                     </tr>
                   ) : (
-                    users.map((user) => (
+                    sortedUsers.map((user) => (
                       <tr
                         key={user.id}
                         className={`transition duration-150 ${
@@ -1619,63 +1826,68 @@ export default function AdminUsersPage() {
                               {formatKelasDisplay(user.kelas, user.jurusan)}
                             </span>
                           ) : (
-                            <div className="text-[11px] text-neutral-400 mt-0.5">-</div>
+                            <span className="text-neutral-400 italic text-[11px]">-</span>
                           )}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
                             user.role === "admin" 
                               ? "bg-purple-100 text-purple-700" 
-                              : user.role === "guru"
-                              ? "bg-blue-100 text-blue-700"
+                              : user.role === "guru" 
+                              ? "bg-blue-100 text-blue-700" 
                               : "bg-green-100 text-green-700"
                           }`}>
                             {user.role}
                           </span>
                         </td>
-                        <td className="px-6 py-4">{user.nama_sekolah}</td>
-                        <td className="px-6 py-4 text-xs text-neutral-400">
+                        <td className="px-6 py-4 text-neutral-600">
+                          {user.nama_sekolah || <span className="text-neutral-400 italic">N-KGTS</span>}
+                        </td>
+                        <td className="px-6 py-4 text-neutral-400 text-xs">
                           {new Date(user.created_at).toLocaleDateString("id-ID", {
-                            year: "numeric",
+                            day: "numeric",
                             month: "short",
-                            day: "numeric"
+                            year: "numeric"
                           })}
                         </td>
                         <td className="px-6 py-4 text-right whitespace-nowrap min-w-[280px]">
-                          <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
                             <button
                               onClick={() => handleOpenEditUser(user)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all border border-slate-300/80 cursor-pointer shadow-2xs whitespace-nowrap"
-                              title="Lihat detail & edit profil pengguna"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all shadow-xs border border-slate-300/80 cursor-pointer whitespace-nowrap"
+                              title="Lihat profil lengkap dan ubah data pengguna"
                             >
                               <Edit size={13} />
                               Detail & Edit
                             </button>
+
                             {user.role === "siswa" && (
                               <button
                                 onClick={() => {
                                   setResetTargetUser({ id: user.id, nama: user.nama });
                                 }}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-xs border border-amber-600/30 cursor-pointer whitespace-nowrap"
-                                title="Reset progres belajar siswa"
+                                title="Reset total progres belajar siswa"
                               >
                                 <RotateCcw size={13} />
                                 Reset Progres
                               </button>
                             )}
+
                             <button
                               onClick={() => setSendResetTargetUser(user)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer whitespace-nowrap"
-                              title="Kirim email petunjuk atur ulang kata sandi (berlaku 24 jam)"
+                              title="Kirim link reset kata sandi langsung ke email pengguna"
                             >
                               <KeyRound size={13} />
-                              Kirim Link Reset
+                              Reset Sandi
                             </button>
+
                             {user.email !== "admin@nkgts.com" && user.id !== currentUser?.id && (
                               <button
                                 onClick={() => handleDeleteUser(user.id, user.nama)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer whitespace-nowrap"
-                                title="Hapus akun pengguna"
+                                title="Hapus pengguna"
                               >
                                 <Trash2 size={13} />
                                 Hapus
@@ -1697,7 +1909,7 @@ export default function AdminUsersPage() {
           /* ================= TAMPILAN UNDANGAN TERTUNDA ================= */
           <div>
             {/* Mobile Select All Bar */}
-            {invitations.length > 0 && (
+            {sortedInvitations.length > 0 && (
               <div className="md:hidden flex items-center justify-between px-4 py-2.5 bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-600 font-semibold">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
@@ -1707,7 +1919,7 @@ export default function AdminUsersPage() {
                     onChange={handleToggleSelectAll}
                     className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
                   />
-                  <span>Pilih Semua di Halaman Ini ({currentPageIds.length})</span>
+                  <span>Pilih Semua di Halaman Ini ({paginatedInvitations.length})</span>
                 </label>
                 {selectedOnCurrentPage.length > 0 && (
                   <span className="text-[11px] text-primary font-bold">
@@ -1719,76 +1931,75 @@ export default function AdminUsersPage() {
 
             {/* Mobile Cards (< md) */}
             <div className="block md:hidden divide-y divide-neutral-100">
-              {invitations.length === 0 ? (
-                <div className="p-8 text-center text-neutral-400 text-xs">Tidak ada undangan tertunda yang aktif.</div>
+              {sortedInvitations.length === 0 ? (
+                <div className="p-8 text-center text-neutral-400 text-xs">
+                  {search || roleFilter || exportSekolahId
+                    ? "Tidak ada data undangan yang cocok dengan pencarian."
+                    : "Tidak ada undangan tertunda yang aktif."}
+                </div>
               ) : (
-                (() => {
-                  const totalPendingPages = Math.ceil(invitations.length / 10) || 1;
-                  const currentPendingPage = Math.min(pendingPage, totalPendingPages);
-                  const paginatedInvitations = invitations.slice((currentPendingPage - 1) * 10, currentPendingPage * 10);
-                  return paginatedInvitations.map((invite) => {
-                    const idStr = String(invite.id);
-                    const isSelected = selectedIds.includes(idStr);
-                    return (
-                      <div
-                        key={invite.id}
-                        className={`p-4 space-y-2.5 transition-colors ${
-                          isSelected ? "bg-blue-50/50" : "bg-white"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleToggleSelectOne(idStr)}
-                              aria-label={`Pilih ${invite.nama}`}
-                              className="mt-0.5 w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600 flex-shrink-0"
-                            />
-                            <div>
-                              <h4 className="font-extrabold text-neutral-900 text-xs">{invite.nama}</h4>
-                              <p className="text-[11px] text-neutral-500 font-mono leading-tight">{invite.email}</p>
-                            </div>
+                paginatedInvitations.map((invite) => {
+                  const idStr = String(invite.id);
+                  const isSelected = selectedIds.includes(idStr);
+                  return (
+                    <div
+                      key={invite.id}
+                      className={`p-4 space-y-2.5 transition-colors ${
+                        isSelected ? "bg-blue-50/50" : "bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectOne(idStr)}
+                            aria-label={`Pilih ${invite.nama}`}
+                            className="mt-0.5 w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600 flex-shrink-0"
+                          />
+                          <div>
+                            <h4 className="font-extrabold text-neutral-900 text-xs">{invite.nama}</h4>
+                            <p className="text-[11px] text-neutral-500 font-mono leading-tight">{invite.email}</p>
                           </div>
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                            invite.role === "admin" ? "bg-purple-100 text-purple-700" : invite.role === "guru" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
-                          }`}>
-                            {invite.role}
-                          </span>
                         </div>
-
-                        <div className="text-[11px] text-neutral-500 space-y-0.5 pl-7">
-                          <p>Sekolah: <strong className="text-neutral-700 font-semibold">{invite.nama_sekolah || "N-KGTS"}</strong></p>
-                          <p>NIS: <strong className="font-mono text-neutral-700">{invite.nis || "-"}</strong></p>
-                          <p>Kedaluwarsa: <strong className={invite.is_expired ? "text-danger" : "text-neutral-600"}>
-                            {invite.is_expired ? "Kedaluwarsa" : new Date(invite.expires_at).toLocaleDateString("id-ID", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          </strong></p>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
-                          <button
-                            onClick={() => handleResendInvite(invite.id, invite.email)}
-                            disabled={loading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs border border-blue-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                            title="Kirim ulang email undangan"
-                          >
-                            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-                            Kirim Ulang
-                          </button>
-                          <button
-                            onClick={() => setDeleteTargetId(invite.id)}
-                            disabled={loading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs border border-rose-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                            title="Batalkan dan hapus undangan"
-                          >
-                            <Trash2 size={12} />
-                            Hapus
-                          </button>
-                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                          invite.role === "admin" ? "bg-purple-100 text-purple-700" : invite.role === "guru" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+                        }`}>
+                          {invite.role}
+                        </span>
                       </div>
-                    );
-                  });
-                })()
+
+                      <div className="text-[11px] text-neutral-500 space-y-0.5 pl-7">
+                        <p>Sekolah: <strong className="text-neutral-700 font-semibold">{invite.nama_sekolah || "N-KGTS"}</strong></p>
+                        <p>NIS: <strong className="font-mono text-neutral-700">{invite.nis || "-"}</strong></p>
+                        <p>Kedaluwarsa: <strong className={invite.is_expired ? "text-danger" : "text-neutral-600"}>
+                          {invite.is_expired ? "Kedaluwarsa" : new Date(invite.expires_at).toLocaleDateString("id-ID", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </strong></p>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+                        <button
+                          onClick={() => handleResendInvite(invite.id, invite.email)}
+                          disabled={loading}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs border border-blue-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                          title="Kirim ulang email undangan"
+                        >
+                          <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+                          Kirim Ulang
+                        </button>
+                        <button
+                          onClick={() => setDeleteTargetId(invite.id)}
+                          disabled={loading}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs border border-rose-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                          title="Batalkan dan hapus undangan"
+                        >
+                          <Trash2 size={12} />
+                          Hapus
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
 
@@ -1807,97 +2018,116 @@ export default function AdminUsersPage() {
                         className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
                       />
                     </th>
-                    <th className="px-6 py-4">Nama</th>
+                    <th className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={handleToggleSortNama}
+                        className={`cursor-pointer select-none hover:text-neutral-900 transition flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider ${
+                          sortField === "nama" ? "text-neutral-900" : "text-neutral-400"
+                        } group`}
+                      >
+                        <span>Nama</span>
+                        {renderSortIcon("nama")}
+                      </button>
+                    </th>
                     <th className="px-6 py-4">Email</th>
                     <th className="px-6 py-4">NIS</th>
                     <th className="px-6 py-4">Role</th>
                     <th className="px-6 py-4">Sekolah</th>
-                    <th className="px-6 py-4">Kedaluwarsa</th>
+                    <th className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={handleToggleSortKedaluwarsa}
+                        className={`cursor-pointer select-none hover:text-neutral-900 transition flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider ${
+                          sortField === "date" ? "text-neutral-900" : "text-neutral-400"
+                        } group`}
+                      >
+                        <span>Kedaluwarsa</span>
+                        {renderSortIcon("date")}
+                      </button>
+                    </th>
                     <th className="px-6 py-4 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-50 text-sm text-neutral-700">
-                  {invitations.length === 0 ? (
+                  {sortedInvitations.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center text-neutral-400">
-                        Tidak ada undangan tertunda yang aktif.
+                        {search || roleFilter || exportSekolahId
+                          ? "Tidak ada data undangan yang cocok dengan pencarian."
+                          : "Tidak ada undangan tertunda yang aktif."}
                       </td>
                     </tr>
                   ) : (
-                    (() => {
-                      const totalPendingPages = Math.ceil(invitations.length / 10) || 1;
-                      const currentPendingPage = Math.min(pendingPage, totalPendingPages);
-                      const paginatedInvitations = invitations.slice((currentPendingPage - 1) * 10, currentPendingPage * 10);
-                      return paginatedInvitations.map((invite) => {
-                        const idStr = String(invite.id);
-                        const isSelected = selectedIds.includes(idStr);
-                        return (
-                          <tr
-                            key={invite.id}
-                            className={`transition duration-150 ${
-                              isSelected ? "bg-blue-50/60 hover:bg-blue-50" : "hover:bg-neutral-50/50"
-                            }`}
-                          >
-                            <td className="w-12 px-4 py-4 text-center">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => handleToggleSelectOne(idStr)}
-                                aria-label={`Pilih ${invite.nama}`}
-                                className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                              />
-                            </td>
-                            <td className="px-6 py-4 font-bold text-neutral-900">{invite.nama}</td>
-                            <td className="px-6 py-4 font-mono text-xs">{invite.email}</td>
-                            <td className="px-6 py-4 text-neutral-400">{invite.nis || "-"}</td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
-                                invite.role === "admin" 
-                                  ? "bg-purple-100 text-purple-700" 
-                                  : invite.role === "guru"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : "bg-green-100 text-green-700"
-                              }`}>
-                                {invite.role}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">{invite.nama_sekolah}</td>
-                            <td className="px-6 py-4 text-xs">
-                              <span className={`font-semibold ${invite.is_expired ? "text-danger" : "text-neutral-400"}`}>
-                                {invite.is_expired ? "Kedaluwarsa" : new Date(invite.expires_at).toLocaleDateString("id-ID", {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit"
-                                })}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right whitespace-nowrap min-w-[220px]">
-                              <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                                <button
-                                  onClick={() => handleResendInvite(invite.id, invite.email)}
-                                  disabled={loading}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                                  title="Kirim ulang email undangan"
-                                >
-                                  <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-                                  Kirim Ulang
-                                </button>
-                                <button
-                                  onClick={() => setDeleteTargetId(invite.id)}
-                                  disabled={loading}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                                  title="Batalkan dan hapus undangan"
-                                >
-                                  <Trash2 size={13} />
-                                  Hapus
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()
+                    paginatedInvitations.map((invite) => {
+                      const idStr = String(invite.id);
+                      const isSelected = selectedIds.includes(idStr);
+                      return (
+                        <tr
+                          key={invite.id}
+                          className={`transition duration-150 ${
+                            isSelected ? "bg-blue-50/60 hover:bg-blue-50" : "hover:bg-neutral-50/50"
+                          }`}
+                        >
+                          <td className="w-12 px-4 py-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectOne(idStr)}
+                              aria-label={`Pilih ${invite.nama}`}
+                              className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                            />
+                          </td>
+                          <td className="px-6 py-4 font-bold text-neutral-900">{invite.nama}</td>
+                          <td className="px-6 py-4 font-mono text-xs">{invite.email}</td>
+                          <td className="px-6 py-4 text-neutral-400">{invite.nis || "-"}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
+                              invite.role === "admin" 
+                                ? "bg-purple-100 text-purple-700" 
+                                : invite.role === "guru" 
+                                ? "bg-blue-100 text-blue-700" 
+                                : "bg-green-100 text-green-700"
+                            }`}>
+                              {invite.role}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">{invite.nama_sekolah}</td>
+                          <td className="px-6 py-4 text-xs">
+                            <span className={`font-semibold ${invite.is_expired ? "text-danger" : "text-neutral-400"}`}>
+                              {invite.is_expired ? "Kedaluwarsa" : new Date(invite.expires_at).toLocaleDateString("id-ID", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right whitespace-nowrap min-w-[220px]">
+                            <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                              <button
+                                onClick={() => handleResendInvite(invite.id, invite.email)}
+                                disabled={loading}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                                title="Kirim ulang email undangan"
+                              >
+                                <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+                                Kirim Ulang
+                              </button>
+                              <button
+                                onClick={() => setDeleteTargetId(invite.id)}
+                                disabled={loading}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                                title="Batalkan dan hapus undangan"
+                              >
+                                <Trash2 size={13} />
+                                Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1905,9 +2135,9 @@ export default function AdminUsersPage() {
 
             {/* Pagination Footer */}
             {renderPagination(
-              Math.min(pendingPage, Math.ceil(invitations.length / 10) || 1),
-              Math.ceil(invitations.length / 10) || 1,
-              invitations.length,
+              currentPendingPage,
+              totalPendingPages,
+              sortedInvitations.length,
               "undangan tertunda",
               setPendingPage
             )}
@@ -1933,7 +2163,7 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Mobile Select All Bar */}
-            {activeResets.length > 0 && (
+            {sortedResets.length > 0 && (
               <div className="md:hidden flex items-center justify-between px-4 py-2.5 bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-600 font-semibold">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
@@ -1943,7 +2173,7 @@ export default function AdminUsersPage() {
                     onChange={handleToggleSelectAll}
                     className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
                   />
-                  <span>Pilih Semua di Halaman Ini ({currentPageIds.length})</span>
+                  <span>Pilih Semua di Halaman Ini ({paginatedResets.length})</span>
                 </label>
                 {selectedOnCurrentPage.length > 0 && (
                   <span className="text-[11px] text-primary font-bold">
@@ -1957,71 +2187,70 @@ export default function AdminUsersPage() {
             <div className="block md:hidden divide-y divide-neutral-100">
               {loadingResets ? (
                 <div className="p-8 text-center text-neutral-400 text-xs">Memuat data token aktif...</div>
-              ) : activeResets.length === 0 ? (
-                <div className="p-8 text-center text-neutral-400 text-xs">Tidak ada token reset password yang sedang aktif saat ini.</div>
+              ) : sortedResets.length === 0 ? (
+                <div className="p-8 text-center text-neutral-400 text-xs">
+                  {search || roleFilter || exportSekolahId
+                    ? "Tidak ada data token reset yang cocok dengan pencarian."
+                    : "Tidak ada token reset password yang sedang aktif saat ini."}
+                </div>
               ) : (
-                (() => {
-                  const totalResetsPages = Math.ceil(activeResets.length / 10) || 1;
-                  const currentResetsPage = Math.min(resetsPage, totalResetsPages);
-                  const paginatedResets = activeResets.slice((currentResetsPage - 1) * 10, currentResetsPage * 10);
-                  return paginatedResets.map((user) => {
-                    const isSelected = selectedIds.includes(user.id);
-                    return (
-                      <div
-                        key={user.id}
-                        className={`p-4 space-y-2.5 transition-colors ${
-                          isSelected ? "bg-blue-50/50" : "bg-white"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleToggleSelectOne(user.id)}
-                              aria-label={`Pilih ${user.nama}`}
-                              className="mt-0.5 w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600 flex-shrink-0"
-                            />
-                            <div>
-                              <h4 className="font-extrabold text-neutral-900 text-xs">{user.nama}</h4>
-                              <p className="text-[11px] text-neutral-500 font-mono leading-tight">{user.email}</p>
-                            </div>
+                paginatedResets.map((user) => {
+                  const isSelected = selectedIds.includes(user.id);
+                  return (
+                    <div
+                      key={user.id}
+                      className={`p-4 space-y-2.5 transition-colors ${
+                        isSelected ? "bg-blue-50/50" : "bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectOne(user.id)}
+                            aria-label={`Pilih ${user.nama}`}
+                            className="mt-0.5 w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600 flex-shrink-0"
+                          />
+                          <div>
+                            <h4 className="font-extrabold text-neutral-900 text-xs">{user.nama}</h4>
+                            <p className="text-[11px] text-neutral-500 font-mono leading-tight">{user.email}</p>
                           </div>
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                            user.role === "admin" ? "bg-purple-100 text-purple-700" : user.role === "guru" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
-                          }`}>
-                            {user.role}
-                          </span>
                         </div>
-
-                        <div className="text-[11px] text-neutral-500 space-y-0.5 pl-7">
-                          <p>Sekolah: <strong className="text-neutral-700 font-semibold">{user.nama_sekolah || "N-KGTS"}</strong></p>
-                          <p>NIS: <strong className="font-mono text-neutral-700">{user.nis || "-"}</strong></p>
-                          <p>Kedaluwarsa: <strong className="text-amber-700 font-semibold">
-                            {new Date(user.reset_password_expires).toLocaleDateString("id-ID", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          </strong> ({formatTimeRemaining(user.reset_password_expires)})</p>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
-                          <button
-                            onClick={() => setSendResetTargetUser(user)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs border border-blue-700/30 cursor-pointer"
-                          >
-                            <RefreshCw size={12} />
-                            Kirim Ulang
-                          </button>
-                          <button
-                            onClick={() => setCancelResetTargetUser(user)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs border border-rose-700/30 cursor-pointer"
-                          >
-                            <X size={12} />
-                            Batalkan
-                          </button>
-                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                          user.role === "admin" ? "bg-purple-100 text-purple-700" : user.role === "guru" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+                        }`}>
+                          {user.role}
+                        </span>
                       </div>
-                    );
-                  });
-                })()
+
+                      <div className="text-[11px] text-neutral-500 space-y-0.5 pl-7">
+                        <p>Sekolah: <strong className="text-neutral-700 font-semibold">{user.nama_sekolah || "N-KGTS"}</strong></p>
+                        <p>NIS: <strong className="font-mono text-neutral-700">{user.nis || "-"}</strong></p>
+                        <p>Kedaluwarsa: <strong className="text-amber-700 font-semibold">
+                          {new Date(user.reset_password_expires).toLocaleDateString("id-ID", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </strong> ({formatTimeRemaining(user.reset_password_expires)})</p>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+                        <button
+                          onClick={() => setSendResetTargetUser(user)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs border border-blue-700/30 cursor-pointer"
+                        >
+                          <RefreshCw size={12} />
+                          Kirim Ulang
+                        </button>
+                        <button
+                          onClick={() => setCancelResetTargetUser(user)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs border border-rose-700/30 cursor-pointer"
+                        >
+                          <X size={12} />
+                          Batalkan
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
 
@@ -2040,12 +2269,34 @@ export default function AdminUsersPage() {
                         className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
                       />
                     </th>
-                    <th className="px-6 py-4">Nama</th>
+                    <th className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={handleToggleSortNama}
+                        className={`cursor-pointer select-none hover:text-neutral-900 transition flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider ${
+                          sortField === "nama" ? "text-neutral-900" : "text-neutral-400"
+                        } group`}
+                      >
+                        <span>Nama</span>
+                        {renderSortIcon("nama")}
+                      </button>
+                    </th>
                     <th className="px-6 py-4">Email</th>
                     <th className="px-6 py-4">NIS</th>
                     <th className="px-6 py-4">Role</th>
                     <th className="px-6 py-4">Sekolah</th>
-                    <th className="px-6 py-4">Kedaluwarsa</th>
+                    <th className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={handleToggleSortKedaluwarsa}
+                        className={`cursor-pointer select-none hover:text-neutral-900 transition flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider ${
+                          sortField === "date" ? "text-neutral-900" : "text-neutral-400"
+                        } group`}
+                      >
+                        <span>Kedaluwarsa</span>
+                        {renderSortIcon("date")}
+                      </button>
+                    </th>
                     <th className="px-6 py-4 text-right">Aksi</th>
                   </tr>
                 </thead>
@@ -2059,89 +2310,86 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                     </tr>
-                  ) : activeResets.length === 0 ? (
+                  ) : sortedResets.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center text-neutral-400">
-                        Tidak ada token reset password yang sedang aktif saat ini.
+                        {search || roleFilter || exportSekolahId
+                          ? "Tidak ada data token reset yang cocok dengan pencarian."
+                          : "Tidak ada token reset password yang sedang aktif saat ini."}
                       </td>
                     </tr>
                   ) : (
-                    (() => {
-                      const totalResetsPages = Math.ceil(activeResets.length / 10) || 1;
-                      const currentResetsPage = Math.min(resetsPage, totalResetsPages);
-                      const paginatedResets = activeResets.slice((currentResetsPage - 1) * 10, currentResetsPage * 10);
-                      return paginatedResets.map((user) => {
-                        const isSelected = selectedIds.includes(user.id);
-                        return (
-                          <tr
-                            key={user.id}
-                            className={`transition duration-150 ${
-                              isSelected ? "bg-blue-50/60 hover:bg-blue-50" : "hover:bg-neutral-50/50"
-                            }`}
-                          >
-                            <td className="w-12 px-4 py-4 text-center">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => handleToggleSelectOne(user.id)}
-                                aria-label={`Pilih ${user.nama}`}
-                                className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                              />
-                            </td>
-                            <td className="px-6 py-4 font-bold text-neutral-900">{user.nama}</td>
-                            <td className="px-6 py-4 font-mono text-xs">{user.email}</td>
-                            <td className="px-6 py-4 text-neutral-400">{user.nis || "-"}</td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
-                                user.role === "admin" 
-                                  ? "bg-purple-100 text-purple-700" 
-                                  : user.role === "guru"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : "bg-green-100 text-green-700"
-                              }`}>
-                                {user.role}
+                    paginatedResets.map((user) => {
+                      const isSelected = selectedIds.includes(user.id);
+                      return (
+                        <tr
+                          key={user.id}
+                          className={`transition duration-150 ${
+                            isSelected ? "bg-blue-50/60 hover:bg-blue-50" : "hover:bg-neutral-50/50"
+                          }`}
+                        >
+                          <td className="w-12 px-4 py-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectOne(user.id)}
+                              aria-label={`Pilih ${user.nama}`}
+                              className="w-4 h-4 text-blue-600 rounded border-neutral-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                            />
+                          </td>
+                          <td className="px-6 py-4 font-bold text-neutral-900">{user.nama}</td>
+                          <td className="px-6 py-4 font-mono text-xs">{user.email}</td>
+                          <td className="px-6 py-4 text-neutral-400">{user.nis || "-"}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
+                              user.role === "admin" 
+                                ? "bg-purple-100 text-purple-700" 
+                                : user.role === "guru" 
+                                ? "bg-blue-100 text-blue-700" 
+                                : "bg-green-100 text-green-700"
+                            }`}>
+                              {user.role}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">{user.nama_sekolah}</td>
+                          <td className="px-6 py-4 text-xs">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-amber-700">
+                                {new Date(user.reset_password_expires).toLocaleDateString("id-ID", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
                               </span>
-                            </td>
-                            <td className="px-6 py-4">{user.nama_sekolah}</td>
-                            <td className="px-6 py-4 text-xs">
-                              <div className="flex flex-col">
-                                <span className="font-semibold text-amber-700">
-                                  {new Date(user.reset_password_expires).toLocaleDateString("id-ID", {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit"
-                                  })}
-                                </span>
-                                <span className="text-[11px] text-neutral-400">
-                                  {formatTimeRemaining(user.reset_password_expires)}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-right whitespace-nowrap min-w-[220px]">
-                              <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                                <button
-                                  onClick={() => setSendResetTargetUser(user)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer whitespace-nowrap"
-                                  title="Kirim ulang email reset kata sandi (perpanjang 24 jam)"
-                                >
-                                  <RefreshCw size={13} />
-                                  Kirim Ulang
-                                </button>
-                                <button
-                                  onClick={() => setCancelResetTargetUser(user)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer whitespace-nowrap"
-                                  title="Batalkan tautan token reset sandi"
-                                >
-                                  <X size={13} />
-                                  Batalkan
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()
+                              <span className="text-[11px] text-neutral-400">
+                                {formatTimeRemaining(user.reset_password_expires)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right whitespace-nowrap min-w-[220px]">
+                            <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                              <button
+                                onClick={() => setSendResetTargetUser(user)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs border border-blue-700/30 cursor-pointer whitespace-nowrap"
+                                title="Kirim ulang email reset kata sandi (perpanjang 24 jam)"
+                              >
+                                <RefreshCw size={13} />
+                                Kirim Ulang
+                              </button>
+                              <button
+                                onClick={() => setCancelResetTargetUser(user)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs border border-rose-700/30 cursor-pointer whitespace-nowrap"
+                                title="Batalkan tautan token reset sandi"
+                              >
+                                <X size={13} />
+                                Batalkan
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -2149,9 +2397,9 @@ export default function AdminUsersPage() {
 
             {/* Pagination Footer */}
             {renderPagination(
-              Math.min(resetsPage, Math.ceil(activeResets.length / 10) || 1),
-              Math.ceil(activeResets.length / 10) || 1,
-              activeResets.length,
+              currentResetsPage,
+              totalResetsPages,
+              sortedResets.length,
               "token reset sandi",
               setResetsPage
             )}
