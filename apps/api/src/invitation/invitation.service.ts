@@ -54,7 +54,12 @@ export class InvitationService {
     const cpWaSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_whatsapp' } });
 
     const cpName = cpNameSettings?.value || 'Admin N-KGTS';
-    const cpWa = cpWaSettings?.value || '6281234567890';
+    let rawCpWa = cpWaSettings?.value || '6281234567890';
+    let cpWa = rawCpWa.replace(/\D/g, '');
+    if (cpWa.startsWith('0')) {
+      cpWa = '62' + cpWa.slice(1);
+    }
+    if (!cpWa) cpWa = '6281234567890';
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const activationLink = `${frontendUrl}/register?token=${token}`;
@@ -81,7 +86,7 @@ export class InvitationService {
       </div>
     `;
 
-    // 1. Coba Mengirim Lewat Brevo API (HTTPS Port 443, gratis 300 email/hari & mendukung verifikasi satu email Gmail/Sekolah tanpa domain kustom)
+    // 1. Coba Mengirim Lewat Brevo API Terlebih Dahulu
     if (hasBrevo) {
       const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
       try {
@@ -101,60 +106,55 @@ export class InvitationService {
             subject: 'Undangan Aktivasi Akun - Kaizenesia',
             htmlContent: mailHtmlContent,
           }),
-          signal: AbortSignal.timeout(5000), // Timeout 5 detik
+          signal: AbortSignal.timeout(8000),
         });
 
         if (response.ok) {
           console.log('Email undangan berhasil dikirim via Brevo API ke:', email);
-          return undefined; // Sukses
+          return undefined;
         } else {
           const errData = await response.json();
           const errMsg = errData.message || 'Error API Brevo';
           console.error('Gagal mengirim email via Brevo API:', errData);
-          if (!hasGmail) {
-            return `Brevo API: ${errMsg}`;
-          }
+          if (!hasGmail) return `Brevo API: ${errMsg}`;
         }
       } catch (err: any) {
         console.error('Error saat menghubungi API Brevo:', err);
-        if (!hasGmail) {
-          return `Brevo API: ${err.message || 'Koneksi timeout'}`;
-        }
+        if (!hasGmail) return `Brevo API: ${err.message || 'Koneksi timeout'}`;
       }
     }
 
-    // 3. Fallback ke Gmail SMTP (dengan timeout 5 detik)
+    // 2. Fallback ke Gmail SMTP (jika Brevo API tidak aktif/gagal)
     if (hasGmail) {
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        auth: {
-          user: gmailUser,
-          pass: gmailPass,
-        },
-        connectionTimeout: 5000, // Timeout koneksi 5 detik
-        greetingTimeout: 5000,
-        socketTimeout: 5000,
-        tls: {
-          rejectUnauthorized: false
-        }
-      });
-
-      const mailOptions = {
-        from: `"Kaizenesia" <${gmailUser}>`,
-        to: email,
-        subject: 'Undangan Aktivasi Akun - Kaizenesia',
-        html: mailHtmlContent,
-      };
-
       try {
-        await transporter.sendMail(mailOptions);
-        console.log('Email undangan berhasil dikirim via Gmail SMTP ke:', email);
-        return undefined; // Sukses
+        const transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false,
+          auth: {
+            user: gmailUser,
+            pass: gmailPass,
+          },
+          connectionTimeout: 5000,
+          greetingTimeout: 5000,
+          socketTimeout: 5000,
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
+
+        await transporter.sendMail({
+          from: `"Kaizenesia" <${gmailUser}>`,
+          to: email,
+          subject: 'Undangan Aktivasi Akun - Kaizenesia',
+          html: mailHtmlContent,
+        });
+
+        console.log('Email undangan berhasil dikirim via Gmail SMTP fallback ke:', email);
+        return undefined;
       } catch (err: any) {
-        console.error('Gagal mengirim email undangan via Gmail SMTP ke:', email, err);
-        return `Gmail SMTP: ${err.message || 'Koneksi timeout'}`;
+        console.error('Gagal mengirim email via Gmail SMTP fallback:', err);
+        return `Gmail SMTP: ${err.message || 'Gagal mengirim email'}`;
       }
     }
 
@@ -244,9 +244,9 @@ export class InvitationService {
       throw new NotFoundException(`Sekolah dengan ID ${sekolahId} tidak ditemukan`);
     }
 
-    // Cek jika sudah ada invitation token lama yang belum terpakai, hapus dulu
+    // Hapus semua invitation token lama untuk email ini agar token baru sepenuhnya bersih
     await this.prisma.invitationToken.deleteMany({
-      where: { email: emailLower, is_used: false },
+      where: { email: emailLower },
     });
 
     // Buat token aktivasi acak 64 karakter heksadesimal
@@ -782,6 +782,12 @@ export class InvitationService {
 
   // 10. Edit Kontak Pengaturan CP
   async updateContactSettings(dto: UpdateContactDto) {
+    let sanitizedWa = (dto.cp_whatsapp || '').replace(/\D/g, '');
+    if (sanitizedWa.startsWith('0')) {
+      sanitizedWa = '62' + sanitizedWa.slice(1);
+    }
+    if (!sanitizedWa) sanitizedWa = dto.cp_whatsapp;
+
     await this.prisma.settings.upsert({
       where: { key: 'cp_name' },
       update: { value: dto.cp_name },
@@ -790,8 +796,8 @@ export class InvitationService {
 
     await this.prisma.settings.upsert({
       where: { key: 'cp_whatsapp' },
-      update: { value: dto.cp_whatsapp },
-      create: { key: 'cp_whatsapp', value: dto.cp_whatsapp },
+      update: { value: sanitizedWa },
+      create: { key: 'cp_whatsapp', value: sanitizedWa },
     });
 
     return {
@@ -802,8 +808,9 @@ export class InvitationService {
 
   // 11. Validasi Token Aktivasi (Halaman Registrasi Publik)
   async validateActivationToken(token: string) {
+    const cleanToken = (token || '').trim();
     const invite = await this.prisma.invitationToken.findUnique({
-      where: { token },
+      where: { token: cleanToken },
       include: { sekolah: true },
     });
 
@@ -811,7 +818,7 @@ export class InvitationService {
       throw new NotFoundException('Token aktivasi tidak valid atau tidak terdaftar');
     }
     if (invite.is_used) {
-      throw new BadRequestException('Token aktivasi sudah pernah digunakan');
+      throw new BadRequestException('Tautan aktivasi ini sudah pernah digunakan. Jika akun Anda telah dihapus oleh Admin, silakan minta Admin untuk mengirimkan Undangan Baru.');
     }
     if (new Date() > invite.expires_at) {
       throw new BadRequestException('Masa berlaku token aktivasi telah kedaluwarsa');
@@ -947,6 +954,11 @@ export class InvitationService {
     if (!user) {
       throw new NotFoundException('Pengguna tidak ditemukan!');
     }
+    // Hapus juga token undangan lama pengguna ini jika ada
+    await this.prisma.invitationToken.deleteMany({
+      where: { email: user.email.toLowerCase() },
+    });
+
     return this.prisma.user.delete({
       where: { id: userId },
     });
@@ -1133,7 +1145,12 @@ export class InvitationService {
     const cpWaSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_whatsapp' } });
 
     const cpName = cpNameSettings?.value || 'Admin N-KGTS';
-    const cpWa = cpWaSettings?.value || '6281234567890';
+    let rawCpWa = cpWaSettings?.value || '6281234567890';
+    let cpWa = rawCpWa.replace(/\D/g, '');
+    if (cpWa.startsWith('0')) {
+      cpWa = '62' + cpWa.slice(1);
+    }
+    if (!cpWa) cpWa = '6281234567890';
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;
@@ -1160,7 +1177,7 @@ export class InvitationService {
       </div>
     `;
 
-    // 1. Coba Brevo API
+    // 1. Coba Brevo API Terlebih Dahulu
     if (hasBrevo) {
       const brevoSenderName = process.env.BREVO_SENDER_NAME || 'Kaizenesia';
       try {
@@ -1180,7 +1197,7 @@ export class InvitationService {
             subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
             htmlContent: mailHtmlContent,
           }),
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(8000),
         });
 
         if (response.ok) {
@@ -1190,50 +1207,45 @@ export class InvitationService {
           const errData = await response.json();
           const errMsg = errData.message || 'Error API Brevo';
           console.error('Gagal mengirim email reset via Brevo API:', errData);
-          if (!hasGmail) {
-            return `Brevo API: ${errMsg}`;
-          }
+          if (!hasGmail) return `Brevo API: ${errMsg}`;
         }
       } catch (err: any) {
         console.error('Error saat menghubungi API Brevo:', err);
-        if (!hasGmail) {
-          return `Brevo API: ${err.message || 'Koneksi timeout'}`;
-        }
+        if (!hasGmail) return `Brevo API: ${err.message || 'Koneksi timeout'}`;
       }
     }
 
     // 2. Fallback Gmail SMTP
     if (hasGmail) {
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        auth: {
-          user: gmailUser,
-          pass: gmailPass,
-        },
-        connectionTimeout: 5000,
-        greetingTimeout: 5000,
-        socketTimeout: 5000,
-        tls: {
-          rejectUnauthorized: false
-        }
-      });
-
-      const mailOptions = {
-        from: `"Kaizenesia" <${gmailUser}>`,
-        to: email,
-        subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
-        html: mailHtmlContent,
-      };
-
       try {
-        await transporter.sendMail(mailOptions);
-        console.log('Email reset password berhasil dikirim via Gmail SMTP ke:', email);
+        const transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false,
+          auth: {
+            user: gmailUser,
+            pass: gmailPass,
+          },
+          connectionTimeout: 5000,
+          greetingTimeout: 5000,
+          socketTimeout: 5000,
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
+
+        await transporter.sendMail({
+          from: `"Kaizenesia" <${gmailUser}>`,
+          to: email,
+          subject: 'Instruksi Atur Ulang Kata Sandi - Kaizenesia',
+          html: mailHtmlContent,
+        });
+
+        console.log('Email reset password berhasil dikirim via Gmail SMTP fallback ke:', email);
         return undefined;
       } catch (err: any) {
-        console.error('Gagal mengirim email reset via Gmail SMTP ke:', email, err);
-        return `Gmail SMTP: ${err.message || 'Koneksi timeout'}`;
+        console.error('Gagal mengirim email reset via Gmail SMTP fallback:', err);
+        return `Gmail SMTP: ${err.message || 'Gagal mengirim email'}`;
       }
     }
 

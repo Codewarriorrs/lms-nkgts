@@ -6,7 +6,7 @@ export class LoginDto {
     email: string;
 
     @IsString()
-    @IsNotEmpty()
-    @MinLength(8, { message: 'Kata sandi tidak boleh kurang dari 8 karakter'})
+    @IsNotEmpty({ message: 'Kata sandi wajib diisi' })
+    @MinLength(6, { message: 'Kata sandi tidak boleh kurang dari 6 karakter' })
     password: string;
 }

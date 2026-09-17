@@ -10,8 +10,8 @@ export class RegisterDto {
     email: string;
 
     @IsString()
-    @IsNotEmpty()
-    @MinLength(8, {message: 'Kata sandi minimal harus 8 karakter'})
+    @IsNotEmpty({ message: 'Kata sandi tidak boleh kosong' })
+    @MinLength(6, { message: 'Kata sandi minimal harus 6 karakter' })
     password_clear: string;
 
     @IsOptional()

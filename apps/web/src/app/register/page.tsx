@@ -76,7 +76,7 @@ function RegisterContent() {
 
   const fetchCpSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/admin/settings/email-contact`);
+      const res = await fetch(`${API_URL}/public/contact-settings`);
       const data = await res.json();
       if (res.ok) {
         setCpInfo(data);
