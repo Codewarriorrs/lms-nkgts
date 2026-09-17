@@ -60,6 +60,37 @@ interface ActiveResetUserType {
   token?: string;
 }
 
+interface StagingUserRow {
+  tempId: string;
+  nama: string;
+  email: string;
+  role: "siswa" | "guru" | "admin";
+  sekolah: string;
+  sekolah_id?: number;
+  nis?: string;
+  kelas?: string;
+  jurusan?: string;
+  no_hp?: string;
+  tanggal_lahir?: string;
+  tempat_lahir?: string;
+  tahun_pendaftaran?: number;
+  status: "valid" | "warning" | "error";
+  issues: string[];
+}
+
+interface StagingSchoolOption {
+  id: number;
+  nama_sekolah: string;
+}
+
+interface ImportPreviewData {
+  totalRows: number;
+  validCount: number;
+  issueCount: number;
+  rows: StagingUserRow[];
+  availableSchools: StagingSchoolOption[];
+}
+
 function formatTimeRemaining(dateStr: string) {
   const diffMs = new Date(dateStr).getTime() - new Date().getTime();
   if (diffMs <= 0) return "Kedaluwarsa";
@@ -166,6 +197,14 @@ export default function AdminUsersPage() {
   });
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importSekolahId, setImportSekolahId] = useState("");
+
+  // Staging & Review Wizard States
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewData, setPreviewData] = useState<ImportPreviewData | null>(null);
+  const [previewFilter, setPreviewFilter] = useState<"all" | "issues" | "valid">("all");
+  const [previewPage, setPreviewPage] = useState(1);
+  const [isConfirmingImport, setIsConfirmingImport] = useState(false);
   
   // Loading & Messages
   const [loading, setLoading] = useState(false);
@@ -593,14 +632,14 @@ export default function AdminUsersPage() {
     }
   };
 
-  // 5. Handle Excel/CSV Import
-  const handleImportSubmit = async (e: React.FormEvent) => {
+  // 5. Handle Excel/CSV Import - Dry Run Preview
+  const handleStartImportPreview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!importFile) {
       setErrorMsg("Pilih file CSV / Excel terlebih dahulu.");
       return;
     }
-    setLoading(true);
+    setIsPreviewLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
     setImportSummary(null);
@@ -613,7 +652,7 @@ export default function AdminUsersPage() {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/admin/users/import`, {
+      const res = await fetch(`${API_URL}/admin/users/import-preview`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`
@@ -621,19 +660,207 @@ export default function AdminUsersPage() {
         body: formData
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Gagal memproses import file");
+      if (!res.ok) throw new Error(data.message || "Gagal membaca atau memindai berkas import");
 
-      setSuccessMsg(data.message);
-      setImportSummary(data.data);
+      setPreviewData(data);
+      setPreviewFilter("all");
+      setPreviewPage(1);
       setIsImportModalOpen(false);
-      setImportFile(null);
-      fetchPendingInvitations();
+      setIsReviewModalOpen(true);
     } catch (err: any) {
       setErrorMsg(err.message);
     } finally {
-      setLoading(false);
+      setIsPreviewLoading(false);
     }
   };
+
+  // 5b. Update Single Row Field in Staging Data & Recompute Status
+  const handleUpdateRowFields = (tempId: string, updates: Partial<StagingUserRow>) => {
+    if (!previewData) return;
+
+    const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const academicTitlesRegex = /(\b|,|\s)(s\.?pd|m\.?pd|s\.?t|m\.?t|s\.?kom|dr\.|drs\.)/i;
+
+    const updatedRows = previewData.rows.map(row => {
+      if (row.tempId !== tempId) return row;
+
+      const updatedRow = { ...row, ...updates };
+      const issues: string[] = [];
+      let hasError = false;
+
+      // 1. Validasi Email
+      const emailStr = (updatedRow.email || '').trim();
+      if (!emailStr) {
+        issues.push('Email wajib diisi');
+        hasError = true;
+      } else if (!EMAIL_REGEX.test(emailStr)) {
+        issues.push('Format email tidak valid');
+        hasError = true;
+      } else {
+        const duplicateInFile = previewData.rows.some(
+          r => r.tempId !== tempId && (r.email || '').trim().toLowerCase() === emailStr.toLowerCase()
+        );
+        if (duplicateInFile) {
+          issues.push('Email terduplikasi di dalam berkas ini');
+          hasError = true;
+        }
+        const originalDbIssue = row.issues.find(iss => iss.includes('terdaftar aktif') || iss.includes('undangan aktivasi'));
+        if (originalDbIssue && row.email.trim().toLowerCase() === emailStr.toLowerCase()) {
+          issues.push(originalDbIssue);
+          hasError = true;
+        }
+      }
+
+      // 2. Validasi Nama
+      const namaStr = (updatedRow.nama || '').trim();
+      if (!namaStr) {
+        issues.push('Nama lengkap wajib diisi');
+        hasError = true;
+      } else if (namaStr.length < 2) {
+        issues.push('Nama minimal 2 karakter');
+        hasError = true;
+      }
+
+      // 3. Validasi Sekolah
+      if (!updatedRow.sekolah_id && !updatedRow.sekolah) {
+        issues.push('Asal sekolah belum dipilih');
+        hasError = true;
+      }
+
+      // 4. Deteksi Gelar Akademik vs Role Siswa
+      const hasAcademicTitle = academicTitlesRegex.test(namaStr);
+      if (hasAcademicTitle && updatedRow.role === 'siswa') {
+        issues.push('Terindikasi guru/kaprodi/bergelar akademik tetapi peran dipilih sebagai siswa');
+      }
+
+      const status: 'valid' | 'warning' | 'error' = hasError ? 'error' : issues.length > 0 ? 'warning' : 'valid';
+
+      return {
+        ...updatedRow,
+        status,
+        issues,
+      };
+    });
+
+    const validCount = updatedRows.filter(r => r.status === 'valid').length;
+    const issueCount = updatedRows.filter(r => r.status !== 'valid').length;
+
+    setPreviewData({
+      ...previewData,
+      rows: updatedRows,
+      validCount,
+      issueCount,
+    });
+  };
+
+  // 5c. Hapus Satu Baris dari Staging Data
+  const handleDeleteRow = (tempId: string) => {
+    if (!previewData) return;
+    const updatedRows = previewData.rows.filter(r => r.tempId !== tempId);
+    const validCount = updatedRows.filter(r => r.status === 'valid').length;
+    const issueCount = updatedRows.filter(r => r.status !== 'valid').length;
+    setPreviewData({
+      ...previewData,
+      rows: updatedRows,
+      validCount,
+      issueCount,
+    });
+  };
+
+  // 5d. Hapus Semua Baris Error Sekaligus
+  const handleDeleteAllErrors = () => {
+    if (!previewData) return;
+    const updatedRows = previewData.rows.filter(r => r.status !== 'error');
+    const validCount = updatedRows.filter(r => r.status === 'valid').length;
+    const issueCount = updatedRows.filter(r => r.status !== 'valid').length;
+    setPreviewData({
+      ...previewData,
+      rows: updatedRows,
+      validCount,
+      issueCount,
+    });
+    setPreviewPage(1);
+  };
+
+  // 5e. Konfirmasi & Eksekusi Batch Import ke Database
+  const handleConfirmImport = async () => {
+    if (!previewData) return;
+
+    const rowsToImport = previewData.rows.filter(r => r.status !== 'error');
+    if (rowsToImport.length === 0) {
+      setErrorMsg("Tidak ada baris data valid yang dapat diimpor.");
+      return;
+    }
+
+    setIsConfirmingImport(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const token = localStorage.getItem("token");
+      const payload = {
+        users: rowsToImport.map(r => ({
+          tempId: r.tempId,
+          nama: r.nama,
+          email: r.email,
+          role: r.role,
+          sekolah_id: r.sekolah_id,
+          sekolah: r.sekolah,
+          nis: r.nis || undefined,
+          kelas: r.kelas || undefined,
+          jurusan: r.jurusan || undefined,
+          no_hp: r.no_hp || undefined,
+          tanggal_lahir: r.tanggal_lahir || undefined,
+          tempat_lahir: r.tempat_lahir || undefined,
+          tahun_pendaftaran: r.tahun_pendaftaran || undefined,
+        }))
+      };
+
+      const res = await fetch(`${API_URL}/admin/users/import-confirm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Gagal memproses import data pengguna");
+
+      setSuccessMsg(data.message);
+      setImportSummary(data.data);
+      setIsReviewModalOpen(false);
+      setPreviewData(null);
+      setImportFile(null);
+      fetchPendingInvitations();
+      fetchActiveUsers();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setIsConfirmingImport(false);
+    }
+  };
+
+  // 5f. Filter & Pagination Staging Rows
+  const getFilteredPreviewRows = () => {
+    if (!previewData) return [];
+    if (previewFilter === 'issues') {
+      return previewData.rows.filter(r => r.status !== 'valid');
+    }
+    if (previewFilter === 'valid') {
+      return previewData.rows.filter(r => r.status === 'valid');
+    }
+    return previewData.rows;
+  };
+
+  const filteredPreviewRows = getFilteredPreviewRows();
+  const PREVIEW_PAGE_SIZE = 10;
+  const totalPreviewPages = Math.ceil(filteredPreviewRows.length / PREVIEW_PAGE_SIZE) || 1;
+  const paginatedPreviewRows = filteredPreviewRows.slice(
+    (previewPage - 1) * PREVIEW_PAGE_SIZE,
+    previewPage * PREVIEW_PAGE_SIZE
+  );
 
   // 6. Resend Invitation
   const handleResendInvite = async (id: number, email: string) => {
@@ -2101,7 +2328,7 @@ export default function AdminUsersPage() {
               </button>
             </div>
             
-            <form onSubmit={handleImportSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleStartImportPreview} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Sekolah Tujuan (Opsional / Fallback)</label>
                 <select
@@ -2196,13 +2423,558 @@ export default function AdminUsersPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !importFile}
+                  disabled={isPreviewLoading || !importFile}
                   className="flex items-center gap-2 px-5 py-2 bg-primary hover:bg-primary-light text-white rounded-xl text-sm font-semibold shadow-md shadow-primary/10 transition cursor-pointer disabled:opacity-50"
                 >
-                  {loading ? "Mengimpor..." : "Mulai Import"}
+                  {isPreviewLoading ? (
+                    <>
+                      <RefreshCw size={15} className="animate-spin" />
+                      Memindai Data...
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet size={15} />
+                      Pratinjau Data (Dry-Run)
+                    </>
+                  )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL REVIEW WIZARD (DATA STAGING DRY-RUN) ================= */}
+      {isReviewModalOpen && previewData && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-6xl w-full shadow-2xl overflow-hidden border border-neutral-200 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 flex-shrink-0 bg-neutral-50/50">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                    <FileSpreadsheet size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-neutral-900">
+                      Peninjauan & Staging Data Impor Pengguna
+                    </h2>
+                    <p className="text-xs text-neutral-500">
+                      Tinjau dan koreksi data sebelum disimpan ke database dan dikirimkan undangan email.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => setIsReviewModalOpen(false)}
+                  className="p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-xl transition cursor-pointer"
+                  title="Tutup Modal"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Metric Chips & Quick Filter Tabs Bar */}
+            <div className="px-5 py-3.5 bg-white border-b border-neutral-100 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+              {/* Metric Chips */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-700 border border-neutral-200">
+                  <span>Total Terbaca:</span>
+                  <strong className="text-neutral-900">{previewData.rows.length}</strong>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 size={13} className="text-emerald-600" />
+                  <span>Siap Diimpor:</span>
+                  <strong className="text-emerald-800">{previewData.validCount}</strong>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                  <AlertCircle size={13} className="text-amber-600" />
+                  <span>Perlu Ditinjau:</span>
+                  <strong className="text-amber-900">{previewData.issueCount}</strong>
+                </div>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-xl text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewFilter("all");
+                    setPreviewPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                    previewFilter === "all"
+                      ? "bg-white text-blue-600 shadow-xs font-bold"
+                      : "text-neutral-600 hover:text-neutral-900"
+                  }`}
+                >
+                  Semua ({previewData.rows.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewFilter("issues");
+                    setPreviewPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                    previewFilter === "issues"
+                      ? "bg-amber-600 text-white shadow-xs font-bold"
+                      : "text-neutral-600 hover:text-neutral-900"
+                  }`}
+                >
+                  <AlertCircle size={12} />
+                  Bermasalah ({previewData.issueCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewFilter("valid");
+                    setPreviewPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                    previewFilter === "valid"
+                      ? "bg-emerald-600 text-white shadow-xs font-bold"
+                      : "text-neutral-600 hover:text-neutral-900"
+                  }`}
+                >
+                  <CheckCircle2 size={12} />
+                  Siap Impor ({previewData.validCount})
+                </button>
+              </div>
+            </div>
+
+            {/* Body Content Area */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-neutral-50/50">
+              {filteredPreviewRows.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-2xl border border-neutral-100 p-6">
+                  <CheckCircle2 size={40} className="mx-auto text-emerald-500 mb-2" />
+                  <h3 className="text-sm font-bold text-neutral-800">Tidak ada baris data pada filter ini</h3>
+                  <p className="text-xs text-neutral-400 mt-1">
+                    {previewFilter === "issues" 
+                      ? "Semua data sudah siap diimpor tanpa kendala!" 
+                      : "Silakan pilih tab filter lainnya."}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* DESKTOP TABLE VIEW */}
+                  <div className="hidden md:block overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-xs">
+                    <table className="w-full text-left border-collapse min-w-[950px]">
+                      <thead className="bg-neutral-50 border-b border-neutral-200 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">
+                        <tr>
+                          <th className="py-3 px-3 w-12 text-center">Status</th>
+                          <th className="py-3 px-3 w-48">Nama Lengkap</th>
+                          <th className="py-3 px-3 w-52">Email</th>
+                          <th className="py-3 px-3 w-28">Peran</th>
+                          <th className="py-3 px-3 w-48">Asal Sekolah</th>
+                          <th className="py-3 px-3 w-36">NIS & Kelas</th>
+                          <th className="py-3 px-3">Catatan / Validasi</th>
+                          <th className="py-3 px-3 w-12 text-center">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100 text-xs">
+                        {paginatedPreviewRows.map((row) => (
+                          <tr key={row.tempId} className={`hover:bg-neutral-50/80 transition ${row.status === 'error' ? 'bg-rose-50/30' : row.status === 'warning' ? 'bg-amber-50/20' : ''}`}>
+                            {/* Status Icon */}
+                            <td className="py-3 px-3 text-center align-top">
+                              {row.status === "error" && (
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-100 text-rose-700 font-bold" title="Memiliki kendala fatal">
+                                  <AlertCircle size={15} />
+                                </span>
+                              )}
+                              {row.status === "warning" && (
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 text-amber-700 font-bold" title="Perlu ditinjau">
+                                  <AlertCircle size={15} />
+                                </span>
+                              )}
+                              {row.status === "valid" && (
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 font-bold" title="Valid">
+                                  <CheckCircle2 size={15} />
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Nama */}
+                            <td className="py-3 px-3 align-top">
+                              <input
+                                type="text"
+                                value={row.nama}
+                                onChange={(e) => handleUpdateRowFields(row.tempId, { nama: e.target.value })}
+                                className="w-full px-2.5 py-1.5 border border-neutral-200 rounded-lg text-xs font-semibold text-neutral-800 focus:outline-none focus:border-blue-500 bg-white"
+                                placeholder="Nama Lengkap"
+                              />
+                              {row.jurusan && (
+                                <span className="text-[10px] text-neutral-400 block mt-1 truncate max-w-[180px]">
+                                  Jurusan: {row.jurusan}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Email */}
+                            <td className="py-3 px-3 align-top">
+                              <input
+                                type="email"
+                                value={row.email}
+                                onChange={(e) => handleUpdateRowFields(row.tempId, { email: e.target.value })}
+                                className="w-full px-2.5 py-1.5 border border-neutral-200 rounded-lg text-xs text-neutral-800 focus:outline-none focus:border-blue-500 bg-white"
+                                placeholder="nama@email.com"
+                              />
+                            </td>
+
+                            {/* Role */}
+                            <td className="py-3 px-3 align-top">
+                              <select
+                                value={row.role}
+                                onChange={(e) => handleUpdateRowFields(row.tempId, { role: e.target.value as any })}
+                                className="w-full px-2 py-1.5 border border-neutral-200 rounded-lg text-xs font-semibold bg-white focus:outline-none focus:border-blue-500 text-neutral-700 cursor-pointer"
+                              >
+                                <option value="siswa">Siswa</option>
+                                <option value="guru">Guru</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                            </td>
+
+                            {/* Sekolah */}
+                            <td className="py-3 px-3 align-top">
+                              <select
+                                value={row.sekolah_id || ""}
+                                onChange={(e) => {
+                                  const selId = Number(e.target.value);
+                                  const matched = previewData.availableSchools.find(s => s.id === selId);
+                                  if (matched) {
+                                    handleUpdateRowFields(row.tempId, { sekolah_id: matched.id, sekolah: matched.nama_sekolah });
+                                  } else {
+                                    handleUpdateRowFields(row.tempId, { sekolah_id: undefined });
+                                  }
+                                }}
+                                className="w-full px-2 py-1.5 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none focus:border-blue-500 text-neutral-700 cursor-pointer"
+                              >
+                                <option value="">-- Pilih Sekolah --</option>
+                                {previewData.availableSchools.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.nama_sekolah}
+                                  </option>
+                                ))}
+                              </select>
+                              {row.sekolah && !row.sekolah_id && (
+                                <span className="text-[10px] text-neutral-400 block mt-1 truncate">
+                                  Teks: {row.sekolah}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* NIS & Kelas */}
+                            <td className="py-3 px-3 align-top space-y-1">
+                              <input
+                                type="text"
+                                value={row.nis || ""}
+                                onChange={(e) => handleUpdateRowFields(row.tempId, { nis: e.target.value })}
+                                className="w-full px-2 py-1 border border-neutral-200 rounded-md text-[11px] text-neutral-700 focus:outline-none focus:border-blue-500 bg-white"
+                                placeholder="NIS (opsional)"
+                              />
+                              <input
+                                type="text"
+                                value={row.kelas || ""}
+                                onChange={(e) => handleUpdateRowFields(row.tempId, { kelas: e.target.value })}
+                                className="w-full px-2 py-1 border border-neutral-200 rounded-md text-[11px] text-neutral-700 focus:outline-none focus:border-blue-500 bg-white"
+                                placeholder="Kelas (opsional)"
+                              />
+                            </td>
+
+                            {/* Catatan / Issues */}
+                            <td className="py-3 px-3 align-top">
+                              {row.issues && row.issues.length > 0 ? (
+                                <div className="space-y-1">
+                                  {row.issues.map((iss, i) => (
+                                    <div
+                                      key={i}
+                                      className={`text-[11px] leading-tight px-2 py-1 rounded-md flex items-start gap-1.5 ${
+                                        row.status === "error"
+                                          ? "bg-rose-50 text-rose-700 border border-rose-200/60"
+                                          : "bg-amber-50 text-amber-800 border border-amber-200/60"
+                                      }`}
+                                    >
+                                      <span className="font-bold">•</span>
+                                      <span>{iss}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                                  <CheckCircle2 size={12} /> Siap Diimpor
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Aksi Hapus Baris */}
+                            <td className="py-3 px-3 text-center align-top">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRow(row.tempId)}
+                                className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                title="Buang baris ini dari antrean impor"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* MOBILE & TABLET CARD LIST VIEW */}
+                  <div className="block md:hidden space-y-3">
+                    {paginatedPreviewRows.map((row) => (
+                      <div
+                        key={row.tempId}
+                        className={`bg-white rounded-xl border p-4 shadow-xs space-y-3 transition ${
+                          row.status === "error"
+                            ? "border-rose-200 bg-rose-50/15"
+                            : row.status === "warning"
+                            ? "border-amber-200 bg-amber-50/15"
+                            : "border-neutral-200"
+                        }`}
+                      >
+                        {/* Header Kartu */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={row.nama}
+                              onChange={(e) => handleUpdateRowFields(row.tempId, { nama: e.target.value })}
+                              className="w-full text-sm font-bold text-neutral-900 border-b border-transparent focus:border-blue-500 pb-0.5 bg-transparent"
+                              placeholder="Nama Lengkap"
+                            />
+                            <input
+                              type="email"
+                              value={row.email}
+                              onChange={(e) => handleUpdateRowFields(row.tempId, { email: e.target.value })}
+                              className="w-full text-xs text-neutral-500 border-b border-transparent focus:border-blue-500 mt-1 bg-transparent"
+                              placeholder="Email aktif"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {row.status === "error" && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">
+                                Eror
+                              </span>
+                            )}
+                            {row.status === "warning" && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                                Periksa
+                              </span>
+                            )}
+                            {row.status === "valid" && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                                Siap
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRow(row.tempId)}
+                              className="p-1 text-neutral-400 hover:text-rose-600 rounded-lg"
+                              title="Hapus baris"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Kotak Isu Kendala */}
+                        {row.issues && row.issues.length > 0 && (
+                          <div
+                            className={`p-2.5 rounded-lg text-xs space-y-1 ${
+                              row.status === "error"
+                                ? "bg-rose-50 text-rose-800 border border-rose-200"
+                                : "bg-amber-50 text-amber-800 border border-amber-200"
+                            }`}
+                          >
+                            {row.issues.map((iss, i) => (
+                              <div key={i} className="flex items-start gap-1.5 text-[11px]">
+                                <span className="font-bold">•</span>
+                                <span>{iss}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Thumb-friendly Role Segment */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                            Peran Pengguna
+                          </label>
+                          <div className="grid grid-cols-3 gap-1.5 bg-neutral-100 p-1 rounded-xl">
+                            {(["siswa", "guru", "admin"] as const).map((r) => (
+                              <button
+                                key={r}
+                                type="button"
+                                onClick={() => handleUpdateRowFields(row.tempId, { role: r })}
+                                className={`py-1.5 text-xs font-bold rounded-lg transition capitalize cursor-pointer ${
+                                  row.role === r
+                                    ? "bg-white text-blue-600 shadow-xs"
+                                    : "text-neutral-500 hover:text-neutral-800"
+                                }`}
+                              >
+                                {r}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Dropdown Sekolah */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                            Asal Sekolah
+                          </label>
+                          <select
+                            value={row.sekolah_id || ""}
+                            onChange={(e) => {
+                              const selId = Number(e.target.value);
+                              const matched = previewData.availableSchools.find(s => s.id === selId);
+                              if (matched) {
+                                handleUpdateRowFields(row.tempId, { sekolah_id: matched.id, sekolah: matched.nama_sekolah });
+                              } else {
+                                handleUpdateRowFields(row.tempId, { sekolah_id: undefined });
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white font-medium text-neutral-700"
+                          >
+                            <option value="">-- Pilih Sekolah --</option>
+                            {previewData.availableSchools.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.nama_sekolah}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Grid NIS & Kelas */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                              NIS
+                            </label>
+                            <input
+                              type="text"
+                              value={row.nis || ""}
+                              onChange={(e) => handleUpdateRowFields(row.tempId, { nis: e.target.value })}
+                              className="w-full px-2.5 py-1.5 border border-neutral-200 rounded-lg text-xs bg-white text-neutral-700"
+                              placeholder="Nomor Induk"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                              Kelas
+                            </label>
+                            <input
+                              type="text"
+                              value={row.kelas || ""}
+                              onChange={(e) => handleUpdateRowFields(row.tempId, { kelas: e.target.value })}
+                              className="w-full px-2.5 py-1.5 border border-neutral-200 rounded-lg text-xs bg-white text-neutral-700"
+                              placeholder="Tingkat / Kelas"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Pagination Bar */}
+            {filteredPreviewRows.length > 0 && (
+              <div className="px-5 py-3 bg-white border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500 flex-shrink-0">
+                <span>
+                  Menampilkan{" "}
+                  <strong>
+                    {(previewPage - 1) * PREVIEW_PAGE_SIZE + 1} -{" "}
+                    {Math.min(previewPage * PREVIEW_PAGE_SIZE, filteredPreviewRows.length)}
+                  </strong>{" "}
+                  dari <strong>{filteredPreviewRows.length}</strong> baris
+                </span>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={previewPage <= 1}
+                    onClick={() => setPreviewPage((p) => Math.max(1, p - 1))}
+                    className="p-1.5 rounded-lg border border-neutral-200 disabled:opacity-40 hover:bg-neutral-50 transition cursor-pointer"
+                    title="Halaman Sebelumnya"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="px-2 font-medium">
+                    Halaman {previewPage} / {totalPreviewPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={previewPage >= totalPreviewPages}
+                    onClick={() => setPreviewPage((p) => Math.min(totalPreviewPages, p + 1))}
+                    className="p-1.5 rounded-lg border border-neutral-200 disabled:opacity-40 hover:bg-neutral-50 transition cursor-pointer"
+                    title="Halaman Berikutnya"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer & Action Bar */}
+            <div className="p-4 sm:p-5 border-t border-neutral-100 bg-neutral-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
+              <div>
+                {previewData.rows.some((r) => r.status === "error") && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteAllErrors}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    <Trash2 size={14} />
+                    Hapus Baris Eror ({previewData.rows.filter((r) => r.status === "error").length})
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsReviewModalOpen(false)}
+                  disabled={isConfirmingImport}
+                  className="px-4 py-2 border border-neutral-200 rounded-xl text-sm font-semibold text-neutral-700 hover:bg-white cursor-pointer transition disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmImport}
+                  disabled={
+                    isConfirmingImport ||
+                    previewData.rows.filter((r) => r.status !== "error").length === 0
+                  }
+                  className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-blue-500/20 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isConfirmingImport ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      Mengimpor Data...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={15} />
+                      Konfirmasi & Impor {previewData.rows.filter((r) => r.status !== "error").length} Pengguna
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

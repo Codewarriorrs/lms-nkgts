@@ -4,6 +4,7 @@ import { InviteUserDto } from './dto/invite-user.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { ActivateAccountDto } from './dto/activate-account.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { ImportUserRowDto } from './dto/import-user.dto';
 import { RoleEnum } from '../../generated/prisma';
 import { AuthService } from '../auth/auth.service';
 import * as crypto from 'crypto';
@@ -20,6 +21,7 @@ import {
   normalizeSchoolName,
   CANONICAL_NKGTS,
   isNKGTS,
+  ACADEMIC_TITLES_REGEX,
 } from '../school.utils';
 
 @Injectable()
@@ -614,6 +616,476 @@ export class InvitationService {
 
     return {
       message: `Proses import selesai. Berhasil: ${summary.success}, Gagal: ${summary.failed}`,
+      data: summary,
+    };
+  }
+
+  // 4b. Pratinjau / Dry-Run Import Pengguna Massal via File (Excel / CSV)
+  async previewImportUsers(file: Express.Multer.File, sekolahId?: number) {
+    if (!file) {
+      throw new BadRequestException('File tidak ditemukan');
+    }
+
+    let records: any[] = [];
+
+    try {
+      if (file.originalname.endsWith('.xlsx') || file.originalname.endsWith('.xls')) {
+        const workbook = XLSX.read(file.buffer, { type: 'buffer', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        records = XLSX.utils.sheet_to_json(worksheet);
+      } else if (file.originalname.endsWith('.csv')) {
+        const csvContent = file.buffer.toString('utf-8');
+        records = parse(csvContent, { columns: true, skip_empty_lines: true, trim: true });
+      } else {
+        throw new BadRequestException('Format file tidak didukung. Unggah file .xlsx atau .csv');
+      }
+    } catch (err: any) {
+      throw new BadRequestException(`Gagal membaca file: ${err.message}`);
+    }
+
+    if (!records || records.length === 0) {
+      throw new BadRequestException('Berkas kosong atau tidak memuat data yang dapat dibaca.');
+    }
+
+    // Ambil data daftar sekolah di database untuk pencocokan otomatis (hanya yang valid)
+    const allSekolah = (await this.prisma.sekolah.findMany({
+      orderBy: { nama_sekolah: 'asc' },
+    })).filter(s => !isInvalidSchoolName(s.nama_sekolah) && !isLikelyPersonOrCoordinator(s.nama_sekolah));
+
+    // Pastikan N-KGTS Pusat tersedia
+    let nkgts = allSekolah.find(s => isNKGTS(s.nama_sekolah));
+    if (!nkgts) {
+      nkgts = await this.prisma.sekolah.upsert({
+        where: { nama_sekolah: CANONICAL_NKGTS },
+        update: {},
+        create: { nama_sekolah: CANONICAL_NKGTS },
+      });
+      allSekolah.push(nkgts);
+    }
+
+    const availableSchools = allSekolah.map(s => ({
+      id: s.id,
+      nama_sekolah: s.nama_sekolah,
+    }));
+
+    // Kumpulkan seluruh email untuk deteksi duplikasi internal berkas & query batch ke database
+    const emailOccurrences = new Map<string, number>();
+    const validEmailsForDbCheck: string[] = [];
+
+    const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const guruKeywordRegex = /guru|bk|konseling|kaprodi|pengajar|kepala|wakasek|koordinator|pembimbing|instruktur|praktisi|notulen|fasilitator|leader/i;
+
+    // First pass: kumpulkan email & hitung frekuensi
+    for (const row of records) {
+      if (!row || typeof row !== 'object') continue;
+      const keyMap = new Map<string, any>();
+      for (const [k, v] of Object.entries(row)) {
+        if (v !== undefined && v !== null && String(v).trim() !== '') {
+          const cleanK = String(k).trim().toLowerCase().replace(/[\s\-_/]+/g, '');
+          keyMap.set(cleanK, v);
+        }
+      }
+
+      let emailRaw = '';
+      for (const cand of ['emailaktif', 'email', 'emailaddress', 'e-mail', 'mail', 'alamatemail']) {
+        const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
+        if (keyMap.has(cleanCand)) {
+          emailRaw = String(keyMap.get(cleanCand));
+          break;
+        }
+      }
+      if (!emailRaw) {
+        for (const [k, v] of keyMap.entries()) {
+          if (k.includes('email') || k.includes('mail')) {
+            emailRaw = String(v);
+            break;
+          }
+        }
+      }
+
+      const cleanEmail = emailRaw ? emailRaw.trim().toLowerCase() : '';
+      if (cleanEmail) {
+        emailOccurrences.set(cleanEmail, (emailOccurrences.get(cleanEmail) || 0) + 1);
+        validEmailsForDbCheck.push(cleanEmail);
+      }
+    }
+
+    // Query batch database untuk duplikasi User aktif & InvitationToken aktif
+    const existingUsers = await this.prisma.user.findMany({
+      where: { email: { in: validEmailsForDbCheck, mode: 'insensitive' } },
+      select: { email: true },
+    });
+    const existingUserEmailSet = new Set(existingUsers.map(u => u.email.toLowerCase()));
+
+    const activeInvites = await this.prisma.invitationToken.findMany({
+      where: {
+        email: { in: validEmailsForDbCheck, mode: 'insensitive' },
+        is_used: false,
+        expires_at: { gt: new Date() },
+      },
+      select: { email: true },
+    });
+    const activeInviteEmailSet = new Set(activeInvites.map(i => i.email.toLowerCase()));
+
+    // Second pass: analisis detail tiap baris
+    const previewRows: any[] = [];
+
+    for (const [index, row] of records.entries()) {
+      if (!row || typeof row !== 'object') continue;
+
+      const keyMap = new Map<string, any>();
+      for (const [k, v] of Object.entries(row)) {
+        if (v !== undefined && v !== null && String(v).trim() !== '') {
+          const cleanK = String(k).trim().toLowerCase().replace(/[\s\-_/]+/g, '');
+          keyMap.set(cleanK, v);
+        }
+      }
+
+      const getVal = (candidates: string[], excludeKeywords: string[] = []): any => {
+        for (const cand of candidates) {
+          const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
+          if (keyMap.has(cleanCand)) return keyMap.get(cleanCand);
+        }
+        for (const cand of candidates) {
+          const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
+          for (const [k, v] of keyMap.entries()) {
+            const isExcluded = excludeKeywords.some(ex => k.includes(ex.toLowerCase()));
+            if (!isExcluded && k.includes(cleanCand)) return v;
+          }
+        }
+        for (const cand of candidates) {
+          const cleanCand = cand.toLowerCase().replace(/[\s\-_/]+/g, '');
+          for (const [k, v] of keyMap.entries()) {
+            const isExcluded = excludeKeywords.some(ex => k.includes(ex.toLowerCase()));
+            if (!isExcluded && (k.startsWith(cleanCand) || k.endsWith(cleanCand))) return v;
+          }
+        }
+        return '';
+      };
+
+      // 1. Email
+      const emailRaw = getVal(['emailaktif', 'email', 'emailaddress', 'e-mail', 'mail', 'alamatemail']);
+      const emailStr = emailRaw ? String(emailRaw).trim() : '';
+      const emailLower = emailStr.toLowerCase();
+
+      // 2. Nama
+      let namaRaw = getVal(
+        ['namapraktisi', 'namaguru', 'namalengkap', 'nama', 'namasiswa', 'name', 'namasiswa/i', 'namapeserta', 'namamurid', 'praktisi'],
+        ['jurusan', 'sga', 'sekolah', 'email', 'kelas', 'kelamin', 'lahir', 'whatsapp', 'phone', 'sgajurusan']
+      );
+      let namaStr = namaRaw ? String(namaRaw).trim() : '';
+      if (!namaStr) {
+        const col1 = getVal(['column1', 'col1', 'kolom1']);
+        if (col1 && isNaN(Number(col1))) {
+          namaStr = String(col1).trim();
+        }
+      }
+
+      // 3. Role
+      let roleRaw = getVal(['role', 'peran', 'jabatan', 'posisi', 'status', 'profesi', 'jabatandisekolah', 'jabatandisga']);
+      if (!roleRaw) {
+        for (const [k, v] of keyMap.entries()) {
+          if (k.includes('jabatan') || k.includes('posisi') || k.includes('peran') || k.includes('role')) {
+            if (v && String(v).trim() !== '') {
+              roleRaw = v;
+              break;
+            }
+          }
+        }
+      }
+
+      // 4. Sekolah
+      const sekolahRaw = getVal(
+        ['asalsekolah', 'sekolah', 'namasekolah', 'instansi', 'school'],
+        ['koordinator', 'nama', 'praktisi', 'jabatan', 'pic', 'guru', 'pendamping', 'kontak', 'person', 'cp']
+      );
+
+      // 5. NIS
+      let nisRaw = getVal(['nis', 'nisn', 'nomorinduk', 'nomorinduksiswa', 'noinduk']);
+      let nis = nisRaw ? String(nisRaw).trim() : '';
+      if (!nis) {
+        const col1 = getVal(['column1', 'col1', 'kolom1']);
+        if (col1 && !isNaN(Number(col1))) {
+          nis = String(col1).trim();
+        }
+      }
+
+      // 6. Kelas
+      const kelasRaw = getVal(['kelassaatmendaftar', 'kelas', 'class', 'tingkat']);
+      const kelas = kelasRaw ? String(kelasRaw).trim() : '';
+
+      // 7. Jurusan
+      const jurusanRaw = getVal(['namasgajurusan', 'namasga', 'namajurusan', 'jurusan', 'sga', 'prodi', 'programkeahlian', 'kompetensikeahlian']);
+      const jurusan = jurusanRaw ? String(jurusanRaw).trim() : '';
+
+      // 8. No HP
+      const noHpRaw = getVal(['nohp', 'nowa', 'whatsapp', 'nomorhp', 'nomorwhatsapp', 'telepon', 'phone', 'no_hp', 'no_wa', 'hp', 'wa', 'notlp', 'notelp', 'telp', 'tlp']);
+      const noHp = noHpRaw ? String(noHpRaw).trim() : '';
+
+      // 9. Tanggal Lahir & Tempat Lahir
+      const tglLahirRaw = getVal(['tanggallahir', 'tgllahir', 'birthdate', 'dob', 'tgl_lahir', 'tanggal_lahir', 'tgl_lh', 'tgl_lahir_siswa']);
+      const parsedTglLahir = this.parseExcelDate(tglLahirRaw);
+
+      const tempatLahirRaw = getVal(['tempatlahir', 'birthplace', 'tempat_lahir', 'tmpt_lahir', 'kota_lahir']);
+      const tempatLahir = tempatLahirRaw ? String(tempatLahirRaw).trim() : '';
+
+      // 10. Tahun Angkatan
+      const tahunRaw = getVal(['tahunpendaftaran', 'tahunangkatan', 'tahunlulus', 'angkatan', 'tahun_angkatan', 'tahun_pendaftaran']);
+      let tahunAngkatan = tahunRaw && !isNaN(Number(tahunRaw)) ? parseInt(String(tahunRaw).trim(), 10) : undefined;
+      if (!tahunAngkatan) {
+        tahunAngkatan = this.calculateGraduationYear(kelas);
+      }
+
+      // Deteksi Role
+      const hasPraktisiCol = Array.from(keyMap.keys()).some(
+        k => k.includes('praktisi') || k === 'namapraktisi' || k === 'namaguru'
+      );
+      const jabatanValues: string[] = [];
+      if (roleRaw) jabatanValues.push(String(roleRaw));
+      for (const [k, v] of keyMap.entries()) {
+        if (k.includes('jabatan') || k.includes('posisi') || k.includes('peran') || k.includes('profesi') || k.includes('role')) {
+          if (v && String(v).trim() !== '') {
+            jabatanValues.push(String(v));
+          }
+        }
+      }
+      const combinedJabatanText = jabatanValues.join(' ');
+
+      let role: RoleEnum = RoleEnum.siswa;
+      if (/admin/i.test(String(roleRaw || '')) && !guruKeywordRegex.test(String(roleRaw || ''))) {
+        role = RoleEnum.admin;
+      } else if (hasPraktisiCol || guruKeywordRegex.test(combinedJabatanText)) {
+        role = RoleEnum.guru;
+      } else if (roleRaw) {
+        const rLower = String(roleRaw).trim().toLowerCase();
+        if (rLower === 'admin') role = RoleEnum.admin;
+        else if (rLower === 'guru' || guruKeywordRegex.test(rLower)) role = RoleEnum.guru;
+        else role = RoleEnum.siswa;
+      }
+
+      // Deteksi Asal Sekolah
+      let targetSekolahId: number | undefined = sekolahId && !isNaN(sekolahId) && sekolahId > 0 ? sekolahId : undefined;
+      const sekolahStr = sekolahRaw ? String(sekolahRaw).trim() : '';
+      let targetSekolahNama = '';
+      const isSekolahInvalid = isInvalidSchoolName(sekolahStr) || isLikelyPersonOrCoordinator(sekolahStr);
+
+      if (sekolahStr && !isSekolahInvalid) {
+        if (isNKGTS(sekolahStr)) {
+          targetSekolahId = nkgts.id;
+          targetSekolahNama = CANONICAL_NKGTS;
+        } else {
+          const inputKey = getCanonicalSchoolKey(sekolahStr);
+          const matched = allSekolah.find(s => {
+            if (isInvalidSchoolName(s.nama_sekolah)) return false;
+            return getCanonicalSchoolKey(s.nama_sekolah) === inputKey;
+          });
+          if (matched) {
+            targetSekolahId = matched.id;
+            targetSekolahNama = matched.nama_sekolah;
+          } else if (isValidInstitutionName(sekolahStr) && !isLikelyPersonOrCoordinator(sekolahStr)) {
+            targetSekolahNama = normalizeSchoolName(sekolahStr);
+          }
+        }
+      }
+
+      if (!targetSekolahId && !targetSekolahNama) {
+        if (sekolahId && !isNaN(sekolahId) && sekolahId > 0) {
+          const matchedFallback = allSekolah.find(s => s.id === sekolahId);
+          if (matchedFallback) {
+            targetSekolahId = matchedFallback.id;
+            targetSekolahNama = matchedFallback.nama_sekolah;
+          }
+        } else {
+          targetSekolahId = nkgts.id;
+          targetSekolahNama = CANONICAL_NKGTS;
+        }
+      }
+
+      // VALIDASI & DETEKSI ISU
+      const issues: string[] = [];
+      let hasError = false;
+
+      // 1. Validasi Email
+      if (!emailStr) {
+        issues.push('Email wajib diisi');
+        hasError = true;
+      } else if (!EMAIL_REGEX.test(emailStr)) {
+        issues.push('Format email tidak valid');
+        hasError = true;
+      }
+
+      // 2. Duplikasi dalam file
+      if (emailLower && (emailOccurrences.get(emailLower) || 0) > 1) {
+        issues.push('Email terduplikasi di dalam berkas ini');
+        hasError = true;
+      }
+
+      // 3. Duplikasi di database
+      if (emailLower && existingUserEmailSet.has(emailLower)) {
+        issues.push('Email sudah terdaftar aktif sebagai pengguna di sistem');
+        hasError = true;
+      } else if (emailLower && activeInviteEmailSet.has(emailLower)) {
+        issues.push('Email masih memiliki undangan aktivasi yang aktif di sistem');
+        hasError = true;
+      }
+
+      // 4. Validasi Nama
+      if (!namaStr) {
+        issues.push('Nama lengkap wajib diisi');
+        hasError = true;
+      } else if (namaStr.length < 2) {
+        issues.push('Nama minimal 2 karakter');
+        hasError = true;
+      }
+
+      // 5. Anomali Asal Sekolah
+      if (sekolahStr && isSekolahInvalid) {
+        issues.push(`Nama sekolah ("${sekolahStr}") terindikasi nama koordinator / perorangan. Dialihkan ke "${targetSekolahNama || CANONICAL_NKGTS}"`);
+      } else if (sekolahStr && !targetSekolahId && targetSekolahNama) {
+        issues.push(`Institusi "${targetSekolahNama}" belum terdaftar di database (akan dibuat otomatis)`);
+      } else if (!sekolahStr && !sekolahId) {
+        issues.push(`Asal sekolah kosong. Dialihkan ke "${CANONICAL_NKGTS}"`);
+      }
+
+      // 6. Anomali Peran (Role)
+      const hasAcademicTitle = ACADEMIC_TITLES_REGEX.test(namaStr);
+      const indicatesTeacher = hasAcademicTitle || guruKeywordRegex.test(combinedJabatanText);
+      if (indicatesTeacher && role === RoleEnum.siswa) {
+        issues.push('Terindikasi guru/kaprodi/bergelar akademik tetapi peran terbaca sebagai siswa');
+      }
+
+      const status = hasError ? 'error' : issues.length > 0 ? 'warning' : 'valid';
+
+      previewRows.push({
+        tempId: `row_${index + 1}_${crypto.randomBytes(4).toString('hex')}`,
+        nama: namaStr,
+        email: emailStr,
+        role,
+        sekolah: targetSekolahNama || CANONICAL_NKGTS,
+        sekolah_id: targetSekolahId,
+        nis: nis || undefined,
+        kelas: kelas || undefined,
+        jurusan: jurusan || undefined,
+        no_hp: noHp || undefined,
+        tanggal_lahir: parsedTglLahir ? parsedTglLahir.toISOString() : undefined,
+        tempat_lahir: tempatLahir || undefined,
+        tahun_pendaftaran: tahunAngkatan,
+        status,
+        issues,
+      });
+    }
+
+    return {
+      totalRows: previewRows.length,
+      validCount: previewRows.filter(r => r.status === 'valid').length,
+      issueCount: previewRows.filter(r => r.status !== 'valid').length,
+      rows: previewRows,
+      availableSchools,
+    };
+  }
+
+  // 4c. Konfirmasi & Eksekusi Batch Impor Pengguna Massal
+  async confirmImportUsers(users: ImportUserRowDto[]) {
+    if (!users || !Array.isArray(users) || users.length === 0) {
+      throw new BadRequestException('Tidak ada data pengguna yang dipilih untuk diimpor');
+    }
+
+    const summary = {
+      success: 0,
+      failed: 0,
+      errors: [] as string[],
+    };
+
+    // Ambil daftar sekolah valid dari database
+    const allSekolah = (await this.prisma.sekolah.findMany()).filter(
+      s => !isInvalidSchoolName(s.nama_sekolah) && !isLikelyPersonOrCoordinator(s.nama_sekolah)
+    );
+
+    let nkgts = allSekolah.find(s => isNKGTS(s.nama_sekolah));
+    if (!nkgts) {
+      nkgts = await this.prisma.sekolah.upsert({
+        where: { nama_sekolah: CANONICAL_NKGTS },
+        update: {},
+        create: { nama_sekolah: CANONICAL_NKGTS },
+      });
+      allSekolah.push(nkgts);
+    }
+
+    // Pemrosesan batch aman (5-per-batch)
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+      const batch = users.slice(i, i + BATCH_SIZE);
+
+      await Promise.allSettled(
+        batch.map(async (row, batchIdx) => {
+          const globalIdx = i + batchIdx + 1;
+          const emailStr = (row.email || '').trim().toLowerCase();
+          const namaStr = (row.nama || '').trim();
+
+          if (!emailStr || !namaStr) {
+            summary.failed++;
+            summary.errors.push(`Baris ${globalIdx}: Email dan Nama wajib diisi`);
+            return;
+          }
+
+          // Tentukan ID sekolah
+          let targetSekolahId: number = nkgts.id;
+          if (row.sekolah_id && typeof row.sekolah_id === 'number') {
+            const found = allSekolah.find(s => s.id === row.sekolah_id);
+            if (found) targetSekolahId = found.id;
+          } else if (row.sekolah && String(row.sekolah).trim() !== '') {
+            const rawSekolah = String(row.sekolah).trim();
+            if (isNKGTS(rawSekolah)) {
+              targetSekolahId = nkgts.id;
+            } else {
+              const inputKey = getCanonicalSchoolKey(rawSekolah);
+              const matched = allSekolah.find(s => getCanonicalSchoolKey(s.nama_sekolah) === inputKey);
+              if (matched) {
+                targetSekolahId = matched.id;
+              } else if (isValidInstitutionName(rawSekolah) && !isLikelyPersonOrCoordinator(rawSekolah)) {
+                const norm = normalizeSchoolName(rawSekolah);
+                try {
+                  const newSek = await this.prisma.sekolah.create({
+                    data: { nama_sekolah: norm },
+                  });
+                  allSekolah.push(newSek);
+                  targetSekolahId = newSek.id;
+                } catch {
+                  const existing = await this.prisma.sekolah.findFirst({
+                    where: { nama_sekolah: { equals: norm, mode: 'insensitive' } },
+                  });
+                  if (existing) targetSekolahId = existing.id;
+                }
+              }
+            }
+          }
+
+          try {
+            await this.createTokenAndInvite(
+              emailStr,
+              namaStr,
+              row.role || RoleEnum.siswa,
+              targetSekolahId,
+              row.nis || undefined,
+              row.kelas || undefined,
+              row.jurusan || undefined,
+              row.no_hp || undefined,
+              row.tanggal_lahir ? new Date(row.tanggal_lahir) : undefined,
+              row.tempat_lahir || undefined,
+              row.tahun_pendaftaran || undefined
+            );
+            summary.success++;
+          } catch (err: any) {
+            summary.failed++;
+            summary.errors.push(`Baris ${globalIdx} (${emailStr}): ${err.message}`);
+          }
+        })
+      );
+    }
+
+    return {
+      message: `Proses impor selesai. Berhasil: ${summary.success}, Gagal: ${summary.failed}`,
       data: summary,
     };
   }

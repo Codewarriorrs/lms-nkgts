@@ -25,6 +25,7 @@ import { ResetProgressDto } from './dto/reset-progress.dto';
 import { ExportNilaiDto } from './dto/export-nilai.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { BulkActionDto } from './dto/bulk-action.dto';
+import { ImportConfirmDto } from './dto/import-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -76,6 +77,30 @@ export class InvitationController {
     }
     const sekolahId = sekolahIdRaw ? parseInt(sekolahIdRaw, 10) : undefined;
     return this.invitationService.importUsers(file, isNaN(sekolahId as number) ? undefined : sekolahId);
+  }
+
+  // 1b. Dry-Run / Pratinjau Import Pengguna Massal
+  @Post('admin/users/import-preview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  @UseInterceptors(FileInterceptor('file'))
+  async previewImportUsers(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('sekolah_id') sekolahIdRaw?: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Unggah file .xlsx atau .csv terlebih dahulu');
+    }
+    const sekolahId = sekolahIdRaw ? parseInt(sekolahIdRaw, 10) : undefined;
+    return this.invitationService.previewImportUsers(file, isNaN(sekolahId as number) ? undefined : sekolahId);
+  }
+
+  // 1c. Eksekusi Konfirmasi Import Pengguna Massal
+  @Post('admin/users/import-confirm')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleEnum.admin)
+  async confirmImportUsers(@Body() dto: ImportConfirmDto) {
+    return this.invitationService.confirmImportUsers(dto.users);
   }
 
   // 2. Undang pengguna secara manual
