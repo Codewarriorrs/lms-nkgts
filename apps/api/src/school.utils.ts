@@ -79,18 +79,20 @@ export function getCanonicalSchoolKey(name?: string | null): string {
     return NKGTS_CANONICAL_KEY;
   }
 
-  // Normalisasi singkatan sekolah
-  clean = clean.replace(/\bsmkn\b/g, 'smk negeri');
-  clean = clean.replace(/\bsmk\s+n\b/g, 'smk negeri');
-  clean = clean.replace(/\bsman\b/g, 'sma negeri');
-  clean = clean.replace(/\bsma\s+n\b/g, 'sma negeri');
-  clean = clean.replace(/\bsmpn\b/g, 'smp negeri');
-  clean = clean.replace(/\bsmp\s+n\b/g, 'smp negeri');
+  // 1. Ubah tanda baca dan pemisah umum menjadi spasi tunggal agar pemenggalan kata konsisten
+  clean = clean.replace(/[\-_/.]+/g, ' ');
 
-  // Typo koreksi spesifik
+  // 2. Normalisasi variasi penulisan sekolah kejuruan/menengah negeri:
+  // SMK Negeri 2 <==> SMKN 2 <==> SMKN2 <==> SMK N 2 <==> SMK 2
+  // Hapus kata "negeri" dan singkatan "n" setelah smk/sma/smp (baik berjarak spasi maupun bersambung angka)
+  clean = clean.replace(/\b(smk|sma|smp)\s*negeri\b/g, '$1');
+  clean = clean.replace(/\b(smk|sma|smp)\s+n\b/g, '$1');
+  clean = clean.replace(/\b(smk|sma|smp)n(?=\d|\b|\s)/g, '$1');
+
+  // 3. Typo koreksi spesifik
   clean = clean.replace(/\bgedangari\b/g, 'gedangsari');
 
-  // Hapus semua tanda baca & spasi
+  // 4. Hapus semua tanda baca & spasi untuk menghasilkan kunci kanonikal padat
   return clean.replace(/[\s\-_/.,'"`()]+/g, '');
 }
 

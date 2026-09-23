@@ -517,23 +517,6 @@ export class InvitationService {
 
           if (matched) {
             targetSekolahId = matched.id;
-          } else if (isValidInstitutionName(sekolahStr) && !isLikelyPersonOrCoordinator(sekolahStr)) {
-            // Hanya buat record baru jika terbukti nama institusi sekolah sah (BUKAN nama koordinator/gelar)
-            const normName = normalizeSchoolName(sekolahStr);
-            try {
-              const newSekolah = await this.prisma.sekolah.create({
-                data: { nama_sekolah: normName },
-              });
-              allSekolah.push(newSekolah);
-              targetSekolahId = newSekolah.id;
-            } catch (e) {
-              const existing = await this.prisma.sekolah.findFirst({
-                where: { nama_sekolah: { equals: normName, mode: 'insensitive' } },
-              });
-              if (existing && !isInvalidSchoolName(existing.nama_sekolah)) {
-                targetSekolahId = existing.id;
-              }
-            }
           }
         }
       }
@@ -883,8 +866,11 @@ export class InvitationService {
           if (matched) {
             targetSekolahId = matched.id;
             targetSekolahNama = matched.nama_sekolah;
-          } else if (isValidInstitutionName(sekolahStr) && !isLikelyPersonOrCoordinator(sekolahStr)) {
-            targetSekolahNama = normalizeSchoolName(sekolahStr);
+          } else {
+            // Institusi tidak cocok dengan sekolah mana pun di database
+            // DILARANG membuat sekolah otomatis: biarkan targetSekolahId undefined
+            targetSekolahNama = sekolahStr;
+            targetSekolahId = undefined;
           }
         }
       }
@@ -942,9 +928,12 @@ export class InvitationService {
       // 5. Anomali Asal Sekolah
       if (sekolahStr && isSekolahInvalid) {
         issues.push(`Nama sekolah ("${sekolahStr}") terindikasi nama koordinator / perorangan. Dialihkan ke "${targetSekolahNama || CANONICAL_NKGTS}"`);
-      } else if (sekolahStr && !targetSekolahId && targetSekolahNama) {
-        issues.push(`Institusi "${targetSekolahNama}" belum terdaftar di database (akan dibuat otomatis)`);
-      } else if (!sekolahStr && !sekolahId) {
+      } else if (sekolahStr && !targetSekolahId) {
+        issues.push(`Institusi "${sekolahStr}" belum terdaftar di database. Silakan pilih sekolah yang sesuai melalui dropdown.`);
+        hasError = true;
+      } else if (!sekolahStr && !targetSekolahId) {
+        targetSekolahId = nkgts.id;
+        targetSekolahNama = CANONICAL_NKGTS;
         issues.push(`Asal sekolah kosong. Dialihkan ke "${CANONICAL_NKGTS}"`);
       }
 
@@ -1043,20 +1032,10 @@ export class InvitationService {
               const matched = allSekolah.find(s => getCanonicalSchoolKey(s.nama_sekolah) === inputKey);
               if (matched) {
                 targetSekolahId = matched.id;
-              } else if (isValidInstitutionName(rawSekolah) && !isLikelyPersonOrCoordinator(rawSekolah)) {
-                const norm = normalizeSchoolName(rawSekolah);
-                try {
-                  const newSek = await this.prisma.sekolah.create({
-                    data: { nama_sekolah: norm },
-                  });
-                  allSekolah.push(newSek);
-                  targetSekolahId = newSek.id;
-                } catch {
-                  const existing = await this.prisma.sekolah.findFirst({
-                    where: { nama_sekolah: { equals: norm, mode: 'insensitive' } },
-                  });
-                  if (existing) targetSekolahId = existing.id;
-                }
+              } else {
+                // Institusi belum terdaftar dan DILARANG membuat sekolah baru
+                // Alihkan secara aman ke default N-KGTS Pusat
+                targetSekolahId = nkgts.id;
               }
             }
           }

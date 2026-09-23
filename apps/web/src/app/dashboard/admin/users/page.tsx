@@ -391,7 +391,6 @@ export default function AdminUsersPage() {
         setSchools(validSchools);
         if (validSchools.length > 0) {
           setInviteForm(prev => ({ ...prev, sekolah_id: validSchools[0].id.toString() }));
-          setImportSekolahId(validSchools[0].id.toString());
         }
       }
     } catch (err) {
@@ -792,8 +791,12 @@ export default function AdminUsersPage() {
       }
 
       // 3. Validasi Sekolah
-      if (!updatedRow.sekolah_id && !updatedRow.sekolah) {
-        issues.push('Asal sekolah belum dipilih');
+      if (!updatedRow.sekolah_id) {
+        if (updatedRow.sekolah) {
+          issues.push(`Institusi "${updatedRow.sekolah}" belum terdaftar di database. Silakan pilih sekolah yang sesuai melalui dropdown.`);
+        } else {
+          issues.push('Asal sekolah belum dipilih');
+        }
         hasError = true;
       }
 
@@ -1459,7 +1462,11 @@ export default function AdminUsersPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full md:w-auto">
           <button
-            onClick={() => setIsImportModalOpen(true)}
+            onClick={() => {
+              setImportSekolahId("");
+              setImportFile(null);
+              setIsImportModalOpen(true);
+            }}
             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border border-neutral-200 bg-white text-neutral-700 shadow-xs hover:bg-neutral-50 transition duration-200 cursor-pointer w-full"
           >
             <Upload size={15} />
@@ -2586,11 +2593,11 @@ export default function AdminUsersPage() {
                 >
                   <option value="">-- Otomatis dibaca dari kolom Asal Sekolah di File --</option>
                   {schools.map(s => (
-                    <option key={s.id} value={s.id}>{s.nama_sekolah}</option>
+                    <option key={s.id} value={s.id.toString()}>{s.nama_sekolah}</option>
                   ))}
                 </select>
                 <p className="text-[11px] text-neutral-400 mt-1">
-                  Sistem akan otomatis mendeteksi nama sekolah dari kolom <strong>Asal Sekolah</strong> per baris di file Excel/CSV.
+                  Sistem otomatis mendeteksi nama sekolah dari kolom <strong>Asal Sekolah</strong> per baris di file Excel/CSV. Pilihan ini murni berfungsi sebagai cadangan jika baris di berkas benar-benar kosong.
                 </p>
               </div>
 
@@ -2900,9 +2907,11 @@ export default function AdminUsersPage() {
                                     handleUpdateRowFields(row.tempId, { sekolah_id: undefined });
                                   }
                                 }}
-                                className="w-full px-2 py-1.5 border border-neutral-200 rounded-lg text-xs bg-white focus:outline-none focus:border-blue-500 text-neutral-700 cursor-pointer"
+                                className={`w-full px-2 py-1.5 border rounded-lg text-xs bg-white focus:outline-none focus:border-blue-500 cursor-pointer ${
+                                  !row.sekolah_id ? "border-rose-400 text-rose-700 bg-rose-50/20 font-bold" : "border-neutral-200 text-neutral-700"
+                                }`}
                               >
-                                <option value="">-- Pilih Sekolah --</option>
+                                <option value="">-- Pilih Sekolah Terdaftar --</option>
                                 {previewData.availableSchools.map((s) => (
                                   <option key={s.id} value={s.id}>
                                     {s.nama_sekolah}
@@ -2910,8 +2919,8 @@ export default function AdminUsersPage() {
                                 ))}
                               </select>
                               {row.sekolah && !row.sekolah_id && (
-                                <span className="text-[10px] text-neutral-400 block mt-1 truncate">
-                                  Teks: {row.sekolah}
+                                <span className="text-[10px] text-rose-600 font-semibold block mt-1 truncate" title={`Institusi di berkas: ${row.sekolah}`}>
+                                  Di berkas: {row.sekolah}
                                 </span>
                               )}
                             </td>
@@ -3092,15 +3101,22 @@ export default function AdminUsersPage() {
                                 handleUpdateRowFields(row.tempId, { sekolah_id: undefined });
                               }
                             }}
-                            className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs bg-white font-medium text-neutral-700"
+                            className={`w-full px-3 py-2 border rounded-xl text-xs bg-white font-medium ${
+                              !row.sekolah_id ? "border-rose-400 text-rose-700 bg-rose-50/20 font-bold" : "border-neutral-200 text-neutral-700"
+                            }`}
                           >
-                            <option value="">-- Pilih Sekolah --</option>
+                            <option value="">-- Pilih Sekolah Terdaftar --</option>
                             {previewData.availableSchools.map((s) => (
                               <option key={s.id} value={s.id}>
                                 {s.nama_sekolah}
                               </option>
                             ))}
                           </select>
+                          {row.sekolah && !row.sekolah_id && (
+                            <span className="text-[10px] text-rose-600 font-semibold block mt-1 truncate" title={`Institusi di berkas: ${row.sekolah}`}>
+                              Di berkas: {row.sekolah}
+                            </span>
+                          )}
                         </div>
 
                         {/* Grid NIS & Kelas */}
