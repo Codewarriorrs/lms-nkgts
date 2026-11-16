@@ -19,7 +19,7 @@ export default function EmailContactSettingsPage() {
 
   // Form State
   const [cpName, setCpName] = useState("Admin N-KGTS");
-  const [cpWhatsapp, setCpWhatsapp] = useState("6281234567890");
+  const [cpWhatsapp, setCpWhatsapp] = useState("6287786266612");
 
   // Status
   const [loading, setLoading] = useState(false);
@@ -62,7 +62,7 @@ export default function EmailContactSettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Gagal mengambil pengaturan kontak");
       setCpName(data.cp_name || "Admin N-KGTS");
-      setCpWhatsapp(data.cp_whatsapp || "6281234567890");
+      setCpWhatsapp(data.cp_whatsapp || "6287786266612");
     } catch (err: any) {
       setErrorMsg(err.message);
     } finally {
@@ -175,7 +175,7 @@ export default function EmailContactSettingsPage() {
                   required
                   value={cpWhatsapp}
                   onChange={(e) => setCpWhatsapp(e.target.value)}
-                  placeholder="Contoh: 6281234567890 (Gunakan format angka tanpa +)"
+                  placeholder="Contoh: 6287786266612 (Gunakan format angka tanpa +)"
                   className="w-full pl-10 pr-4 py-2.5 border border-neutral-100 rounded-xl text-sm font-mono focus:outline-none focus:border-primary transition duration-200"
                 />
               </div>
@@ -248,7 +248,7 @@ export default function EmailContactSettingsPage() {
                   <p className="text-neutral-700">
                     WhatsApp:{" "}
                     <span className="text-primary font-bold hover:underline" style={{ color: "#1A3F8F" }}>
-                      +{cpWhatsapp || "6281234567890"}
+                      +{cpWhatsapp || "6287786266612"}
                     </span>
                   </p>
                 </div>

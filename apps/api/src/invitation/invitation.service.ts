@@ -56,12 +56,12 @@ export class InvitationService {
     const cpWaSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_whatsapp' } });
 
     const cpName = cpNameSettings?.value || 'Admin N-KGTS';
-    let rawCpWa = cpWaSettings?.value || '6281234567890';
+    let rawCpWa = cpWaSettings?.value || '6287786266612';
     let cpWa = rawCpWa.replace(/\D/g, '');
     if (cpWa.startsWith('0')) {
       cpWa = '62' + cpWa.slice(1);
     }
-    if (!cpWa) cpWa = '6281234567890';
+    if (!cpWa) cpWa = '6287786266612';
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const activationLink = `${frontendUrl}/register?token=${token}`;
@@ -1227,7 +1227,7 @@ export class InvitationService {
 
     return {
       cp_name: cpName?.value || 'Admin N-KGTS',
-      cp_whatsapp: cpWa?.value || '6281234567890',
+      cp_whatsapp: cpWa?.value || '6287786266612',
     };
   }
 
@@ -1596,12 +1596,12 @@ export class InvitationService {
     const cpWaSettings = await this.prisma.settings.findUnique({ where: { key: 'cp_whatsapp' } });
 
     const cpName = cpNameSettings?.value || 'Admin N-KGTS';
-    let rawCpWa = cpWaSettings?.value || '6281234567890';
+    let rawCpWa = cpWaSettings?.value || '6287786266612';
     let cpWa = rawCpWa.replace(/\D/g, '');
     if (cpWa.startsWith('0')) {
       cpWa = '62' + cpWa.slice(1);
     }
-    if (!cpWa) cpWa = '6281234567890';
+    if (!cpWa) cpWa = '6287786266612';
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;

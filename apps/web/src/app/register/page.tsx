@@ -28,7 +28,7 @@ function RegisterContent() {
   
   // Data states
   const [tokenInfo, setTokenInfo] = useState<any>(null);
-  const [cpInfo, setCpInfo] = useState<any>({ cp_name: "Admin N-KGTS", cp_whatsapp: "6281234567890" });
+  const [cpInfo, setCpInfo] = useState<any>({ cp_name: "Admin N-KGTS", cp_whatsapp: "6287786266612" });
   
   // Form states
   const [password, setPassword] = useState("");
